@@ -61,6 +61,7 @@ RUN pip install --no-cache-dir \
     pytorch-metric-learning \
     python-louvain \
     scikit-learn \
+    torchnet \
     jaklas \
     dask \
     pykdtree \
