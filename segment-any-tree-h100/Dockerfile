@@ -62,6 +62,11 @@ RUN pip install --no-cache-dir \
     python-louvain \
     scikit-learn \
     torchnet \
+    torchfile \
+    tensorboard \
+    visdom \
+    pandas \
+    tqdm \
     jaklas \
     dask \
     pykdtree \
