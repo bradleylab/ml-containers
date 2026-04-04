@@ -1,0 +1,80 @@
+ARG PYTORCH="2.7.0"
+ARG CUDA="12.8"
+ARG CUDNN="9"
+FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-devel AS builder
+
+ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
+ENV TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0"
+ENV CMAKE_CUDA_ARCHITECTURES="70;75;80;86;89;90"
+ENV FORCE_CUDA=1
+
+# System deps (MinkowskiEngine build + SegmentAnyTree runtime)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ninja-build cmake build-essential libopenblas-dev \
+    libsparsehash-dev libtbb-dev libglib2.0-0 libglu1-mesa-dev \
+    libosmesa6-dev libsm6 libusb-1.0-0-dev libxcb-shm0 libxext6 \
+    libxrender-dev libsndfile1 wget unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Patch: std::to_address vs cuda::std::to_address collision (issue #596)
+RUN sed -i 's/\bauto __raw = __to_address(__r.get());/auto __raw = std::__to_address(__r.get());/' \
+    /usr/include/c++/11/bits/shared_ptr_base.h || true
+
+# Build MinkowskiEngine from CUDA 12 fork
+# (Includes thrust namespace fixes and NVTX_DISABLE patch)
+WORKDIR /workspace
+RUN git clone https://github.com/CiSong10/MinkowskiEngine.git && \
+    cd MinkowskiEngine && \
+    git checkout cuda12-installation && \
+    python setup.py install --force_cuda --blas=openblas && \
+    cd .. && rm -rf MinkowskiEngine
+
+# PyG ecosystem for PyTorch 2.7 + CUDA 12.8
+RUN pip install --no-cache-dir \
+    torch-scatter torch-sparse torch-cluster torch-spline-conv \
+    -f https://data.pyg.org/whl/torch-2.7.0+cu128.html && \
+    pip install --no-cache-dir torch-geometric
+
+# torchsparse
+RUN pip install --no-cache-dir \
+    git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
+
+# torch-points-kernels
+RUN pip install --no-cache-dir torch-points-kernels
+
+# SegmentAnyTree Python deps (updated for Python 3.10 compat)
+RUN pip install --no-cache-dir \
+    hydra-core==1.0.7 \
+    omegaconf==2.0.6 \
+    wandb \
+    open3d \
+    laspy[lazrs] \
+    plyfile \
+    h5py \
+    scipy \
+    numba \
+    numpy \
+    matplotlib \
+    seaborn \
+    gdown \
+    pytorch-metric-learning \
+    python-louvain \
+    scikit-learn \
+    jaklas \
+    dask \
+    pykdtree \
+    cython \
+    hdbscan
+
+# Clone SegmentAnyTree
+RUN git clone https://github.com/SmartForest-no/SegmentAnyTree.git /home/nibio/mutable-outside-world
+
+WORKDIR /home/nibio/mutable-outside-world
+
+# Create directories the pipeline expects
+RUN mkdir -p /home/datascience/docker_in_folder \
+    /home/datascience/tmp_out_folder \
+    bucket_in_folder \
+    bucket_out_folder
+
+ENTRYPOINT ["bash", "run_oracle_pipeline.sh"]
