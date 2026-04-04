@@ -35,11 +35,12 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir \
     git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
 
-# Pin numpy and cython before torch-points-kernels
-RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0"
-
-# torch-points-kernels (drop version pin — 0.7.0 needs ancient cython)
-RUN pip install --no-cache-dir --no-build-isolation torch-points-kernels
+# torch-points-kernels requires numpy<=1.21 at build time (abandoned dep).
+# Install old numpy, build the package, then upgrade numpy for runtime.
+RUN pip install --no-cache-dir "numpy==1.24.4" "cython<3.0"
+RUN pip install --no-cache-dir "numpy==1.19.5" && \
+    pip install --no-cache-dir torch-points-kernels==0.7.0 && \
+    pip install --no-cache-dir "numpy==1.24.4"
 
 # SegmentAnyTree Python deps
 RUN pip install --no-cache-dir \

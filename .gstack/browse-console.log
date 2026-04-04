@@ -1,0 +1,28 @@
+[2026-04-04T14:58:40.788Z] [error] Failed to load resource: the server responded with a status of 404 ()
+[2026-04-04T14:58:41.054Z] [error] Failed to load resource: the server responded with a status of 500 ()
+[2026-04-04T14:59:19.802Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'ambient-light-sensor'.
+[2026-04-04T14:59:19.802Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'battery'.
+[2026-04-04T14:59:19.802Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'document-domain'.
+[2026-04-04T14:59:19.802Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'execution-while-not-rendered'.
+[2026-04-04T14:59:19.802Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'execution-while-out-of-viewport'.
+[2026-04-04T14:59:19.802Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'speaker-selection'.
+[2026-04-04T14:59:19.802Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'web-share'.
+[2026-04-04T14:59:19.927Z] [error] Failed to load resource: the server responded with a status of 404 ()
+[2026-04-04T14:59:19.929Z] [log] Challenge: UcSdT3i78edlub43 => b55f1ff44578f32029d7946cdc1471e4368c2c3e7e61745ab00f4412cb03572e
+[2026-04-04T14:59:19.930Z] [log] found answer: a4
+[2026-04-04T14:59:20.137Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'ambient-light-sensor'.
+[2026-04-04T14:59:20.137Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'battery'.
+[2026-04-04T14:59:20.137Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'document-domain'.
+[2026-04-04T14:59:20.137Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'execution-while-not-rendered'.
+[2026-04-04T14:59:20.137Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'execution-while-out-of-viewport'.
+[2026-04-04T14:59:20.137Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'speaker-selection'.
+[2026-04-04T14:59:20.137Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'web-share'.
+[2026-04-04T14:59:20.141Z] [error] Executing inline script violates the following Content Security Policy directive 'script-src 'self' https://analytics.python.org *.ethicalads.io 'sha256-U3hKDidudIaxBDEzwGJApJgPEf2mWk6cfMWghrAa6i0=' https://cdn.jsdelivr.net/npm/mathjax@3.2.2/ 'sha256-1CldwzdEg2k1wTmf7s5RWVd7NMXI/7nxxjJM2C4DqII=' 'sha256-0POaN8stWYQxhzjKS+/eOfbbJ/u4YHO5ZagJvLpMypo=''. Either the 'unsafe-inline' keyword, a hash ('sha256-JWqrGPvoOkvDaFftW6gQDgBPXEOHDovWO0Gbr0x/Y+s='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+[2026-04-04T14:59:20.451Z] [error] Failed to load resource: net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin
+[2026-04-04T14:59:28.073Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'ambient-light-sensor'.
+[2026-04-04T14:59:28.074Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'battery'.
+[2026-04-04T14:59:28.074Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'document-domain'.
+[2026-04-04T14:59:28.074Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'execution-while-not-rendered'.
+[2026-04-04T14:59:28.074Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'execution-while-out-of-viewport'.
+[2026-04-04T14:59:28.074Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'speaker-selection'.
+[2026-04-04T14:59:28.074Z] [warning] Error with Permissions-Policy header: Unrecognized feature: 'web-share'.
