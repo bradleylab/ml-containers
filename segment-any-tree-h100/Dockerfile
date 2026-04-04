@@ -47,8 +47,8 @@ RUN git clone https://github.com/torch-points3d/torch-points-kernels.git /tmp/tp
 
 # SegmentAnyTree Python deps
 RUN pip install --no-cache-dir \
-    hydra-core==1.3.2 \
-    omegaconf==2.3.0 \
+    hydra-core==1.0.7 \
+    omegaconf==2.0.6 \
     wandb \
     open3d \
     "laspy[lazrs]" \
@@ -73,6 +73,10 @@ RUN pip install --no-cache-dir \
     pykdtree \
     cython \
     hdbscan
+
+# Patch hydra 1.0.7 for Python 3.10 (print_exception etype kwarg removed)
+RUN sed -i 's/print_exception(etype=None, value=ex, tb=final_tb)/print_exception(ex, tb=final_tb)/' \
+    /opt/conda/lib/python3.10/site-packages/hydra/_internal/utils.py || true
 
 # Clone SegmentAnyTree
 RUN git clone https://github.com/SmartForest-no/SegmentAnyTree.git /home/nibio/mutable-outside-world
