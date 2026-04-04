@@ -87,6 +87,11 @@ WORKDIR /home/nibio/mutable-outside-world
 RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
     find . -name "*.py" -exec sed -i 's/data\.keys()()/data.keys()/g' {} +
 
+# Patch torch_points_kernels device mismatch in region_grow
+# Move index tensor to same device as label_mask before indexing
+RUN sed -i 's/local_ind = ind\[label_mask\]/local_ind = ind.to(label_mask.device)[label_mask]/' \
+    /opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py || true
+
 # Create directories the pipeline expects
 RUN mkdir -p /home/datascience/docker_in_folder \
     /home/datascience/tmp_out_folder \
