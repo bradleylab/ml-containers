@@ -35,8 +35,11 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir \
     git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
 
+# Pin numpy before torch-points-kernels to avoid ancient numpy build
+RUN pip install --no-cache-dir "numpy>=1.24,<2.0"
+
 # torch-points-kernels
-RUN pip install --no-cache-dir torch-points-kernels==0.7.0
+RUN pip install --no-cache-dir --no-build-isolation torch-points-kernels==0.7.0
 
 # SegmentAnyTree Python deps
 RUN pip install --no-cache-dir \
@@ -49,7 +52,6 @@ RUN pip install --no-cache-dir \
     h5py \
     scipy \
     numba \
-    numpy \
     matplotlib \
     seaborn \
     gdown \
