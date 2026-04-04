@@ -74,14 +74,18 @@ RUN pip install --no-cache-dir \
     cython \
     hdbscan
 
-# Patch hydra 1.0.7 for Python 3.10 (print_exception etype kwarg removed)
-RUN sed -i 's/print_exception(etype=None, value=ex, tb=final_tb)/print_exception(ex, tb=final_tb)/' \
+# Patch hydra 1.0.7 for Python 3.10 (print_exception etype kwarg removed in 3.10)
+RUN sed -i 's/print_exception(etype=None, value=ex, tb=final_tb)/print_exception(ex)/' \
     /opt/conda/lib/python3.10/site-packages/hydra/_internal/utils.py || true
 
 # Clone SegmentAnyTree
 RUN git clone https://github.com/SmartForest-no/SegmentAnyTree.git /home/nibio/mutable-outside-world
 
 WORKDIR /home/nibio/mutable-outside-world
+
+# Patch torch_points3d for PyG 2.x (data.keys is now a method, not property)
+RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
+    find . -name "*.py" -exec sed -i 's/data\.keys()()/data.keys()/g' {} +
 
 # Create directories the pipeline expects
 RUN mkdir -p /home/datascience/docker_in_folder \
