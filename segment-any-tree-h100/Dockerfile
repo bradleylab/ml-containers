@@ -2,7 +2,7 @@
 # Stays on CUDA 11.8 ecosystem where both MinkowskiEngine and torchsparse compile,
 # but includes PTX for sm_90 so H100 can JIT-compile at runtime.
 # Uses PyTorch base image to get Python 3.10 + torch 2.0.1 + CUDA 11.8 pre-installed.
-FROM pytorch/pytorch:2.0.1-cuda11.8-cudnn8-devel
+FROM pytorch/pytorch:2.2.2-cuda11.8-cudnn8-devel
 
 ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
 ENV TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0+PTX"
@@ -28,8 +28,8 @@ RUN git clone https://github.com/NVIDIA/MinkowskiEngine.git && \
 # PyG ecosystem for PyTorch 2.0.1 + CUDA 11.8
 RUN pip install --no-cache-dir \
     torch-scatter torch-sparse torch-cluster torch-spline-conv \
-    -f https://data.pyg.org/whl/torch-2.0.1+cu118.html && \
-    pip install --no-cache-dir torch-geometric==2.3.1
+    -f https://data.pyg.org/whl/torch-2.2.2+cu118.html && \
+    pip install --no-cache-dir torch-geometric==2.5.3
 
 # torchsparse v1.4.0
 RUN pip install --no-cache-dir \
