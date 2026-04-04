@@ -15,7 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git ninja-build cmake build-essential libopenblas-dev \
     libsparsehash-dev libtbb-dev libglib2.0-0 libglu1-mesa-dev \
     libosmesa6-dev libsm6 libusb-1.0-0-dev libxcb-shm0 libxext6 \
-    libxrender-dev libsndfile1 wget unzip \
+    libxrender-dev libsndfile1 wget unzip git-lfs \
+    && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
 # Build MinkowskiEngine from source with PTX for sm_90
@@ -46,8 +47,8 @@ RUN git clone https://github.com/torch-points3d/torch-points-kernels.git /tmp/tp
 
 # SegmentAnyTree Python deps
 RUN pip install --no-cache-dir \
-    hydra-core==1.0.7 \
-    omegaconf==2.0.6 \
+    hydra-core==1.3.2 \
+    omegaconf==2.3.0 \
     wandb \
     open3d \
     "laspy[lazrs]" \
