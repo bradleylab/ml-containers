@@ -103,9 +103,17 @@ WORKDIR /home/nibio/mutable-outside-world
 RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
     find . -name "*.py" -exec sed -i 's/data\.keys()()/data.keys()/g' {} +
 
-# Patch torch_points_kernels device mismatch in region_grow
-RUN sed -i 's/local_ind = ind\[label_mask\]/local_ind = ind.to(label_mask.device)[label_mask]/' \
-    /opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py || true
+# Patch torch_points_kernels: ensure all tensors on same device in region_grow
+# The sed may miss due to whitespace; use python to patch reliably
+RUN python3 -c "
+import pathlib
+p = pathlib.Path('/opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py')
+code = p.read_text()
+code = code.replace('local_ind = ind[label_mask]', 'local_ind = ind.to(label_mask.device)[label_mask]')
+code = code.replace('local_xyz = xyz[label_mask]', 'local_xyz = xyz.to(label_mask.device)[label_mask]')
+p.write_text(code)
+print('Patched cluster.py')
+"
 
 # Fix MeanShift multiprocessing deadlock in containers (saookami debug finding)
 # Replace pool.map() with sequential execution to prevent child process deadlock
