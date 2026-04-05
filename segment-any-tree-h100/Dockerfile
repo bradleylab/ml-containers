@@ -104,9 +104,19 @@ RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
     find . -name "*.py" -exec sed -i 's/data\.keys()()/data.keys()/g' {} +
 
 # Patch torch_points_kernels device mismatch in region_grow
-# Move index tensor to same device as label_mask before indexing
 RUN sed -i 's/local_ind = ind\[label_mask\]/local_ind = ind.to(label_mask.device)[label_mask]/' \
     /opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py || true
+
+# Fix MeanShift multiprocessing deadlock in containers (saookami debug finding)
+# Replace pool.map() with sequential execution to prevent child process deadlock
+RUN sed -i 's/results = pool.map(partial_meanshift_cluster, all_clusters)/results = [partial_meanshift_cluster(args) for args in all_clusters]/' \
+    torch_points3d/utils/meanshift_cluster.py && \
+    sed -i 's/results = pool.map(meanshift_cluster, all_clusters)/results = [meanshift_cluster(args) for args in all_clusters]/' \
+    torch_points3d/utils/meanshift_cluster.py
+
+# Remove PyG 2.x ptr attribute that breaks torch_points3d Batch
+RUN sed -i '/from_data_list/a\        if hasattr(batch, "ptr"): delattr(batch, "ptr")' \
+    torch_points3d/datasets/batch.py || true
 
 # Create directories the pipeline expects
 RUN mkdir -p /home/datascience/docker_in_folder \
