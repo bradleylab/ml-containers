@@ -125,10 +125,10 @@ RUN sed -i 's/results = pool.map(partial_meanshift_cluster, all_clusters)/result
 RUN sed -i '/from_data_list/a\        if hasattr(batch, "ptr"): delattr(batch, "ptr")' \
     torch_points3d/datasets/batch.py || true
 
-# Fix NaN-to-integer cast in merge step (pandas_to_las.py)
-# Outer join introduces NaN in columns that target uint16/int types
-RUN sed -i 's/las_file\[column\] = df\[column\].astype(standard_columns_with_data_types\[column\])/las_file[column] = df[column].fillna(0).astype(standard_columns_with_data_types[column])/' nibio_inference/pandas_to_las.py && \
-    sed -i 's/las_file\[column\] = df\[column\].astype(extended_columns_with_data_types\[column\])/las_file[column] = df[column].fillna(0).astype(extended_columns_with_data_types[column])/' nibio_inference/pandas_to_las.py
+# Fix float-to-integer cast in merge step (pandas_to_las.py)
+# Outer join introduces NaN and float values in columns targeting uint16/int types
+# Need fillna(0) + round() + astype() via numpy to avoid pandas lossy cast error
+RUN python3 -c "import pathlib; p = pathlib.Path('nibio_inference/pandas_to_las.py'); c = p.read_text(); c = c.replace('las_file[column] = df[column].astype(standard_columns_with_data_types[column])', 'las_file[column] = df[column].fillna(0).values.round().astype(standard_columns_with_data_types[column])'); c = c.replace('las_file[column] = df[column].astype(extended_columns_with_data_types[column])', 'las_file[column] = df[column].fillna(0).values.round().astype(extended_columns_with_data_types[column])'); p.write_text(c); print('Patched pandas_to_las.py')"
 
 # Create all directories the pipeline expects
 RUN mkdir -p /home/datascience/docker_in_folder \
