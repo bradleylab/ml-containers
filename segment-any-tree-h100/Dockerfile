@@ -86,6 +86,7 @@ RUN pip install --no-cache-dir \
     tqdm \
     jaklas \
     dask \
+    pyarrow \
     pykdtree \
     cython \
     hdbscan
