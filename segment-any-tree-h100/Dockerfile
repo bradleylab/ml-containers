@@ -124,9 +124,13 @@ RUN sed -i 's/results = pool.map(partial_meanshift_cluster, all_clusters)/result
 RUN sed -i '/from_data_list/a\        if hasattr(batch, "ptr"): delattr(batch, "ptr")' \
     torch_points3d/datasets/batch.py || true
 
-# Create directories the pipeline expects
+# Create all directories the pipeline expects
 RUN mkdir -p /home/datascience/docker_in_folder \
+    /home/datascience/docker_out_folder \
+    /home/datascience/docker_out_folder/final_results \
+    /home/datascience/tmp_in_folder \
     /home/datascience/tmp_out_folder \
+    /home/datascience/results \
     bucket_in_folder \
     bucket_out_folder
 
