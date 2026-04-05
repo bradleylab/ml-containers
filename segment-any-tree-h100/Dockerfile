@@ -1,11 +1,9 @@
-# SegmentAnyTree for H100 (sm_90 via PTX forward-compatibility)
-# Stays on CUDA 11.8 ecosystem where both MinkowskiEngine and torchsparse compile,
-# but includes PTX for sm_90 so H100 can JIT-compile at runtime.
-# Uses PyTorch base image to get Python 3.10 + torch 2.0.1 + CUDA 11.8 pre-installed.
-FROM pytorch/pytorch:2.2.2-cuda11.8-cudnn8-devel
+# SegmentAnyTree for H100 (native sm_90 via CUDA 12.8)
+# Uses CiSong10 MinkowskiEngine fork for CUDA 12 + patched torchsparse for PyTorch 2.2.
+FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel
 
 ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
-ENV TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0+PTX"
+ENV TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0"
 ENV CMAKE_CUDA_ARCHITECTURES="70;75;80;86;89;90"
 ENV FORCE_CUDA=1
 ENV DEBIAN_FRONTEND=noninteractive
@@ -19,22 +17,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
-# Build MinkowskiEngine from source with PTX for sm_90
+# Patch std::to_address collision with CUDA 12 (issue #596)
+RUN sed -i 's/\bauto __raw = __to_address(__r.get());/auto __raw = std::__to_address(__r.get());/' \
+    /usr/include/c++/11/bits/shared_ptr_base.h || true
+
+# Build MinkowskiEngine from CiSong10 CUDA 12 fork (native sm_90)
 WORKDIR /workspace
-RUN git clone https://github.com/NVIDIA/MinkowskiEngine.git && \
+RUN git clone https://github.com/CiSong10/MinkowskiEngine.git && \
     cd MinkowskiEngine && \
+    git checkout cuda12-installation && \
     python setup.py install --force_cuda --blas=openblas && \
     cd .. && rm -rf MinkowskiEngine
 
 # PyG ecosystem for PyTorch 2.0.1 + CUDA 11.8
 RUN pip install --no-cache-dir \
     torch-scatter torch-sparse torch-cluster torch-spline-conv \
-    -f https://data.pyg.org/whl/torch-2.2.2+cu118.html && \
+    -f https://data.pyg.org/whl/torch-2.2.2+cu121.html && \
     pip install --no-cache-dir torch-geometric==2.5.3
 
-# torchsparse v1.4.0
-RUN pip install --no-cache-dir \
-    git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
+# torchsparse v1.4.0 — patched for PyTorch 2.2+
+# PyTorch deprecated Tensor.type() (returns DeprecatedTypeProperties); the
+# AT_DISPATCH macros now require c10::ScalarType from .scalar_type() instead.
+# Affects 9 call sites across 3 CUDA files. See:
+#   https://github.com/NVIDIAGameWorks/kaolin/issues/865 (identical fix)
+#   https://github.com/pytorch/pytorch/issues/29161 (deprecation tracking)
+RUN git clone --depth 1 --branch v1.4.0 https://github.com/mit-han-lab/torchsparse.git /tmp/torchsparse && \
+    cd /tmp/torchsparse && \
+    sed -i 's/\.type()/\.scalar_type()/g' \
+        torchsparse/backend/convolution/convolution_cuda.cu \
+        torchsparse/backend/devoxelize/devoxelize_cuda.cu \
+        torchsparse/backend/voxelize/voxelize_cuda.cu && \
+    pip install --no-cache-dir --no-build-isolation . && \
+    rm -rf /tmp/torchsparse
 
 # torch-points-kernels: PyPI 0.7.0 pins numpy<=1.21 which won't install on
 # Python 3.10. Clone master, patch out the numpy constraint, build in-place.
