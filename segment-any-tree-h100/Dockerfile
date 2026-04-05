@@ -106,8 +106,12 @@ RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
 # Patch torch_points_kernels: ensure all tensors on same device in region_grow
 RUN python3 -c "import pathlib; p = pathlib.Path('/opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py'); c = p.read_text(); c = c.replace('local_ind = ind[label_mask]', 'local_ind = ind.to(label_mask.device)[label_mask]'); c = c.replace('local_xyz = xyz[label_mask]', 'local_xyz = xyz.to(label_mask.device)[label_mask]'); p.write_text(c); print('Patched cluster.py')"
 
-# Patch PointGroup3heads CPU/GPU device mismatches throughout
-RUN python3 -c "import pathlib; p = pathlib.Path('torch_points3d/models/panoptic/PointGroup3heads.py'); c = p.read_text(); c = c.replace('self.input.coords[cluster]', 'self.input.coords.to(cluster.device)[cluster]'); c = c.replace('self.input.pos[cluster]', 'self.input.pos.to(cluster.device)[cluster]'); p.write_text(c); print('Patched PointGroup3heads.py')"
+# CPU/GPU device mismatch fixes — PyTorch 2.2+ is strict about mixed-device indexing
+# Move GPU cluster indices to CPU before indexing CPU tensors
+RUN sed -i 's/self\.input\.coords\[cluster\]/self.input.coords[cluster.cpu()]/g' torch_points3d/models/panoptic/PointGroup3heads.py && \
+    sed -i 's/self\.input\.pos\[cluster\]/self.input.pos[cluster.cpu()]/g' torch_points3d/models/panoptic/PointGroup3heads.py && \
+    sed -i 's/originids\[cluster\]/originids[cluster.cpu()]/g' torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py && \
+    sed -i 's/\[originids\[valid_c_idx\]/[originids[valid_c_idx.cpu() if hasattr(valid_c_idx,"cpu") else valid_c_idx]/g' torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py || true
 
 # Fix MeanShift multiprocessing deadlock in containers (saookami debug finding)
 # Replace pool.map() with sequential execution to prevent child process deadlock
