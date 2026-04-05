@@ -50,14 +50,14 @@ RUN git clone --depth 1 --branch v1.4.0 https://github.com/mit-han-lab/torchspar
     pip install --no-cache-dir --no-build-isolation . && \
     rm -rf /tmp/torchsparse
 
-# torch-points-kernels: PyPI 0.7.0 pins numpy<=1.21 which won't install on
-# Python 3.10. Clone master, patch numpy constraint, build CPU-only
-# (CUDA kernels fail on CUDA 12; only CPU clustering is used at inference).
+# torch-points-kernels: patch for CUDA 12 + PyTorch 2.2 + numpy constraint
 RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0"
-RUN FORCE_CUDA=0 && export FORCE_CUDA && \
-    git clone https://github.com/torch-points3d/torch-points-kernels.git /tmp/tpk && \
+RUN git clone https://github.com/torch-points3d/torch-points-kernels.git /tmp/tpk && \
     cd /tmp/tpk && \
     sed -i 's/"numpy<=1.21"/"numpy"/g' setup.py && \
+    sed -i 's/-arch=sm_35/-arch=sm_50/g' setup.py && \
+    sed -i 's/isIntegralType(/at::isIntegralType(/g' cuda/include/utils.h && \
+    sed -i 's/isFloatingType(/at::isFloatingType(/g' cuda/include/utils.h && \
     pip install --no-cache-dir . && \
     rm -rf /tmp/tpk
 
