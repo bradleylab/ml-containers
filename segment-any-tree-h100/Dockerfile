@@ -125,6 +125,11 @@ RUN sed -i 's/results = pool.map(partial_meanshift_cluster, all_clusters)/result
 RUN sed -i '/from_data_list/a\        if hasattr(batch, "ptr"): delattr(batch, "ptr")' \
     torch_points3d/datasets/batch.py || true
 
+# Fix NaN-to-integer cast in merge step (pandas_to_las.py)
+# Outer join introduces NaN in columns that target uint16/int types
+RUN sed -i 's/las_file\[column\] = df\[column\].astype(standard_columns_with_data_types\[column\])/las_file[column] = df[column].fillna(0).astype(standard_columns_with_data_types[column])/' nibio_inference/pandas_to_las.py && \
+    sed -i 's/las_file\[column\] = df\[column\].astype(extended_columns_with_data_types\[column\])/las_file[column] = df[column].fillna(0).astype(extended_columns_with_data_types[column])/' nibio_inference/pandas_to_las.py
+
 # Create all directories the pipeline expects
 RUN mkdir -p /home/datascience/docker_in_folder \
     /home/datascience/docker_out_folder \
