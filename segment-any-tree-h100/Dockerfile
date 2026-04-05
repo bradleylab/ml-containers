@@ -106,6 +106,9 @@ RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
 # Patch torch_points_kernels: ensure all tensors on same device in region_grow
 RUN python3 -c "import pathlib; p = pathlib.Path('/opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py'); c = p.read_text(); c = c.replace('local_ind = ind[label_mask]', 'local_ind = ind.to(label_mask.device)[label_mask]'); c = c.replace('local_xyz = xyz[label_mask]', 'local_xyz = xyz.to(label_mask.device)[label_mask]'); p.write_text(c); print('Patched cluster.py')"
 
+# Patch PointGroup3heads CPU/GPU device mismatches throughout
+RUN python3 -c "import pathlib; p = pathlib.Path('torch_points3d/models/panoptic/PointGroup3heads.py'); c = p.read_text(); c = c.replace('self.input.coords[cluster]', 'self.input.coords.to(cluster.device)[cluster]'); c = c.replace('self.input.pos[cluster]', 'self.input.pos.to(cluster.device)[cluster]'); p.write_text(c); print('Patched PointGroup3heads.py')"
+
 # Fix MeanShift multiprocessing deadlock in containers (saookami debug finding)
 # Replace pool.map() with sequential execution to prevent child process deadlock
 RUN sed -i 's/results = pool.map(partial_meanshift_cluster, all_clusters)/results = [partial_meanshift_cluster(args) for args in all_clusters]/' \
