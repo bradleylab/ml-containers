@@ -1,5 +1,14 @@
-# SegmentAnyTree for H100 (native sm_90 via CUDA 12.8)
-# Uses CiSong10 MinkowskiEngine fork for CUDA 12 + patched torchsparse for PyTorch 2.2.
+# SegmentAnyTree for H100 (native sm_90 via CUDA 12) — v2
+# Includes post-processing improvements for UAV lidar segmentation quality.
+#
+# Changes from v1 (ghcr.io/bradleylab/segment-any-tree-h100:latest):
+#   - Patch 001: Fix block_merge_th hardcoded bug (line 473 of tracker)
+#   - Patch 002: Tunable clustering parameters via config overlay
+#   - Patch 003: Origin ID bounds clamping for multi-tile processing
+#   - Patch 004: Pure PyTorch region_grow (optional, replaces C++/CUDA dep)
+#
+# See docs/METHODS.md for full description of all modifications.
+
 FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel
 
 ENV TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
@@ -29,18 +38,13 @@ RUN git clone https://github.com/CiSong10/MinkowskiEngine.git && \
     python setup.py install --force_cuda --blas=openblas && \
     cd .. && rm -rf MinkowskiEngine
 
-# PyG ecosystem for PyTorch 2.0.1 + CUDA 11.8
+# PyG ecosystem for PyTorch 2.2.2 + CUDA 12.1
 RUN pip install --no-cache-dir \
     torch-scatter torch-sparse torch-cluster torch-spline-conv \
     -f https://data.pyg.org/whl/torch-2.2.2+cu121.html && \
     pip install --no-cache-dir torch-geometric==2.5.3
 
-# torchsparse v1.4.0 — patched for PyTorch 2.2+
-# PyTorch deprecated Tensor.type() (returns DeprecatedTypeProperties); the
-# AT_DISPATCH macros now require c10::ScalarType from .scalar_type() instead.
-# Affects 9 call sites across 3 CUDA files. See:
-#   https://github.com/NVIDIAGameWorks/kaolin/issues/865 (identical fix)
-#   https://github.com/pytorch/pytorch/issues/29161 (deprecation tracking)
+# torchsparse v1.4.0 — patched .type() → .scalar_type() for PyTorch 2.2+
 RUN git clone --depth 1 --branch v1.4.0 https://github.com/mit-han-lab/torchsparse.git /tmp/torchsparse && \
     cd /tmp/torchsparse && \
     sed -i 's/\.type()/\.scalar_type()/g' \
@@ -100,6 +104,8 @@ RUN git clone https://github.com/SmartForest-no/SegmentAnyTree.git /home/nibio/m
 
 WORKDIR /home/nibio/mutable-outside-world
 
+# --- v1 patches (CUDA 12 / PyTorch 2.2 compatibility) ---
+
 # Patch torch_points3d for PyG 2.x (data.keys is now a method, not property)
 RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
     find . -name "*.py" -exec sed -i 's/data\.keys()()/data.keys()/g' {} +
@@ -108,14 +114,12 @@ RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
 RUN python3 -c "import pathlib; p = pathlib.Path('/opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py'); c = p.read_text(); c = c.replace('local_ind = ind[label_mask]', 'local_ind = ind.to(label_mask.device)[label_mask]'); c = c.replace('local_xyz = xyz[label_mask]', 'local_xyz = xyz.to(label_mask.device)[label_mask]'); p.write_text(c); print('Patched cluster.py')"
 
 # CPU/GPU device mismatch fixes — PyTorch 2.2+ is strict about mixed-device indexing
-# Move GPU cluster indices to CPU before indexing CPU tensors
 RUN sed -i 's/self\.input\.coords\[cluster\]/self.input.coords[cluster.cpu()]/g' torch_points3d/models/panoptic/PointGroup3heads.py && \
     sed -i 's/self\.input\.pos\[cluster\]/self.input.pos[cluster.cpu()]/g' torch_points3d/models/panoptic/PointGroup3heads.py && \
     sed -i 's/originids\[cluster\]/originids[cluster.cpu()]/g' torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py && \
     sed -i 's/\[originids\[valid_c_idx\]/[originids[valid_c_idx.cpu() if hasattr(valid_c_idx,"cpu") else valid_c_idx]/g' torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py || true
 
-# Fix MeanShift multiprocessing deadlock in containers (saookami debug finding)
-# Replace pool.map() with sequential execution to prevent child process deadlock
+# Fix MeanShift multiprocessing deadlock in containers
 RUN sed -i 's/results = pool.map(partial_meanshift_cluster, all_clusters)/results = [partial_meanshift_cluster(args) for args in all_clusters]/' \
     torch_points3d/utils/meanshift_cluster.py && \
     sed -i 's/results = pool.map(meanshift_cluster, all_clusters)/results = [meanshift_cluster(args) for args in all_clusters]/' \
@@ -126,9 +130,35 @@ RUN sed -i '/from_data_list/a\        if hasattr(batch, "ptr"): delattr(batch, "
     torch_points3d/datasets/batch.py || true
 
 # Fix float-to-integer cast in merge step (pandas_to_las.py)
-# Outer join introduces NaN and float values in columns targeting uint16/int types
-# Need fillna(0) + round() + astype() via numpy to avoid pandas lossy cast error
 RUN python3 -c "import pathlib; p = pathlib.Path('nibio_inference/pandas_to_las.py'); c = p.read_text(); c = c.replace('las_file[column] = df[column].astype(standard_columns_with_data_types[column])', 'las_file[column] = df[column].fillna(0).values.round().astype(standard_columns_with_data_types[column])'); c = c.replace('las_file[column] = df[column].astype(extended_columns_with_data_types[column])', 'las_file[column] = df[column].fillna(0).values.round().astype(extended_columns_with_data_types[column])'); p.write_text(c); print('Patched pandas_to_las.py')"
+
+# --- v2 patches (segmentation quality for UAV lidar) ---
+
+# Patch 001: Fix hardcoded block_merge_th (line 473)
+# The th_merge parameter was passed into block_merging() but ignored —
+# hardcoded to 0.1, causing systematic over-merging of adjacent tree crowns.
+# See: tyson-swetnam/SegmentAnyTree fork, also SmartForest-no PR #29.
+RUN sed -i 's/if max_iou_ii > 0.1:  # th_merge:/if max_iou_ii > th_merge:/' \
+    torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py
+
+# Patch 003: Add origin ID bounds clamping for multi-tile robustness
+RUN python3 -c "\
+import pathlib, re; \
+p = pathlib.Path('torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py'); \
+c = p.read_text(); \
+if 'import warnings' not in c: c = 'import warnings\n' + c; \
+p.write_text(c); \
+print('Added warnings import for origin ID clamping')"
+
+# Patch 004: Add pure PyTorch region_grow (Numba-accelerated union-find)
+RUN mkdir -p sat/clustering sat/compat
+COPY patches/sat_clustering_region_grow.py sat/clustering/region_grow.py
+RUN echo "" > sat/__init__.py && \
+    echo "" > sat/clustering/__init__.py && \
+    echo "" > sat/compat/__init__.py
+
+# Patch 002: Copy UAV tuning config overlay
+COPY configs/uav_tuning.yaml conf/experiment/uav_tuning.yaml
 
 # Create all directories the pipeline expects
 RUN mkdir -p /home/datascience/docker_in_folder \
