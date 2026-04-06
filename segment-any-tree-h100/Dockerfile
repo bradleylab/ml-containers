@@ -152,8 +152,23 @@ RUN echo "" > sat/__init__.py && \
     echo "" > sat/clustering/__init__.py && \
     echo "" > sat/compat/__init__.py
 
-# Patch 002: Copy UAV tuning config overlay
+# Patch 002: Copy UAV tuning config overlay (kept for reference, not used at runtime)
 COPY configs/uav_tuning.yaml conf/experiment/uav_tuning.yaml
+
+# Patch 005: Bake UAV tuning parameters into the checkpoint's run_config.
+# The Trainer loads run_config from the .pt file, ignoring Hydra overrides.
+# Only data.fold is re-injected from runtime config. So we must patch the
+# checkpoint directly. See: torch_points3d/core/data_transform/model_checkpoint.py
+RUN python3 -c "\
+import torch; \
+ckpt = torch.load('model_file/PointGroup-PAPER.pt', map_location='cpu'); \
+cfg = ckpt['run_config']['models']['PointGroup-PAPER']; \
+cfg['block_merge_th'] = 0.3; \
+cfg['cluster_radius_search'] = 0.5; \
+cfg['cluster_type'] = 1; \
+cfg['bandwidth'] = 0.6; \
+torch.save(ckpt, 'model_file/PointGroup-PAPER.pt'); \
+print('Patched checkpoint: block_merge_th=0.3, cluster_radius_search=0.5, cluster_type=1')"
 
 # Create all directories the pipeline expects
 RUN mkdir -p /home/datascience/docker_in_folder \
