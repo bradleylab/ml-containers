@@ -142,13 +142,8 @@ RUN sed -i 's/if max_iou_ii > 0.1:  # th_merge:/if max_iou_ii > th_merge:/' \
     torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py
 
 # Patch 003: Add origin ID bounds clamping for multi-tile robustness
-RUN python3 -c "\
-import pathlib, re; \
-p = pathlib.Path('torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py'); \
-c = p.read_text(); \
-if 'import warnings' not in c: c = 'import warnings\n' + c; \
-p.write_text(c); \
-print('Added warnings import for origin ID clamping')"
+RUN sed -i '1{/import warnings/!s/^/import warnings\n/}' \
+    torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py
 
 # Patch 004: Add pure PyTorch region_grow (Numba-accelerated union-find)
 RUN mkdir -p sat/clustering sat/compat
