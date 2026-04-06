@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git ninja-build cmake build-essential libopenblas-dev \
     libsparsehash-dev libtbb-dev libglib2.0-0 libglu1-mesa-dev \
     libosmesa6-dev libsm6 libusb-1.0-0-dev libxcb-shm0 libxext6 \
-    libxrender-dev libsndfile1 wget unzip git-lfs \
+    libxrender-dev libsndfile1 wget unzip zip git-lfs \
     && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
