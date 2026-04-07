@@ -1,0 +1,54 @@
+# UAV lidar tuning overlay for SegmentAnyTree
+# Merge on top of default config: +experiment=uav_tuning
+#
+# These parameters control post-processing clustering behavior.
+# The neural network weights are unchanged — only the instance
+# segmentation step (how predicted embeddings are grouped into
+# individual tree instances) is affected.
+#
+# Tuning rationale for low-density UAV lidar (~28 pts/m²):
+#   - Lower block_merge_th: reduce spurious merging of adjacent crowns
+#   - Larger cluster_radius_search: compensate for sparse point spacing
+#   - region_grow only (cluster_type=1): MeanShift adds noise at low density
+#   - min_score=0.0: accept all clusters, filter by size instead
+
+models:
+  PointGroup-PAPER:
+    # IoU threshold for merging instances across spatial blocks.
+    # Default: 0.01 (fork) / 0.1 (upstream, hardcoded — see patch 001)
+    # Lower = more aggressive merging. For UAV data where crowns are
+    # already under-segmented, try HIGHER values (0.2–0.5) to prevent merging.
+    block_merge_th: 0.3
+
+    # Ball query radius for region_grow clustering.
+    # Default: 1.5 * grid_size = 0.3m
+    # Larger radius connects more points into each cluster.
+    # At 28 pts/m² with 0.2m voxels, many voxels are empty —
+    # a larger radius bridges gaps between occupied voxels.
+    cluster_radius_search: 0.5  # 2.5 * 0.2m grid_size
+
+    # Maximum neighbors per point in ball query.
+    # Default: 200 (varies by implementation)
+    # Higher values improve connectivity but increase compute time.
+    cluster_nsample: 200
+
+    # Clustering algorithm:
+    #   1 = region_grow only (fast, deterministic)
+    #   5 = region_grow + MeanShift on embeddings (slower, may help dense data)
+    # For sparse UAV data, region_grow alone is more robust.
+    cluster_type: 1
+
+    # MeanShift bandwidth (only used when cluster_type >= 3)
+    bandwidth: 0.6
+
+    # Bias added to tree class logit before argmax.
+    # Higher = more points classified as tree before clustering.
+    # Default: 0.0 (no bias). Try 0.1–0.5 if trees are under-detected.
+    semantic_tree_bias: 0.0
+
+tracker_options:
+  # Minimum cluster confidence score for acceptance.
+  # Default: 0.5 (paper). Set to 0.0 to accept all clusters.
+  # Low-density data produces lower-confidence clusters — rejecting
+  # them loses trees. Filter by point count instead.
+  min_score: 0.0

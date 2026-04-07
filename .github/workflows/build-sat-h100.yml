@@ -39,6 +39,7 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:cuda12.8-torch2.7
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v2
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:cuda12.1-torch2.2
           cache-from: type=gha
           cache-to: type=gha,mode=max
