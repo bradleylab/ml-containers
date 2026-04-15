@@ -16,7 +16,8 @@ echo "Staging tiles:"
 echo "  source: ${BUCKET}"
 echo "  dest:   ${DEST}"
 
-aws s3 sync "${BUCKET}" "${DEST}" --only-show-errors
+# Public bucket — use --no-sign-request so no AWS creds required on C2 login
+aws s3 sync "${BUCKET}" "${DEST}" --only-show-errors --no-sign-request
 
 N_TILES=$(ls -1 "${DEST}"/*.laz 2>/dev/null | wc -l)
 echo "Staged ${N_TILES} LAZ files."
