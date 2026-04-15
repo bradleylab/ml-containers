@@ -116,6 +116,17 @@ if (sum(las$Classification == 2L) == 0) {
   las <- classify_ground(las, algorithm = csf())
 }
 
+# TIN height normalization triangulates the ground surface from class-2 points
+# only. <3 ground points breaks that even when total point count is OK. Seen
+# on sparse edge tiles (e.g. tile_-7_-2 with 33 pts / 1 ground from PMF).
+n_ground <- sum(las$Classification == 2L)
+if (n_ground < 3L) {
+  cat(sprintf("below-minimum ground points (%d < 3) — marking sparse\n", n_ground))
+  write_log(list(status = "below_minimum_ground", n_input_points = npoints(las),
+                 n_ground_points = n_ground))
+  quit(status = 0)
+}
+
 cat("[2/7] normalizing heights (TIN)\n")
 nlas <- normalize_height(las, algorithm = tin())
 
