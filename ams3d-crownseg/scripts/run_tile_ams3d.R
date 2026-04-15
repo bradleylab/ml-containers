@@ -102,6 +102,15 @@ if (is.empty(las)) {
   quit(status = 0)
 }
 
+# Guard against ultra-sparse tiles: TIN height normalization (step 2) requires
+# at least 3 points to triangulate. Seen in practice on edge-of-flight tiles
+# with 1-2 lidar returns (e.g. tile_-11_26, 1 pt, 2026-04-15 production run).
+if (npoints(las) < 3L) {
+  cat(sprintf("below-minimum points (%d < 3) — marking sparse\n", npoints(las)))
+  write_log(list(status = "below_minimum", n_input_points = npoints(las)))
+  quit(status = 0)
+}
+
 if (sum(las$Classification == 2L) == 0) {
   cat("[2a/7] no ground class; running CSF classifier\n")
   las <- classify_ground(las, algorithm = csf())

@@ -25,9 +25,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # R packages from CRAN.
 # lidR: point cloud I/O, height normalization, LAS attribute manipulation.
 # crownsegmentr: AMS3D (Ferraz 2016) CRAN implementation.
+# RCSF: Cloth Simulation Filter, used by lidR::classify_ground(csf()) fallback
+#       when a tile has no pre-classified ground points (class 2).
 # arrow: parquet I/O for per-tile tree attributes.
 # optparse: CLI arg parsing.
-RUN R -e "install.packages(c('lidR', 'crownsegmentr', 'data.table', 'optparse', 'arrow', 'jsonlite'), \
+RUN R -e "install.packages(c('lidR', 'crownsegmentr', 'RCSF', 'data.table', 'optparse', 'arrow', 'jsonlite'), \
           repos='https://cloud.r-project.org', Ncpus=4)"
 
 # Python venv for post-processing.
@@ -46,7 +48,7 @@ COPY scripts/ ./
 RUN chmod +x ./process_tile.sh ./stage_tiles.sh
 
 # Validate the core stack loads.
-RUN R -e "library(lidR); library(crownsegmentr); library(data.table); library(optparse); library(arrow); cat('R stack OK\n')"
+RUN R -e "library(lidR); library(crownsegmentr); library(RCSF); library(data.table); library(optparse); library(arrow); cat('R stack OK\n')"
 RUN $VENV/bin/python -c "import laspy, scipy.spatial, geopandas, rasterio, pyarrow; print('Python stack OK')"
 
 ENTRYPOINT ["/opt/crownseg/process_tile.sh"]
