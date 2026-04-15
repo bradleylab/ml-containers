@@ -1,0 +1,45 @@
+name: Build AMS3D crownsegmentr
+
+on:
+  push:
+    paths:
+      - 'ams3d-crownseg/**'
+      - '.github/workflows/build-ams3d-crownseg.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: bradleylab/ams3d-crownseg
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ams3d-crownseg
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:r4.4-rocker-geospatial
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
