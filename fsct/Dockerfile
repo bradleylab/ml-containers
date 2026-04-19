@@ -43,20 +43,28 @@ RUN pip install \
         torch-spline-conv==1.2.1 \
         torch-geometric==1.7.2
 
-# Rest of FSCT's deps (upstream requirements minus torch-family + minus
-# the broken sklearn==0.0 meta-package that errors on modern pip)
+# numpy + Cython must exist before hdbscan's source build runs (hdbscan
+# 0.8.28 doesn't ship Python 3.9 manylinux wheels for recent glibc).
+# Install them first, then use --no-build-isolation so the downstream
+# source build picks up the installed numpy headers.
 RUN pip install \
-        laspy==2.1.2 lazrs \
         numpy==1.22.3 \
+        Cython==0.29.28
+
+# Rest of FSCT's deps (upstream requirements minus torch-family + minus
+# the broken sklearn==0.0 meta-package that errors on modern pip).
+# hdbscan bumped to 0.8.38 which ships binary wheels and is API-compatible
+# with FSCT's usage.
+RUN pip install --no-build-isolation \
+        laspy==2.1.2 lazrs \
         pandas==1.4.2 \
         scikit-learn==1.0.2 \
         scipy==1.8.0 \
-        hdbscan==0.8.28 \
+        hdbscan==0.8.38 \
         scikit-image==0.19.2 \
         networkx==2.8 \
         python-louvain==0.16 \
         matplotlib==3.5.2 \
-        Cython==0.29.28 \
         tqdm
 
 # Force CPU mode as the default in other_parameters.py — the CLI flag
