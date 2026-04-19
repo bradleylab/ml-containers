@@ -1,0 +1,45 @@
+name: Build SegmentAnyTree H100 (defaults)
+
+on:
+  push:
+    paths:
+      - 'segment-any-tree-h100/Dockerfile.defaults'
+      - '.github/workflows/build-sat-h100-defaults.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: bradleylab/segment-any-tree-h100
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push defaults variant
+        uses: docker/build-push-action@v6
+        with:
+          context: segment-any-tree-h100
+          file: segment-any-tree-h100/Dockerfile.defaults
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v2-defaults
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:cuda12.1-torch2.2-defaults
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
