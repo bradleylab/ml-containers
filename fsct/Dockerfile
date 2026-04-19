@@ -57,6 +57,7 @@ RUN pip install \
         scipy==1.8.0 \
         hdbscan \
         scikit-image==0.19.2 \
+        scikit-spatial \
         networkx==2.8 \
         python-louvain==0.16 \
         matplotlib==3.5.2 \
