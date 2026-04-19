@@ -51,7 +51,7 @@ RUN pip install numpy==1.22.3
 # versions). sklearn==0.0 meta-package from upstream requirements is
 # dropped (it errors on modern pip).
 RUN pip install \
-        laspy==2.1.2 lazrs \
+        "laspy[lazrs]==2.1.2" \
         pandas==1.4.2 \
         scikit-learn==1.0.2 \
         scipy==1.8.0 \
@@ -59,9 +59,9 @@ RUN pip install \
         scikit-image==0.19.2 \
         scikit-spatial \
         networkx==2.8 \
-        python-louvain==0.16 \
         matplotlib==3.5.2 \
-        tqdm
+        mdutils \
+        markdown
 
 # Force CPU mode as the default in other_parameters.py — the CLI flag
 # --gpu can override, but the build is CPU-only so leave this on.
