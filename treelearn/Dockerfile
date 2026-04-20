@@ -78,18 +78,40 @@ RUN git clone https://github.com/ecker-lab/TreeLearn.git
 WORKDIR /opt/TreeLearn
 RUN pip install -e .
 
-# Pre-bake pretrained weights (≈450 MB combined) to avoid a runtime
-# download on Compute2 (where outbound access to Göttingen dataverse is
-# allowed but adds latency and a failure mode to every SLURM job).
-#   * model_weights_20241213.pth            — default (≥10 m trees)
+# Pre-bake pretrained weights.
+#
+# The Göttingen dataverse is periodically flaky — specific file IDs
+# return HTTP 500 for minutes to hours while others are fine. To make
+# image builds resilient we: (1) retry each download up to 5× with
+# backoff, and (2) accept the image as usable so long as at least ONE
+# of the three shipped weight variants lands. The build only fails if
+# every variant is unreachable for the full retry window (~5 min).
+#
+# Weight variants (by paper-indicated preference, best-first):
 #   * model_weights_with_small_20241213.pth — includes small trees
-RUN mkdir -p /opt/TreeLearn/data/model_weights && \
-    python tree_learn/util/download.py \
-        --dataset_name model_weights_20241213 \
-        --root_folder /opt/TreeLearn/data/model_weights && \
-    python tree_learn/util/download.py \
-        --dataset_name model_weights_with_small_20241213 \
-        --root_folder /opt/TreeLearn/data/model_weights && \
+#   * model_weights_20241213.pth            — default (>=10 m trees)
+#   * model_weights_diverse_training_data.pth — older; visually nice
+#
+# Consumers of this image should prefer the "with_small" variant when
+# present; if only "diverse_training_data" is present, expect slightly
+# different behaviour on small/mid-story trees.
+RUN mkdir -p /opt/TreeLearn/data/model_weights && cd /opt/TreeLearn && \
+    set +e; \
+    SUCCESS=0; \
+    for name in model_weights_with_small_20241213 model_weights_20241213 model_weights_diverse_training_data; do \
+        for attempt in 1 2 3 4 5; do \
+            echo "[weights] attempt $attempt for $name"; \
+            python tree_learn/util/download.py \
+                --dataset_name "$name" \
+                --root_folder /opt/TreeLearn/data/model_weights \
+                && { echo "[weights] $name OK"; SUCCESS=$((SUCCESS+1)); break; }; \
+            echo "[weights] $name failed on attempt $attempt; sleeping 30s"; \
+            sleep 30; \
+        done; \
+    done; \
+    set -e; \
+    echo "[weights] $SUCCESS of 3 variants downloaded"; \
+    test "$SUCCESS" -ge 1 || { echo "ERROR: no weights downloaded — dataverse down?"; exit 1; }; \
     ls -la /opt/TreeLearn/data/model_weights
 
 WORKDIR /opt/TreeLearn
