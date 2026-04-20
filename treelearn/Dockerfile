@@ -38,10 +38,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Modern get-pip.py installs pip without setuptools. munch==2.5.0 (a
-# TreeLearn dep) imports pkg_resources at load, which lives in
-# setuptools — without it, any tree_learn import crashes.
-RUN pip install setuptools wheel
+# Modern get-pip.py installs pip without setuptools, AND latest
+# setuptools (>=80) removed `pkg_resources`. munch==2.5.0 (a TreeLearn
+# dep, pinned upstream) imports pkg_resources at load, which breaks
+# under setuptools 80+. Pin to a version that still ships it.
+RUN pip install 'setuptools<80' wheel
 
 # PyTorch 2.0 + CUDA 11.8 (H100 sm_90 supported natively)
 RUN pip install --index-url https://download.pytorch.org/whl/cu118 \
