@@ -13,14 +13,24 @@ FROM rocker/geospatial:4.4.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# System deps. pdal is in the default jammy universe repo; we invoke it via
-# subprocess so don't need the (unavailable) python3-pdal bindings.
+# System deps. Jammy's apt pdal is 2.3.x which lacks writers.copc (the
+# COPC writer plugin was added upstream in PDAL 2.4). We need COPC to
+# build the merged landscape deliverable, so install PDAL from
+# conda-forge via miniforge instead of apt.
 # awscli installed inside the Python venv below.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pdal \
     python3-pip python3-venv python3-dev \
-    ca-certificates \
+    ca-certificates curl bzip2 \
     && rm -rf /var/lib/apt/lists/*
+
+# Miniforge → conda-forge PDAL (2.10+) with writers.copc plugin.
+RUN curl -fsSL https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+      -o /tmp/miniforge.sh \
+    && bash /tmp/miniforge.sh -b -p /opt/conda \
+    && rm /tmp/miniforge.sh \
+    && /opt/conda/bin/conda install -y -c conda-forge pdal \
+    && /opt/conda/bin/conda clean -afy
+ENV PATH="/opt/conda/bin:$PATH"
 
 # R packages from CRAN.
 # lidR: point cloud I/O, height normalization, LAS attribute manipulation.
@@ -50,5 +60,6 @@ RUN chmod +x ./process_tile.sh ./stage_tiles.sh
 # Validate the core stack loads.
 RUN R -e "library(lidR); library(crownsegmentr); library(RCSF); library(data.table); library(optparse); library(arrow); cat('R stack OK\n')"
 RUN $VENV/bin/python -c "import laspy, scipy.spatial, geopandas, rasterio, pyarrow; print('Python stack OK')"
+RUN pdal --version && pdal --drivers 2>/dev/null | grep -q writers.copc && echo "PDAL + COPC writer OK"
 
 ENTRYPOINT ["/opt/crownseg/process_tile.sh"]
