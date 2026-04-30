@@ -1,0 +1,9 @@
+.git
+.github
+.venv
+.hf-cache
+__pycache__
+*.pyc
+*.log
+*.json
+.DS_Store

@@ -45,3 +45,25 @@ don't run on H100; porting is not worth the effort for our use case).
 Pull: `ghcr.io/bradleylab/fsct:v1`
 
 Run on Compute2 `general-cpu` partition.
+
+### sam2
+
+[SAM 2 / SAM 2.1](https://github.com/facebookresearch/sam2) — Meta's
+Segment Anything Model 2 wrapped as a portable inference CLI. One
+entrypoint takes any RGB image and produces a JSON file of COCO-RLE
+masks; supports automatic mask generation, point prompts, and box
+prompts. Weights download from HF Hub on first run and cache under
+`$HF_HOME` (override-bindable for persistence).
+
+- Base: PyTorch 2.5.1 + CUDA 12.1 (runtime variant)
+- `SAM2_BUILD_CUDA=0` to skip the optional connected-components CUDA
+  extension (needs `nvcc` only present in `-devel` images; pure-Python
+  fallback is automatic and fine for our paths).
+- `TORCH_CUDA_ARCH_LIST` includes `9.0` for H100.
+- Default model: `facebook/sam2.1-hiera-large`. Override with
+  `--model-id` for any of the other Hiera variants (tiny / small /
+  base-plus / large).
+
+Pull: `ghcr.io/bradleylab/sam2:latest`
+
+See `sam2/README.md` for full CLI docs and Compute2 / Apptainer usage examples.
