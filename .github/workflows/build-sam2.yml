@@ -2,12 +2,16 @@ name: Build sam2
 
 on:
   push:
+    branches: [main]
     paths:
       - 'sam2/**'
       - '.github/workflows/build-sam2.yml'
-    tags:
-      - 'sam2/v*'
   workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Optional version tag (e.g. v0.1.0); applied as image tag if set'
+        required: false
+        default: ''
 
 env:
   REGISTRY: ghcr.io
@@ -46,10 +50,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=match,pattern=sam2/(v.*),group=1
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=short
+            type=raw,value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
