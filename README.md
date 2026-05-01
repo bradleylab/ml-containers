@@ -2,6 +2,9 @@
 
 Custom ML Docker images for bradleylab research compute (WashU RIS Compute2, EC2).
 
+For per-image task / sensor / paper / weights / license / lab-status,
+see [`MODEL_CARDS.md`](MODEL_CARDS.md).
+
 ## Conventions
 
 These rules govern what belongs in this repo and how images are built and
