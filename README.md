@@ -55,14 +55,14 @@ locally.
 | `ams3d-crownseg` | `ams3d-crownseg/` | full recipe |
 | `fsct` | `fsct/` | full recipe |
 | `sam2` | `sam2/` | full recipe |
-| `treelearn` | (backfill in progress) | recipe pending |
-| `pointstowood` | (backfill in progress) | recipe pending |
-| `3dfin` | (backfill in progress) | recipe pending |
-| `multispec-species` | (backfill in progress) | recipe pending |
-| `tree-analysis` | — | kitchen-sink (deprecated; replaced by per-model containers) |
-
-Planned: `forainet`, `deepforest` (extracted from the deprecated
-`tree-analysis` kitchen sink).
+| `treelearn` | `treelearn/` | full recipe |
+| `pointstowood` | `pointstowood/` | full recipe |
+| `3dfin` | `3dfin/` | full recipe |
+| `backman-thermal-deer` | `backman-thermal-deer/` | full recipe (runtime-only; model bind-mounted) |
+| `deepforest` | `deepforest/` | full recipe (NEON checkpoint via HF Hub) |
+| `forainet` | `forainet/` | full recipe — **experimental** torch 2.2 / sm_90 port |
+| `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
+| `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
 ### segment-any-tree-h100
 
@@ -131,3 +131,79 @@ geospatial inference end-to-end — read a GeoTIFF, run tiled SAM 2,
 emit georeferenced polygons.
 
 See `sam2/README.md` for full CLI docs and Compute2 / Apptainer usage examples.
+
+### treelearn
+
+TreeLearn (Henrich et al. 2024, *Ecol. Informatics*) — DL instance
+segmentation of trees from ground-based lidar (TLS/MLS). PyTorch
+2.0 + CUDA 11.8 + spconv-cu118; native sm_90.
+
+Pull: `ghcr.io/bradleylab/treelearn:v1`
+
+Weights are NOT baked — fetched at runtime via the bundled
+`download_weights.sh` (Göttingen dataverse is too flaky for
+build-time fetch). See `treelearn/README.md`.
+
+### pointstowood
+
+PointsToWood (Owen et al. 2025, *arXiv:2503.04420*) — DL semantic
+leaf-wood segmentation of high-resolution TLS point clouds. PyTorch
+2.5 + CUDA 12.1 + PyG ecosystem; native sm_90.
+
+Pull: `ghcr.io/bradleylab/pointstowood:v1`
+
+The `global.pth` checkpoint ships in-tree with the upstream
+`version1.0-paper` branch and is verified loadable at build time.
+See `pointstowood/README.md`.
+
+### 3dfin
+
+3DFin (Laino et al. 2024, *Forestry*) — deterministic TLS stem
+detection + DBH estimation. CPU-only classical algorithm; runs on
+Compute2 `general-cpu`.
+
+Pull: `ghcr.io/bradleylab/3dfin:v1`
+
+See `3dfin/README.md` for the wrapper script and run pattern.
+
+### backman-thermal-deer
+
+Backman et al. 2025 thermal animal detector — ONNX recurrent (LSTM)
+model for frame-level animal detection in 640×512 thermal video
+(DJI XT2). CPU runtime container; the upstream
+`inferenceExample/` directory (model.onnx + generateVideoPredictions.py)
+is bind-mounted at runtime rather than baked, since redistribution
+rights are not established.
+
+Pull: `ghcr.io/bradleylab/backman-thermal-deer:v1`
+
+See `backman-thermal-deer/README.md` for the bind-mount pattern.
+
+### deepforest
+
+DeepForest 2.x (Weinstein et al.) — RetinaNet-style aerial RGB
+tree-crown detector, NEON-pretrained via Hugging Face Hub. PyTorch
+2.5 + CUDA 12.1; native sm_90.
+
+Pull: `ghcr.io/bradleylab/deepforest:v1`
+
+The `weecology/deepforest-tree` checkpoint downloads to
+`$HF_HOME=/opt/hf-cache` on first call — bind-mount a persistent
+host dir to avoid re-downloading per job.
+
+### forainet
+
+> **EXPERIMENTAL.** First end-to-end run scheduled 2026-05-01.
+
+ForAINet (Xiang et al., ETH PRS) — panoptic segmentation of
+airborne lidar via PointGroup-style architecture. Upstream targets
+PyTorch 1.9 / CUDA 11.1 (no sm_90 support); this container ports
+the stack to PyTorch 2.2 / CUDA 12.1 by reusing the H100-proven
+recipe from `segment-any-tree-h100` (CiSong10 MinkowskiEngine fork
++ torchsparse 1.4 patches + torch_points3d PyG-2.x compat).
+
+Pull: `ghcr.io/bradleylab/forainet:v1`
+
+`PointGroup-PAPER.pt` distributed by upstream via Dropbox under
+unclear license — bind-mount at runtime. See `forainet/README.md`
+for the fetch command and the experimental-status caveat.
