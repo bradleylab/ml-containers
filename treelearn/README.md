@@ -20,11 +20,38 @@ ground-based lidar point clouds (TLS / MLS). Henrich et al. 2024,
 
 - PyTorch 2.0.0 + CUDA 11.8 (native H100 sm_90)
 - spconv-cu118 (sparse conv kernels with sm_90 shipped)
-- TreeLearn package installed at `/opt/TreeLearn` (editable) with
-  pretrained weights baked in at
-  `/opt/TreeLearn/data/model_weights/`:
-  - `model_weights_20241213.pth` (default, ≥10 m trees)
-  - `model_weights_with_small_20241213.pth` (includes small trees)
+- TreeLearn package installed at `/opt/TreeLearn` (editable)
+- `download_weights.sh` helper at `/opt/TreeLearn/download_weights.sh`
+  for fetching pretrained weights at runtime (see *Weights* below)
+
+## Weights
+
+Weights are NOT baked into the image. The Göttingen dataverse that
+hosts them has been observed returning HTTP 500 / connection timeouts
+for extended windows; coupling image build to that server makes every
+rebuild fragile. Download once on the target host into a persistent
+bind-mounted directory and reuse across SLURM jobs.
+
+Three variants are attempted by `download_weights.sh`; the script
+exits 0 if at least one lands:
+
+| File | Use |
+|------|-----|
+| `model_weights_with_small_20241213.pth` | preferred — handles small trees |
+| `model_weights_20241213.pth` | default, ≥10 m trees |
+| `model_weights_diverse_training_data.pth` | older diverse-training variant |
+
+```bash
+# On Compute2, into persistent scratch:
+mkdir -p /scratch2/fs1/alexander.s.bradley/treelearn_weights
+srun --container-image=/storage1/.../bradleylab+treelearn+latest.sqsh \
+     --container-mounts=/scratch2/fs1/alexander.s.bradley:/scratch2/fs1/alexander.s.bradley \
+     bash -lc \
+       '/opt/TreeLearn/download_weights.sh /scratch2/fs1/alexander.s.bradley/treelearn_weights'
+```
+
+Then point `pipeline.yaml` `pretrain` at the resulting `.pth` under
+that scratch dir.
 
 ## Running on Compute2 (Pyxis/enroot)
 
