@@ -2,7 +2,67 @@
 
 Custom ML Docker images for bradleylab research compute (WashU RIS Compute2, EC2).
 
+## Conventions
+
+These rules govern what belongs in this repo and how images are built and
+shipped. Full rationale lives in the operator-side rule file
+(`~/.claude/rules/ml-containers.md`); this section is the public surface.
+
+**One model per container.** Each container holds a single trained ML/DL
+model (or a single classical pipeline that is invoked as if it were a
+model — AMS3D, 3DFin). Kitchen-sink images that bundle multiple models
+are not allowed by default; the exception clause requires a documented
+reason in the image's README.
+
+**The source recipe lives here.** Every container the lab runs must have
+its `Dockerfile` (and any build-context files) committed under
+`<image-name>/`, with a `README.md` describing the model, base image,
+weights handling, and run command. Ad-hoc `docker build` invocations on
+a host (Compute2, EC2, Mac) without a committed recipe are not
+acceptable.
+
+**GHCR is the publish target.** Push to
+`ghcr.io/bradleylab/<image-name>:<tag>` via the per-image GitHub Actions
+workflow at `.github/workflows/build-<image-name>.yml`. Never
+`docker push` from a laptop or compute node.
+
+**Compute2 `.sqsh` files are caches, not source.** They are produced by
+`enroot import 'docker://ghcr.io#bradleylab/<image>:<tag>'` and live on
+RIS storage. They can be deleted whenever space is tight; the canonical
+recipe + image lives in this repo + GHCR.
+
+**Tag scheme.** `:latest` tracks `main` and is identical to the most
+recent stable `:vN`. `:v1`, `:v2`, ... are stable, immutable releases
+(do not delete published tags). `:vN-<variant>` for same-base alternate
+checkpoints or configs (e.g. `:v2-defaults`). `:deprecated` for images
+intentionally being replaced.
+
+**What does NOT belong here.** General-purpose libraries (lidR, GDAL,
+PDAL, scikit-learn), generic compute environments ("R + GDAL", "Python
++ CUDA"), notebook shims, and tool wrappers without learned components
+(PDAL CLI, gdal-tools). Test: "could a reviewer name a specific model
+whose inference this container runs?" If no, use an upstream image
+(`rocker/geospatial`, `pytorch/pytorch`, `osgeo/gdal`) or install
+locally.
+
 ## Images
+
+### Coverage
+
+| GHCR image | Source dir | Status |
+|------------|-----------|--------|
+| `segment-any-tree-h100` | `segment-any-tree-h100/` | full recipe + 2 Dockerfiles (v2 + v2-defaults) |
+| `ams3d-crownseg` | `ams3d-crownseg/` | full recipe |
+| `fsct` | `fsct/` | full recipe |
+| `sam2` | `sam2/` | full recipe |
+| `treelearn` | (backfill in progress) | recipe pending |
+| `pointstowood` | (backfill in progress) | recipe pending |
+| `3dfin` | (backfill in progress) | recipe pending |
+| `multispec-species` | (backfill in progress) | recipe pending |
+| `tree-analysis` | — | kitchen-sink (deprecated; replaced by per-model containers) |
+
+Planned: `forainet`, `deepforest` (extracted from the deprecated
+`tree-analysis` kitchen sink).
 
 ### segment-any-tree-h100
 
