@@ -5,7 +5,7 @@ ground-based lidar point clouds (TLS / MLS). Henrich et al. 2024,
 *Ecological Informatics*.
 
 - Upstream: https://github.com/ecker-lab/TreeLearn
-- Paper: https://doi.org/10.1016/j.ecoinf.2024.102795
+- Paper: https://doi.org/10.1016/j.ecoinf.2024.102888
 - Training data: 6,665 German MLS beech + 877 Wytham Woods TLS →
   best publicly available training-data match for temperate broadleaf
   TLS (e.g. Tyson BP7 oak-hickory).
