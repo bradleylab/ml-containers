@@ -108,6 +108,22 @@ A single JSON file:
 
 `rle` is a [COCO RLE](https://cocodataset.org/#format-results) object — decode with `pycocotools.mask.decode` (or any COCO-compatible library). Pass `--save-masks-dir DIR` to also write one binary PNG per mask.
 
+## Geospatial workflows (samgeo)
+
+[`segment-geospatial`](https://samgeo.gishub.org/) (`samgeo`) is installed in the image alongside SAM 2. It wraps SAM 2 with georeferenced I/O and tiled inference for large rasters — the practical workflow for any drone ortho or satellite tile that exceeds SAM's 1024 px native input. The default CLI (`--mode amg|point|box`) uses plain PIL + JSON output and does **not** invoke samgeo. samgeo is provided as a Python library inside the container so project-specific wrappers can use it directly:
+
+```python
+from samgeo.samgeo2 import SamGeo2
+
+sam = SamGeo2(model_id="sam2.1-hiera-large", automatic=True, device="cuda")
+sam.generate(input_path="/work/ortho.tif",
+             output="/work/masks.tif",
+             batch=True, sample=64)
+sam.tiff_to_gpkg("/work/masks.tif", "/work/polygons.gpkg")
+```
+
+A future `--mode amg-geo` CLI flag will wrap that recipe directly so consumers don't need to write Python.
+
 ## Choosing a model variant
 
 Override `--model-id` with any of:

@@ -66,4 +66,8 @@ prompts. Weights download from HF Hub on first run and cache under
 
 Pull: `ghcr.io/bradleylab/sam2:latest`
 
+Bundles `segment-geospatial` (`samgeo`) so the same image handles
+geospatial inference end-to-end — read a GeoTIFF, run tiled SAM 2,
+emit georeferenced polygons.
+
 See `sam2/README.md` for full CLI docs and Compute2 / Apptainer usage examples.
