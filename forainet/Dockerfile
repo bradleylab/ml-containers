@@ -126,13 +126,17 @@ RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
 # torch_points_kernels: device alignment in region_grow.
 RUN python3 -c "import pathlib; p = pathlib.Path('/opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py'); c = p.read_text(); c = c.replace('local_ind = ind[label_mask]', 'local_ind = ind.to(label_mask.device)[label_mask]'); c = c.replace('local_xyz = xyz[label_mask]', 'local_xyz = xyz.to(label_mask.device)[label_mask]'); p.write_text(c); print('Patched cluster.py')"
 
-# ForAINet expects a `model_file/` subdir for the checkpoint and an
-# `eval_data/` subdir for inputs. Create both as bind-mount targets.
+# ForAINet directories. eval_data + eval_out remain bind-mount
+# targets; model_file/ now ships with the checkpoint baked in below.
 RUN mkdir -p model_file eval_data eval_out
 
-# Pretrained weights are NOT baked. PointGroup-PAPER.pt is distributed
-# by the authors via Dropbox under no clear license. Bind-mount the
-# checkpoint at /opt/ForAINet/PointCloudSegmentation/model_file/
-# at runtime. See README for the one-time fetch command.
+# Bake the pretrained checkpoint at build time. Mirrored from the
+# upstream Dropbox link to a release asset on bradleylab/ml-containers
+# so GHA builds are deterministic. SHA-256 verified before use.
+ARG WEIGHTS_URL=https://github.com/bradleylab/ml-containers/releases/download/forainet-weights-v1/PointGroup-PAPER.pt
+ARG WEIGHTS_SHA256=97c03ce81621dc4193e55d2ca2294861b1f4421c94d192799e5fe031f9d35861
+RUN wget -q -O model_file/PointGroup-PAPER.pt "${WEIGHTS_URL}" && \
+    echo "${WEIGHTS_SHA256}  model_file/PointGroup-PAPER.pt" | sha256sum -c - && \
+    ls -la model_file/PointGroup-PAPER.pt
 
 ENTRYPOINT ["bash"]

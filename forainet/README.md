@@ -14,7 +14,10 @@ architecture trained on FOR-Instance.
 
 ## Image tag
 
-`ghcr.io/bradleylab/forainet:v1` (also `:latest`)
+- `ghcr.io/bradleylab/forainet:v2` (also `:latest`) — pretrained
+  weights baked at `/opt/ForAINet/PointCloudSegmentation/model_file/PointGroup-PAPER.pt`
+- `ghcr.io/bradleylab/forainet:v1` — preserved for rollback; weights
+  NOT baked, runtime bind-mount required
 
 ## Stack
 
@@ -32,17 +35,23 @@ architecture trained on FOR-Instance.
 
 ## Weights
 
-NOT baked into the image. The authors distribute
-`PointGroup-PAPER.pt` from Dropbox under no clear license. Fetch
-once into a persistent host directory and bind-mount at runtime:
+For `:v2` and later: the `PointGroup-PAPER.pt` checkpoint is baked
+into the image at `/opt/ForAINet/PointCloudSegmentation/model_file/`.
+No runtime bind-mount required.
 
-```bash
-# One-time fetch on the target host (Compute2 scratch, pliny, etc.):
-mkdir -p /scratch2/fs1/alexander.s.bradley/forainet_weights
-cd /scratch2/fs1/alexander.s.bradley/forainet_weights
-wget 'https://www.dropbox.com/scl/fi/mv4nxe60cco86fd2u9f3z/PointGroup-PAPER.pt?rlkey=ua6093kehk0youpo8g3a6g0nm&dl=1' \
-     -O PointGroup-PAPER.pt
-```
+The build pulls from a release asset on this repo
+(`forainet-weights-v1`) which was mirrored from the upstream Dropbox
+link so GHA builds are deterministic. SHA-256
+`97c03ce81621dc4193e55d2ca2294861b1f4421c94d192799e5fe031f9d35861`
+is verified at build time.
+
+Canonical lab archive lives on NAS at
+`/mnt/nas/datasets/ml_model_weights/forainet/PointGroup-PAPER.pt`
+in case the GitHub release is ever lost.
+
+For `:v1` (legacy, no baked weights), the original bind-mount
+workflow still applies — see git history for that variant of this
+README.
 
 ## Run on Compute2
 
