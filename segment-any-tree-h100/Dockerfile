@@ -180,4 +180,18 @@ RUN mkdir -p /home/datascience/docker_in_folder \
     bucket_in_folder \
     bucket_out_folder
 
+LABEL org.opencontainers.image.title="segment-any-tree-h100" \
+      org.opencontainers.image.description="SegmentAnyTree (Wielgosz et al. 2024) tree-instance segmentation, H100 sm_90, with UAV-tuned clustering patches (v2)" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/segment-any-tree-h100/README.md" \
+      org.opencontainers.image.version="v2" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      bradleylab.model.upstream="https://github.com/SmartForest-no/SegmentAnyTree" \
+      bradleylab.model.paper="https://doi.org/10.1016/j.rse.2024.114367" \
+      bradleylab.model.task="tree-instance segmentation, point cloud" \
+      bradleylab.model.sensor="lidar:airborne" \
+      bradleylab.model.status="production" \
+      bradleylab.model.weights.source="upstream-repo:in-tree (run_config patched at build time)"
+
 ENTRYPOINT ["bash", "run_oracle_pipeline.sh"]

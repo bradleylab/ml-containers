@@ -54,5 +54,19 @@ RUN mkdir -p /opt/hf-cache
 # model fetched, which happens at runtime if HF cache is empty).
 RUN python -c "import deepforest, torch; print('deepforest', deepforest.__version__, 'torch', torch.__version__, 'cuda', torch.cuda.is_available())"
 
+LABEL org.opencontainers.image.title="deepforest" \
+      org.opencontainers.image.description="DeepForest 2.x (Weinstein et al.) RetinaNet-style aerial RGB tree-crown detector; H100 sm_90; NEON-pretrained checkpoint via Hugging Face Hub" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/deepforest/README.md" \
+      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="MIT" \
+      bradleylab.model.upstream="https://github.com/weecology/DeepForest" \
+      bradleylab.model.paper="https://doi.org/10.1111/2041-210X.13472" \
+      bradleylab.model.task="tree-crown detection (bounding boxes)" \
+      bradleylab.model.sensor="image:rgb-aerial" \
+      bradleylab.model.status="exploratory" \
+      bradleylab.model.weights.source="huggingface-hub:weecology/deepforest-tree (runtime fetch into HF_HOME=/opt/hf-cache)"
+
 WORKDIR /work
 CMD ["bash"]

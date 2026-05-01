@@ -139,4 +139,20 @@ RUN wget -q -O model_file/PointGroup-PAPER.pt "${WEIGHTS_URL}" && \
     echo "${WEIGHTS_SHA256}  model_file/PointGroup-PAPER.pt" | sha256sum -c - && \
     ls -la model_file/PointGroup-PAPER.pt
 
+LABEL org.opencontainers.image.title="forainet" \
+      org.opencontainers.image.description="ForAINet (Xiang et al. 2024) panoptic segmentation of airborne lidar — experimental H100 sm_90 port from upstream torch-1.9/CUDA-11.1 stack" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/forainet/README.md" \
+      org.opencontainers.image.version="v2" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="NOASSERTION" \
+      bradleylab.model.upstream="https://github.com/prs-eth/ForAINet" \
+      bradleylab.model.paper="https://doi.org/10.1016/j.rse.2024.114078" \
+      bradleylab.model.task="panoptic segmentation, point cloud" \
+      bradleylab.model.sensor="lidar:airborne" \
+      bradleylab.model.status="experimental" \
+      bradleylab.model.weights.source="github-release:forainet-weights-v1 (mirrored from upstream Dropbox)" \
+      bradleylab.model.weights.sha256="97c03ce81621dc4193e55d2ca2294861b1f4421c94d192799e5fe031f9d35861" \
+      bradleylab.model.notes="upstream has no LICENSE file; treat as research-use only"
+
 ENTRYPOINT ["bash"]

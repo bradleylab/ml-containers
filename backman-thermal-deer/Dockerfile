@@ -49,5 +49,19 @@ RUN pip install --upgrade pip \
 # dependency drift rather than at first run on Compute2.
 RUN python -c "import onnxruntime, cv2, numpy, pandas, tqdm; print('backman runtime OK', onnxruntime.__version__, cv2.__version__)"
 
+LABEL org.opencontainers.image.title="backman-thermal-deer" \
+      org.opencontainers.image.description="Backman et al. 2025 thermal animal detector — runtime container (model.onnx + generateVideoPredictions.py bind-mounted at runtime)" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/backman-thermal-deer/README.md" \
+      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="NOASSERTION" \
+      bradleylab.model.upstream="https://doi.org/10.5281/zenodo.14799290" \
+      bradleylab.model.paper="https://doi.org/10.1111/2041-210X.70006" \
+      bradleylab.model.task="frame-level animal detection in thermal video" \
+      bradleylab.model.sensor="thermal:dji-xt2-640x512" \
+      bradleylab.model.status="production" \
+      bradleylab.model.weights.source="bind-mount at runtime (Zenodo deposit; license unverified)"
+
 WORKDIR /work
 ENTRYPOINT ["python"]

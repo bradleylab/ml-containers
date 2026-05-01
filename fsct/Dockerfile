@@ -82,6 +82,21 @@ RUN python -c "import torch; print('torch:', torch.__version__); \
 
 ENV PYTHONPATH=/opt/FSCT/scripts:/opt/FSCT
 
+LABEL org.opencontainers.image.title="fsct" \
+      org.opencontainers.image.description="Forest Structural Complexity Tool (Krisanski et al. 2021) — TLS DL stem-point semantic seg + classical cylinder fit for DBH; CPU-only" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/fsct/README.md" \
+      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="NOASSERTION" \
+      bradleylab.model.upstream="https://github.com/SKrisanski/FSCT" \
+      bradleylab.model.paper="https://doi.org/10.3390/rs13081413" \
+      bradleylab.model.task="stem-point semantic segmentation + DBH" \
+      bradleylab.model.sensor="lidar:tls" \
+      bradleylab.model.status="production" \
+      bradleylab.model.weights.source="upstream-repo:in-tree" \
+      bradleylab.model.notes="upstream has no LICENSE file; treat as research-use only"
+
 WORKDIR /opt/FSCT/scripts
 ENTRYPOINT ["python", "/opt/FSCT/scripts/run_cli.py"]
 CMD ["--help"]

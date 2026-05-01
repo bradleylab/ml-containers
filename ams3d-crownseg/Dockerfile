@@ -62,4 +62,18 @@ RUN R -e "library(lidR); library(crownsegmentr); library(RCSF); library(data.tab
 RUN $VENV/bin/python -c "import laspy, scipy.spatial, geopandas, rasterio, pyarrow; print('Python stack OK')"
 RUN pdal --version && pdal --drivers 2>/dev/null | grep -q writers.copc && echo "PDAL + COPC writer OK"
 
+LABEL org.opencontainers.image.title="ams3d-crownseg" \
+      org.opencontainers.image.description="Adaptive mean-shift 3D crown segmentation (Ferraz et al. 2016) via R crownsegmentr; classical, no learned components" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/ams3d-crownseg/README.md" \
+      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="GPL-3.0-or-later" \
+      bradleylab.model.upstream="https://github.com/Lenostatos/crownsegmentr" \
+      bradleylab.model.paper="https://doi.org/10.1016/j.rse.2016.05.028" \
+      bradleylab.model.task="crown segmentation, point cloud (classical)" \
+      bradleylab.model.sensor="lidar:airborne" \
+      bradleylab.model.status="production" \
+      bradleylab.model.weights.source="none (classical algorithm)"
+
 ENTRYPOINT ["/opt/crownseg/process_tile.sh"]
