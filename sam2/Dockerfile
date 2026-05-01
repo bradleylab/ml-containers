@@ -68,5 +68,20 @@ RUN mkdir -p ${HF_HOME} && chown -R ${USERNAME}:${USERNAME} /app ${HF_HOME}
 
 USER ${USERNAME}
 
+LABEL org.opencontainers.image.title="sam2" \
+      org.opencontainers.image.description="SAM 2 / SAM 2.1 (Meta) image segmentation with auto + point + box prompts; bundles segment-geospatial for georeferenced workflows" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/sam2/README.md" \
+      org.opencontainers.image.version="latest" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="Apache-2.0 AND BSD-3-Clause" \
+      bradleylab.model.upstream="https://github.com/facebookresearch/sam2" \
+      bradleylab.model.paper="https://arxiv.org/abs/2408.00714" \
+      bradleylab.model.task="general-purpose image segmentation" \
+      bradleylab.model.sensor="image:rgb" \
+      bradleylab.model.status="utility" \
+      bradleylab.model.weights.source="huggingface-hub:facebook/sam2.1-hiera-large (default)" \
+      bradleylab.model.notes="code Apache-2.0; weights BSD-3-Clause (Meta)"
+
 ENTRYPOINT ["python", "/app/sam2_infer.py"]
 CMD ["--help"]

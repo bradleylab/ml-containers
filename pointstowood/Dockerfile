@@ -63,4 +63,18 @@ RUN test -s model/global.pth && \
     ls -la model/global.pth && \
     python -c "import torch; sd = torch.load('model/global.pth', map_location='cpu', weights_only=False); print('Checkpoint keys:', list(sd.keys()) if isinstance(sd, dict) else type(sd).__name__)"
 
+LABEL org.opencontainers.image.title="pointstowood" \
+      org.opencontainers.image.description="PointsToWood (Owen et al. 2025) DL semantic leaf-wood segmentation for high-resolution TLS; H100 sm_90; in-tree global.pth checkpoint" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/pointstowood/README.md" \
+      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="AGPL-3.0-only" \
+      bradleylab.model.upstream="https://github.com/harryjfowen/PointsToWood" \
+      bradleylab.model.paper="https://arxiv.org/abs/2503.04420" \
+      bradleylab.model.task="semantic leaf-wood segmentation, point cloud" \
+      bradleylab.model.sensor="lidar:tls" \
+      bradleylab.model.status="exploratory" \
+      bradleylab.model.weights.source="upstream-repo:in-tree (model/global.pth, version1.0-paper branch)"
+
 CMD ["bash"]

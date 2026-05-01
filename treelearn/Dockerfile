@@ -104,5 +104,19 @@ RUN mkdir -p /opt/TreeLearn/data/model_weights
 COPY download_weights.sh /opt/TreeLearn/download_weights.sh
 RUN chmod +x /opt/TreeLearn/download_weights.sh
 
+LABEL org.opencontainers.image.title="treelearn" \
+      org.opencontainers.image.description="TreeLearn (Henrich et al. 2024) DL tree-instance segmentation for ground-based lidar; H100 sm_90 via cu118; weights fetched at runtime via download_weights.sh" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/treelearn/README.md" \
+      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="MIT" \
+      bradleylab.model.upstream="https://github.com/ecker-lab/TreeLearn" \
+      bradleylab.model.paper="https://doi.org/10.1016/j.ecoinf.2024.102888" \
+      bradleylab.model.task="tree-instance segmentation, point cloud" \
+      bradleylab.model.sensor="lidar:tls,mls" \
+      bradleylab.model.status="production" \
+      bradleylab.model.weights.source="goettingen-dataverse:doi:10.25625/VPMPID (runtime fetch)"
+
 WORKDIR /opt/TreeLearn
 CMD ["bash"]

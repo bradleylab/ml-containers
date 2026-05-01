@@ -42,4 +42,18 @@ WORKDIR /opt/tdfin
 COPY scripts/ ./
 RUN chmod +x *.sh *.py 2>/dev/null || true
 
+LABEL org.opencontainers.image.title="3dfin" \
+      org.opencontainers.image.description="3DFin (Laino et al. 2024) deterministic TLS stem detection + DBH; classical, CPU-only" \
+      org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/3dfin/README.md" \
+      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.vendor="bradleylab" \
+      org.opencontainers.image.licenses="GPL-3.0-only" \
+      bradleylab.model.upstream="https://github.com/3DFin/3DFin" \
+      bradleylab.model.paper="https://doi.org/10.1093/forestry/cpae020" \
+      bradleylab.model.task="stem detection + DBH (classical)" \
+      bradleylab.model.sensor="lidar:tls" \
+      bradleylab.model.status="production-capable" \
+      bradleylab.model.weights.source="none (classical algorithm)"
+
 ENTRYPOINT ["bash"]
