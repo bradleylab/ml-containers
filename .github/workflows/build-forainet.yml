@@ -49,7 +49,7 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.2-cu121
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v2
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.2-cu121-w
           cache-from: type=gha
           cache-to: type=gha,mode=max
