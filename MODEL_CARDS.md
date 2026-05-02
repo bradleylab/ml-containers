@@ -210,6 +210,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Build smoke test passes (2026-05-01); no production inference output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
 
+## neuralhydrology
+
+| | |
+|--|--|
+| Task | Rainfall-runoff / streamflow prediction (LSTM) |
+| Sensor | Time-series: meteorological forcings (precipitation, temperature, radiation, etc.) + streamflow observations |
+| Upstream repo | [neuralhydrology/neuralhydrology](https://github.com/neuralhydrology/neuralhydrology) |
+| Upstream license | BSD-3-Clause |
+| Paper | Kratzert, Gauch, Nearing & Klotz (2022), *JOSS* — [doi:10.21105/joss.04050](https://doi.org/10.21105/joss.04050) |
+| Weights source | User-supplied checkpoint directory bind-mounted at runtime (`run_dir/` with `model_epochXXX.pt` + `config.yml`). Pretrained CAMELS checkpoints linked from the NeuralHydrology research blog |
+| Weights license | Per checkpoint provenance — verify before redistribution |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 (CPU wheels) + `neuralhydrology>=1.13` + xarray/netcdf4/numba/h5py/pandas/scipy |
+| H100 status | N/A (CPU runtime; this image targets inference. Training would need a separate CUDA variant) |
+| Lab status | **utility** — no specific lab hydrology deliverable; the library enables LSTM rainfall-runoff workflows on demand |
+| First-run / current behavior | Build smoke test passes (2026-05-01); `nh-run --help` resolves; no production inference output yet |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+
 ---
 
 ## Deprecated images
