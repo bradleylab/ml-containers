@@ -244,6 +244,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Build smoke test passes (2026-05-01); `open_clip.create_model_and_transforms` and `huggingface_hub.hf_hub_download` reach; no production inference output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
 
+## satlas
+
+| | |
+|--|--|
+| Task | Pre-trained foundation-model backbones for remote-sensing imagery (downstream: classification, detection, segmentation, regression) |
+| Sensor | Sentinel-2 RGB + 9-band MS; Sentinel-1 VH+VV; Landsat 8/9 all-bands; 0.5–2 m/px aerial RGB |
+| Upstream repo | [allenai/satlaspretrain_models](https://github.com/allenai/satlaspretrain_models) |
+| Upstream license | Apache-2.0 (code); [ODC-BY](https://github.com/allenai/satlas/blob/main/DataLicense) (weights) — separate licenses |
+| Paper | Bastani et al. (2023), *ICCV* — *SatlasPretrain: A Large-Scale Dataset for Remote Sensing Image Understanding*. [Open access PDF](https://openaccess.thecvf.com/content/ICCV2023/html/Bastani_SatlasPretrain_A_Large-Scale_Dataset_for_Remote_Sensing_Image_Understanding_ICCV_2023_paper.html); arXiv: [2211.15660](https://arxiv.org/abs/2211.15660) |
+| Weights source | [`allenai/satlas-pretrain`](https://huggingface.co/allenai/satlas-pretrain) on HF Hub. The upstream `Weights().get_pretrained_model(...)` fetches via `requests.get` + `BytesIO` and does NOT cache on disk; for repeated jobs, pre-download to a host dir |
+| Weights license | ODC-BY |
+| Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `satlaspretrain-models>=0.3.1` |
+| H100 status | Native sm_90 |
+| Lab status | **utility** — pretrained backbones, no specific lab task; downstream fine-tuning + heads required for any actual prediction. Course doc lists Satlas as "Compute2 primary" |
+| First-run / current behavior | Build smoke test passes (2026-05-01); 14 checkpoint IDs reachable via `SatlasPretrain_weights`; no production inference output yet |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
+
 ---
 
 ## Deprecated images
