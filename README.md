@@ -65,6 +65,7 @@ locally.
 | `deepforest` | `deepforest/` | full recipe (NEON checkpoint via HF Hub) |
 | `forainet` | `forainet/` | full recipe — **experimental** torch 2.2 / sm_90 port |
 | `seisbench` | `seisbench/` | full recipe (CPU; weights via model zoo at runtime) |
+| `neuralhydrology` | `neuralhydrology/` | full recipe (CPU; user-supplied checkpoint + forcings) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -232,3 +233,26 @@ Weights are NOT baked. The first call to `Model.from_pretrained(...)`
 fetches from the SeisBench S3 model zoo into
 `$SEISBENCH_CACHE_ROOT=/opt/seisbench-cache`; bind-mount a persistent
 host dir there. See `seisbench/README.md`.
+
+### neuralhydrology
+
+NeuralHydrology (Kratzert, Klotz, Gauch et al.) — Python library for
+training and running deep-learning hydrology models (LSTM
+rainfall-runoff, streamflow prediction). Pretrained CAMELS LSTMs are
+tiny; CPU inference is essentially instant.
+
+- Base: `python:3.11-slim`
+- PyTorch 2.5.1 (CPU wheels)
+- `neuralhydrology >= 1.13`
+- Console scripts: `nh-run`, `nh-schedule-runs`, `nh-results-ensemble`
+
+Pull: `ghcr.io/bradleylab/neuralhydrology:v1`
+
+CPU-only by design — this image targets *inference*. Training
+(continental-scale, ensembles) is the GPU-bound case and would need
+a separate CUDA variant; not on the roadmap until a use case lands.
+
+Weights are NOT baked — users bind-mount a `run_dir/` containing the
+trained checkpoint and `config.yml`. Pretrained CAMELS checkpoints
+are linked from the [NeuralHydrology research blog](https://neuralhydrology.github.io/).
+See `neuralhydrology/README.md`.
