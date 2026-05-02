@@ -18,7 +18,10 @@ throughput matters); a CUDA variant can be added then.
 
 ## Image tag
 
-`ghcr.io/bradleylab/remoteclip:v1` (also `:latest`, `:torch2.5-cpu`)
+`ghcr.io/bradleylab/remoteclip:v2` (also `:latest`, `:torch2.5-cpu`).
+
+Multi-arch: `linux/amd64` + `linux/arm64`. Pull on Apple Silicon hosts
+runs natively without QEMU emulation.
 
 ## Stack
 
@@ -48,7 +51,7 @@ variant. Bind-mount a persistent host directory at
 docker run --rm -it \
   -v "$PWD/hf-cache:/opt/hf-cache" \
   -v "$PWD/data:/data" \
-  ghcr.io/bradleylab/remoteclip:v1
+  ghcr.io/bradleylab/remoteclip:v2
 ```
 
 ## Inference
@@ -109,7 +112,7 @@ sbatch -A compute2-alexander.s.bradley \
        --time=04:00:00 \
        --array=0-99 \
        --wrap='srun \
-         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+remoteclip+v1.sqsh \
+         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+remoteclip+v2.sqsh \
          --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/opt/hf-cache,/scratch2/fs1/alexander.s.bradley/tiles:/data \
          bash -lc "export PYTHONNOUSERSITE=1; python /scratch2/fs1/alexander.s.bradley/scripts/embed_tile_batch.py"'
 ```
