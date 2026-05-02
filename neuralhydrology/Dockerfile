@@ -49,9 +49,12 @@ RUN pip install \
 
 # Smoke test: import the package, confirm console scripts resolve, and
 # that LSTM head class is importable. No checkpoint or data fetch.
-RUN python -c "import neuralhydrology, torch, xarray as xr, pandas, numba; \
+# (neuralhydrology stores its version at neuralhydrology.__about__.__version__,
+# not on the top-level module — importlib.metadata is portable.)
+RUN python -c "import torch, xarray as xr, numba; \
+import importlib.metadata as im; \
 from neuralhydrology.modelzoo.cudalstm import CudaLSTM; \
-print('neuralhydrology', neuralhydrology.__version__, '| torch', torch.__version__, '| xarray', xr.__version__, '| numba', numba.__version__); \
+print('neuralhydrology', im.version('neuralhydrology'), '| torch', torch.__version__, '| xarray', xr.__version__, '| numba', numba.__version__); \
 assert CudaLSTM is not None" \
     && nh-run --help > /dev/null
 
