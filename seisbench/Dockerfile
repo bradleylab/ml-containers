@@ -31,7 +31,15 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl \
         libhdf5-dev \
+        build-essential \
+        python3-dev \
     && rm -rf /var/lib/apt/lists/*
+# build-essential + python3-dev are required for the arm64 build only:
+# obspy and seisbench publish manylinux1_x86_64 wheels but no
+# manylinux_aarch64 wheels (verified against PyPI 2026-05-02), so on
+# linux/arm64 pip falls back to sdist and needs a C toolchain. amd64
+# could go without these, but the slight size cost is worth keeping a
+# single Dockerfile.
 
 # PyTorch CPU wheels — laptop-runnable; matches the model's primary
 # tier. Pin matches the version exercised in `deepforest/` so a
