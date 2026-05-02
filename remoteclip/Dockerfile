@@ -16,6 +16,12 @@
 # Weights:  https://huggingface.co/chendelong/RemoteCLIP
 # Stack:    python:3.11-slim + PyTorch 2.5 CPU + open-clip-torch
 #
+# Multi-arch: linux/amd64 + linux/arm64. Every dependency publishes an
+# aarch64 wheel (torch 2.5.1, torchvision 0.20.1, open-clip-torch is
+# pure Python, Pillow + huggingface_hub all ship aarch64 wheels), so
+# no C toolchain is required in the image (verified against PyPI +
+# download.pytorch.org/whl/cpu, 2026-05-02).
+#
 # Bind-mount the HF cache to /opt/hf-cache so the checkpoint only
 # downloads once per host (CLIP-sized: RN50 ~400 MB, ViT-L-14 ~1.7 GB).
 
@@ -61,7 +67,7 @@ LABEL org.opencontainers.image.title="remoteclip" \
       org.opencontainers.image.description="RemoteCLIP — CLIP architecture fine-tuned on remote-sensing imagery (RN50 / ViT-B-32 / ViT-L-14); CPU runtime; weights via Hugging Face Hub at chendelong/RemoteCLIP" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/remoteclip/README.md" \
-      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.version="v2" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="Apache-2.0" \
       bradleylab.model.upstream="https://github.com/ChenDelong1999/RemoteCLIP" \
