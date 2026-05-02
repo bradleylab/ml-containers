@@ -227,6 +227,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Build smoke test passes (2026-05-01); `nh-run --help` resolves; no production inference output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
 
+## remoteclip
+
+| | |
+|--|--|
+| Task | Remote-sensing image-text retrieval / zero-shot scene classification (CLIP architecture) |
+| Sensor | RGB satellite imagery (Sentinel-2, NAIP, UAV — anything CLIP ingests as RGB at ~224 px) |
+| Upstream repo | [ChenDelong1999/RemoteCLIP](https://github.com/ChenDelong1999/RemoteCLIP) |
+| Upstream license | Apache-2.0 |
+| Paper | Liu, Chen, Guan, Zhou, Zhu, Ye, Fu, Zhou (2024), *IEEE TGRS* — preprint [arXiv:2306.11029](https://arxiv.org/abs/2306.11029); IEEE Xplore record [10504785](https://ieeexplore.ieee.org/document/10504785) |
+| Weights source | Hugging Face Hub: [`chendelong/RemoteCLIP`](https://huggingface.co/chendelong/RemoteCLIP). Three OpenCLIP-format checkpoints: `RemoteCLIP-RN50.pt` (~400 MB), `RemoteCLIP-ViT-B-32.pt` (~600 MB), `RemoteCLIP-ViT-L-14.pt` (~1.7 GB). Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
+| Weights license | Per HF model card; verify before redistribution |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 + torchvision 0.20.1 (CPU wheels) + `open-clip-torch>=2.20` + `huggingface_hub>=0.25` + Pillow |
+| H100 status | N/A (CPU runtime by design; CUDA variant deferred until a batch-embedding workload lands) |
+| Lab status | **utility** — no specific lab task; the container enables zero-shot scene classification and embedding workflows on demand, parallel to sam2 |
+| First-run / current behavior | Build smoke test passes (2026-05-01); `open_clip.create_model_and_transforms` and `huggingface_hub.hf_hub_download` reach; no production inference output yet |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+
 ---
 
 ## Deprecated images
