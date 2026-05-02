@@ -69,6 +69,7 @@ locally.
 | `remoteclip` | `remoteclip/` | full recipe (CPU; OpenCLIP arch + HF Hub weights at runtime) |
 | `satlas` | `satlas/` | full recipe (GPU sm_90; SatlasPretrain backbones, runtime fetch from HF Hub) |
 | `clay` | `clay/` | full recipe (GPU sm_90; ViT-MAE foundation model, runtime fetch from HF Hub) |
+| `xrd-classifier` | `xrd-classifier/` | full recipe (CPU; autoXRD multi-phase ID; demo Li-Mn-Ti-O-F model baked in) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -327,3 +328,29 @@ into `$HF_HOME=/opt/hf-cache` on first call to `hf_hub_download`.
 Clay's input contract is non-trivial (multi-sensor datacubes with
 time / lat-lon / GSD / wavelength metadata) — see `clay/README.md`
 for the data-prep pointers and the upstream wall-to-wall tutorial.
+
+### xrd-classifier
+
+autoXRD (Szymanski et al. 2021, *Chem. Mater.*) — probabilistic
+multi-phase identification from 1D powder XRD patterns. 1D CNN
+trained on simulated patterns from a user-supplied CIF library with
+physics-informed augmentation; multi-phase by design (default cap
+of 3 phases per pattern).
+
+- Base: `python:3.11-slim`
+- TensorFlow >= 2.16 (CPU)
+- `autoXRD >= 0.0.6` (PyPI)
+- pymatgen, pyxtal (transitive)
+
+Pull: `ghcr.io/bradleylab/xrd-classifier:v1`
+
+CPU-only by design — autoXRD inference is ~10 s/pattern on CPU and
+catalog-scale phase ID parallelises on `general-cpu` job arrays.
+
+Bundled demo: the upstream Li-Mn-Ti-O-F battery-cathode model
+(`Example/Model.h5`, ~73 MB) is baked in so a smoke run works on
+first pull. **For arbitrary minerals or other chemistries you must
+retrain** — drop CIFs into `Novel-Space/All_CIFs` and run the
+`generate_References.py` → `generate_XRD.py` → `train_CNN.py`
+pipeline (CPU-tractable for small phase libraries). See
+`xrd-classifier/README.md` for the full retraining procedure.

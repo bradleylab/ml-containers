@@ -278,6 +278,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Build smoke test passes (2026-05-01); `ClayMAEModule` and `ClayDataModule` import cleanly; no production embedding output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 
+## xrd-classifier
+
+| | |
+|--|--|
+| Task | Powder X-ray diffraction phase identification — probabilistic multi-phase ID via 1D CNN trained on simulated patterns with physics-informed augmentation |
+| Sensor | 1D XRD pattern (intensity vs 2θ; standard 5–90°, two-column ASCII) |
+| Upstream repo | [njszym/XRD-AutoAnalyzer](https://github.com/njszym/XRD-AutoAnalyzer) (note: `PV-Lab/autoXRD` is a different project with the same package name — do not conflate) |
+| Upstream license | MIT |
+| Paper | Szymanski et al. (2021), *Chem. Mater.* — *Probabilistic Deep Learning Approach to Automate the Interpretation of Multi-phase Diffraction Spectra*, [doi:10.1021/acs.chemmater.1c01071](https://doi.org/10.1021/acs.chemmater.1c01071); follow-up Adaptive XRD, *npj CompMat* 2023 |
+| Weights source | Upstream `Example/Model.h5` (Li-Mn-Ti-O-F demo system, 73 MB) baked in at `/opt/xrd-autoanalyzer/Example/Model.h5` via pinned `git clone` (commit `bf32082`). For other chemistries: retrain via the bundled `Novel-Space/` pipeline |
+| Weights license | MIT (per upstream LICENSE) |
+| Container stack | python:3.11-slim + TensorFlow >=2.16 (CPU) + `autoXRD>=0.0.6` + pymatgen + pyxtal + scipy + scikit-image |
+| H100 status | N/A (CPU runtime by design; autoXRD inference is ~10 s/pattern on CPU and parallelises on `general-cpu` job arrays better than it scales up a single GPU) |
+| Lab status | **utility** — multi-phase XRD ID toolkit; bundled demo is chemistry-specific (Li battery cathodes), so general mineralogy use requires retraining on user CIFs |
+| First-run / current behavior | Build smoke test passes (2026-05-01); demo `Example/Model.h5` (73 MB) verified on disk; `Example/run_CNN.py` runs the demo on bundled `Spectra/` |
+| Tags | `:v1` (= `:latest`, `:autoxrd-tf2.16-cpu`) |
+
 ---
 
 ## Deprecated images
