@@ -66,6 +66,7 @@ locally.
 | `forainet` | `forainet/` | full recipe — **experimental** torch 2.2 / sm_90 port |
 | `seisbench` | `seisbench/` | full recipe (CPU; weights via model zoo at runtime) |
 | `neuralhydrology` | `neuralhydrology/` | full recipe (CPU; user-supplied checkpoint + forcings) |
+| `remoteclip` | `remoteclip/` | full recipe (CPU; OpenCLIP arch + HF Hub weights at runtime) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -256,3 +257,24 @@ Weights are NOT baked — users bind-mount a `run_dir/` containing the
 trained checkpoint and `config.yml`. Pretrained CAMELS checkpoints
 are linked from the [NeuralHydrology research blog](https://neuralhydrology.github.io/).
 See `neuralhydrology/README.md`.
+
+### remoteclip
+
+RemoteCLIP (Liu, Chen et al. 2024, IEEE TGRS) — CLIP architecture
+fine-tuned on a 12× larger remote-sensing pre-training corpus. Three
+OpenCLIP-format checkpoints are distributed via Hugging Face Hub:
+`RN50`, `ViT-B-32`, `ViT-L-14`.
+
+- Base: `python:3.11-slim`
+- PyTorch 2.5.1 + torchvision (CPU wheels)
+- `open-clip-torch >= 2.20`, `huggingface_hub >= 0.25`
+
+Pull: `ghcr.io/bradleylab/remoteclip:v1`
+
+CPU-only by design — CLIP-sized models are very fast on CPU. For
+batch embedding across large tile archives a CUDA variant would help;
+not on the roadmap until that workload lands.
+
+Weights are NOT baked — fetched at runtime via `hf_hub_download` from
+[`chendelong/RemoteCLIP`](https://huggingface.co/chendelong/RemoteCLIP)
+into `$HF_HOME=/opt/hf-cache`. See `remoteclip/README.md`.
