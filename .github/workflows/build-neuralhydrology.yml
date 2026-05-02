@@ -28,6 +28,11 @@ jobs:
           docker image prune -af || true
           df -h
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -43,9 +48,10 @@ jobs:
         with:
           context: neuralhydrology
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v2
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.5-cpu
           cache-from: type=gha
           cache-to: type=gha,mode=max

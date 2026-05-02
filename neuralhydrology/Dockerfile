@@ -12,6 +12,14 @@
 # PyPI:    https://pypi.org/project/neuralhydrology/
 # Stack:    Python 3.11-slim + PyTorch 2.5 CPU + neuralhydrology>=1.13
 #
+# Multi-arch: linux/amd64 + linux/arm64. Every dependency publishes
+# manylinux_aarch64 wheels (torch 2.5.1 from
+# download.pytorch.org/whl/cpu, plus numba/numpy/scipy/pandas/
+# netcdf4/h5py via PyPI; neuralhydrology itself is pure Python),
+# verified 2026-05-02. The build-essential + libhdf5-dev +
+# libnetcdf-dev apt deps below are kept defensively for sdist
+# fallbacks but are not exercised under current pins.
+#
 # No weights baked. Users bind-mount a directory containing the
 # checkpoint (`run_dir/`, with `model_epochXXX.pt` and `config.yml`)
 # and the forcing data (CAMELS layout or compatible).
@@ -62,7 +70,7 @@ LABEL org.opencontainers.image.title="neuralhydrology" \
       org.opencontainers.image.description="NeuralHydrology — Python library for training and running deep-learning hydrology models (LSTM rainfall-runoff, streamflow prediction); CPU runtime; CAMELS-style inputs supplied at runtime." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/neuralhydrology/README.md" \
-      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.version="v2" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="BSD-3-Clause" \
       bradleylab.model.upstream="https://github.com/neuralhydrology/neuralhydrology" \

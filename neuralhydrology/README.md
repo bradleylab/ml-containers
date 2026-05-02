@@ -14,8 +14,11 @@ inference; for training jobs on H100, build a CUDA variant.
 
 ## Image tag
 
-`ghcr.io/bradleylab/neuralhydrology:v1` (also `:latest`,
-`:torch2.5-cpu`)
+`ghcr.io/bradleylab/neuralhydrology:v2` (also `:latest`,
+`:torch2.5-cpu`).
+
+Multi-arch: `linux/amd64` + `linux/arm64`. Pull on Apple Silicon hosts
+runs natively without QEMU emulation.
 
 ## Stack
 
@@ -36,7 +39,7 @@ forcing data:
 docker run --rm -it \
   -v "$PWD/run_dir:/work/run_dir" \
   -v "$PWD/data:/work/data" \
-  ghcr.io/bradleylab/neuralhydrology:v1
+  ghcr.io/bradleylab/neuralhydrology:v2
 ```
 
 Pretrained CAMELS checkpoints from published runs are linked from
@@ -87,7 +90,7 @@ sbatch -A compute2-alexander.s.bradley \
        --mem=8G \
        --time=02:00:00 \
        --wrap='srun \
-         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+neuralhydrology+v1.sqsh \
+         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+neuralhydrology+v2.sqsh \
          --container-mounts=/scratch2/fs1/alexander.s.bradley/run_dir:/work/run_dir,/scratch2/fs1/alexander.s.bradley/camels:/work/data \
          bash -lc "export PYTHONNOUSERSITE=1; nh-run evaluate --run-dir /work/run_dir --epoch 30"'
 ```
