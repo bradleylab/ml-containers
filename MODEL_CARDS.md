@@ -261,6 +261,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Build smoke test passes (2026-05-01); 14 checkpoint IDs reachable via `SatlasPretrain_weights`; no production inference output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 
+## clay
+
+| | |
+|--|--|
+| Task | Multi-sensor Earth-observation foundation model — per-patch embeddings, similarity search, clustering, lightweight downstream classification |
+| Sensor | Sentinel-2 (multi-spectral), Sentinel-1 SAR, Landsat, NAIP, MODIS |
+| Upstream repo | [Clay-foundation/model](https://github.com/Clay-foundation/model) |
+| Upstream license | Apache-2.0 (code + weights) |
+| Paper / docs | [clay-foundation.github.io/model](https://clay-foundation.github.io/model) (project Jupyter Book; papers in progress); model card on HF Hub |
+| Weights source | [`made-with-clay/Clay`](https://huggingface.co/made-with-clay/Clay) on HF Hub: `v1.5/clay-v1.5.ckpt` (~3 GB). Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
+| Weights license | Apache-2.0 (per upstream README) |
+| Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `claymodel==1.5.0` (pinned to upstream commit `f14e698`) + Lightning / timm / vit-pytorch / geopandas / scikit-image |
+| H100 status | Native sm_90 |
+| Lab status | **utility** — pretrained foundation model, no specific lab task; downstream embedding + adapter required for any prediction. Course doc lists Clay as Compute2-primary (batch embedding is the killer use) |
+| First-run / current behavior | Build smoke test passes (2026-05-01); `ClayMAEModule` and `ClayDataModule` import cleanly; no production embedding output yet |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
+
 ---
 
 ## Deprecated images
