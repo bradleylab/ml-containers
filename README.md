@@ -68,6 +68,7 @@ locally.
 | `neuralhydrology` | `neuralhydrology/` | full recipe (CPU; user-supplied checkpoint + forcings) |
 | `remoteclip` | `remoteclip/` | full recipe (CPU; OpenCLIP arch + HF Hub weights at runtime) |
 | `satlas` | `satlas/` | full recipe (GPU sm_90; SatlasPretrain backbones, runtime fetch from HF Hub) |
+| `clay` | `clay/` | full recipe (GPU sm_90; ViT-MAE foundation model, runtime fetch from HF Hub) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -300,3 +301,29 @@ fetches the `.pth` from `allenai/satlas-pretrain` on HF Hub at every
 call — the upstream loader does **not** cache on disk. For repeated
 jobs, pre-download checkpoints to a host directory; see
 `satlas/README.md` for the wrapper pattern.
+
+### clay
+
+Clay Foundation Model — Vision-Transformer Masked Autoencoder
+pretrained on multi-sensor Earth observation imagery (Sentinel-2,
+Sentinel-1 SAR, Landsat, NAIP, MODIS). Outputs per-patch embeddings
+usable for similarity search, clustering, or lightweight downstream
+classification with minimal labels.
+
+- Base: `nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04`
+- Python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121, sm_90)
+- `claymodel==1.5.0` (installed from a pinned upstream git commit)
+- Lightning, geopandas, timm, vit-pytorch, scikit-image, einops, etc.
+
+Pull: `ghcr.io/bradleylab/clay:v1`
+
+GPU-primary (H100 sm_90); single-tile embedding works on a laptop
+GPU, but batch embedding across an archive of tiles is the killer
+use case.
+
+Weights are NOT baked. The v1.5 checkpoint (~3 GB) downloads from
+[`made-with-clay/Clay`](https://huggingface.co/made-with-clay/Clay)
+into `$HF_HOME=/opt/hf-cache` on first call to `hf_hub_download`.
+Clay's input contract is non-trivial (multi-sensor datacubes with
+time / lat-lon / GSD / wavelength metadata) — see `clay/README.md`
+for the data-prep pointers and the upstream wall-to-wall tutorial.
