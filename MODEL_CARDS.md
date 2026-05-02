@@ -289,11 +289,12 @@ update its card *in the same PR*. Top-level `README.md` and
 | Paper | Szymanski et al. (2021), *Chem. Mater.* — *Probabilistic Deep Learning Approach to Automate the Interpretation of Multi-phase Diffraction Spectra*, [doi:10.1021/acs.chemmater.1c01071](https://doi.org/10.1021/acs.chemmater.1c01071); follow-up Adaptive XRD, *npj CompMat* 2023 |
 | Weights source | Upstream `Example/Model.h5` (Li-Mn-Ti-O-F demo system, 73 MB) baked in at `/opt/xrd-autoanalyzer/Example/Model.h5` via pinned `git clone` (commit `bf32082`). For other chemistries: retrain via the bundled `Novel-Space/` pipeline |
 | Weights license | MIT (per upstream LICENSE) |
-| Container stack | python:3.11-slim + TensorFlow >=2.16 (CPU) + `autoXRD>=0.0.6` + pymatgen + pyxtal + scipy + scikit-image |
+| Container stack | python:3.11-slim + TensorFlow >=2.16 (CPU) + `autoXRD` (installed from cloned repo at pinned SHA `bf32082`, version 0.0.6 to match Example/Model.h5) + pymatgen + pyxtal + scipy + scikit-image |
 | H100 status | N/A (CPU runtime by design; autoXRD inference is ~10 s/pattern on CPU and parallelises on `general-cpu` job arrays better than it scales up a single GPU) |
 | Lab status | **utility** — multi-phase XRD ID toolkit; bundled demo is chemistry-specific (Li battery cathodes), so general mineralogy use requires retraining on user CIFs |
-| First-run / current behavior | Build smoke test passes (2026-05-01); demo `Example/Model.h5` (73 MB) verified on disk; `Example/run_CNN.py` runs the demo on bundled `Spectra/` |
-| Tags | `:v1` (= `:latest`, `:autoxrd-tf2.16-cpu`) |
+| Architecture | **AMD64-only.** Upstream's prediction pipeline calls into BGMN (Rietveld refinement, Linux x86_64 binary). No arm64 path exists. Apple-Silicon Mac users run via `docker pull --platform linux/amd64` + qemu |
+| First-run / current behavior | v2 build smoke test passes (2026-05-02); BGMN baked at build time; bundled demo `Example/run_CNN.py` runs offline on first pull |
+| Tags | `:v2` (= `:latest`, `:autoxrd-tf2.16-cpu`) — current; `:v1` retained for rollback (had the BGMN runtime-fetch bug + version-skew between pip and cloned autoXRD) |
 
 ## prithvi-eo
 

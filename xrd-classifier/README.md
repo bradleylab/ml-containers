@@ -15,8 +15,28 @@ warrants it.
 
 ## Image tag
 
-`ghcr.io/bradleylab/xrd-classifier:v1` (also `:latest`,
-`:autoxrd-tf2.16-cpu`)
+`ghcr.io/bradleylab/xrd-classifier:v2` (also `:latest`,
+`:autoxrd-tf2.16-cpu`). `:v1` remains pullable for rollback.
+
+**AMD64-only.** The upstream's prediction pipeline calls into BGMN
+(Rietveld refinement engine) at every spectrum, and BGMN ships only
+as a Linux x86_64 binary. There is no arm64 path. Apple-Silicon Mac
+users must run with `docker pull --platform linux/amd64` and qemu
+emulation, which works (~2-3× slower than native x86_64).
+
+## Changes since v1
+
+- **Single source of truth for `autoXRD`.** v1 had two installs (pip
+  0.0.7 + cloned-repo 0.0.6), and which one Python found depended on
+  `cwd`, with the cloned 0.0.6 matching the bundled `Model.h5` weights
+  and the pip 0.0.7 not. v2 installs editable from the cloned repo
+  only.
+- **BGMN pre-baked.** v1's first `run_CNN.py` invocation crashed
+  because upstream's `BGMNWorker` does a lazy network download of the
+  Linux x86_64 BGMN binary, races under multiprocessing, and leaves
+  no usable zip behind. v2 calls `download_bgmn()` once at build time
+  so the binary is already in the image and first inference works
+  offline.
 
 ## Stack
 
