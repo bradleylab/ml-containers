@@ -193,6 +193,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | TBD (2026-05-01) |
 | Tags | `:v2` (= `:latest`, weights baked); `:v1` (legacy, weights bind-mounted at runtime) |
 
+## seisbench
+
+| | |
+|--|--|
+| Task | Seismic phase picking (P/S onset detection) |
+| Sensor | Seismic waveforms; 3-component preferred for EQTransformer, single-component acceptable for PhaseNet |
+| Upstream repo | [seisbench/seisbench](https://github.com/seisbench/seisbench) |
+| Upstream license | GPL-3.0 |
+| Paper | Woollam et al. (2022), *Seismological Research Letters* — [doi:10.1785/0220210324](https://doi.org/10.1785/0220210324). Bundled architectures: PhaseNet (Zhu & Beroza 2019, *GJI*, [doi:10.1093/gji/ggy423](https://doi.org/10.1093/gji/ggy423)); EQTransformer (Mousavi et al. 2020, *Nature Communications*, [doi:10.1038/s41467-020-17591-w](https://doi.org/10.1038/s41467-020-17591-w)) |
+| Weights source | SeisBench model zoo (S3-hosted) on first call to `Model.from_pretrained(...)`. Cache at `$SEISBENCH_CACHE_ROOT=/opt/seisbench-cache` (bind-mount for persistence) |
+| Weights license | Varies by checkpoint in the model zoo; verify per pretrained model before redistribution |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 (CPU wheels) + `seisbench>=0.7` + `obspy>=1.4` + `h5py` + `pandas` |
+| H100 status | N/A (CPU runtime by design; CUDA variant can be added later if needed) |
+| Lab status | **utility** — no specific lab seismic deliverable; SeisBench enables phase picking workflows on demand, parallel to sam2's role for image segmentation |
+| First-run / current behavior | Build smoke test passes (2026-05-01); no production inference output yet |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+
 ---
 
 ## Deprecated images

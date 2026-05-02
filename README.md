@@ -64,6 +64,7 @@ locally.
 | `backman-thermal-deer` | `backman-thermal-deer/` | full recipe (runtime-only; model bind-mounted) |
 | `deepforest` | `deepforest/` | full recipe (NEON checkpoint via HF Hub) |
 | `forainet` | `forainet/` | full recipe — **experimental** torch 2.2 / sm_90 port |
+| `seisbench` | `seisbench/` | full recipe (CPU; weights via model zoo at runtime) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -210,3 +211,24 @@ Pull: `ghcr.io/bradleylab/forainet:v1`
 `PointGroup-PAPER.pt` distributed by upstream via Dropbox under
 unclear license — bind-mount at runtime. See `forainet/README.md`
 for the fetch command and the experimental-status caveat.
+
+### seisbench
+
+SeisBench (Woollam et al. 2022) — toolbox bundling maintained
+PhaseNet (Zhu & Beroza 2019) and EQTransformer (Mousavi et al. 2020)
+plus the public model zoo. Zero-shot on new stations and networks.
+
+- Base: `python:3.11-slim`
+- PyTorch 2.5.1 (CPU wheels)
+- `seisbench >= 0.7`, `obspy >= 1.4`
+
+Pull: `ghcr.io/bradleylab/seisbench:v1`
+
+CPU-only by design — the model is fast on CPU for typical use; on
+continental catalogs the bottleneck is I/O parallelism, not model
+compute. A CUDA variant can be added later if needed.
+
+Weights are NOT baked. The first call to `Model.from_pretrained(...)`
+fetches from the SeisBench S3 model zoo into
+`$SEISBENCH_CACHE_ROOT=/opt/seisbench-cache`; bind-mount a persistent
+host dir there. See `seisbench/README.md`.
