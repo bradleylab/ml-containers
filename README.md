@@ -67,6 +67,7 @@ locally.
 | `seisbench` | `seisbench/` | full recipe (CPU; weights via model zoo at runtime) |
 | `neuralhydrology` | `neuralhydrology/` | full recipe (CPU; user-supplied checkpoint + forcings) |
 | `remoteclip` | `remoteclip/` | full recipe (CPU; OpenCLIP arch + HF Hub weights at runtime) |
+| `satlas` | `satlas/` | full recipe (GPU sm_90; SatlasPretrain backbones, runtime fetch from HF Hub) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -278,3 +279,24 @@ not on the roadmap until that workload lands.
 Weights are NOT baked — fetched at runtime via `hf_hub_download` from
 [`chendelong/RemoteCLIP`](https://huggingface.co/chendelong/RemoteCLIP)
 into `$HF_HOME=/opt/hf-cache`. See `remoteclip/README.md`.
+
+### satlas
+
+SatlasPretrain (Bastani et al., ICCV 2023) — Allen AI's pre-trained
+foundation model backbones for satellite + aerial imagery. Sentinel-2
+RGB+MS, Sentinel-1 SAR, Landsat 8/9 all-bands, and 0.5–2 m/px aerial
+RGB; Swin-v2-{Base,Tiny} and ResNet{50,152} variants.
+
+- Base: `nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04`
+- Python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121, sm_90)
+- `satlaspretrain-models >= 0.3.1`
+
+Pull: `ghcr.io/bradleylab/satlas:v1`
+
+GPU-primary (H100 sm_90); CPU also works via `device='cpu'`.
+
+Weights are NOT baked. `Weights().get_pretrained_model(checkpoint_id)`
+fetches the `.pth` from `allenai/satlas-pretrain` on HF Hub at every
+call — the upstream loader does **not** cache on disk. For repeated
+jobs, pre-download checkpoints to a host directory; see
+`satlas/README.md` for the wrapper pattern.
