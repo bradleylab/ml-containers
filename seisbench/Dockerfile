@@ -69,7 +69,7 @@ LABEL org.opencontainers.image.title="seisbench" \
       bradleylab.model.paper="https://doi.org/10.1785/0220210324" \
       bradleylab.model.task="seismic phase picking (P/S onset detection)" \
       bradleylab.model.sensor="waveform:seismic" \
-      bradleylab.model.status="production" \
+      bradleylab.model.status="utility" \
       bradleylab.model.weights.source="seisbench-model-zoo (runtime fetch into SEISBENCH_CACHE_ROOT=/opt/seisbench-cache)"
 
 WORKDIR /work
