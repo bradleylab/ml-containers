@@ -70,6 +70,7 @@ locally.
 | `satlas` | `satlas/` | full recipe (GPU sm_90; SatlasPretrain backbones, runtime fetch from HF Hub) |
 | `clay` | `clay/` | full recipe (GPU sm_90; ViT-MAE foundation model, runtime fetch from HF Hub) |
 | `xrd-classifier` | `xrd-classifier/` | full recipe (CPU; autoXRD multi-phase ID; demo Li-Mn-Ti-O-F model baked in) |
+| `prithvi-eo` | `prithvi-eo/` | full recipe (GPU sm_90; IBM/NASA HLS foundation model via TerraTorch, runtime fetch from HF Hub) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -354,3 +355,28 @@ retrain** — drop CIFs into `Novel-Space/All_CIFs` and run the
 `generate_References.py` → `generate_XRD.py` → `train_CNN.py`
 pipeline (CPU-tractable for small phase libraries). See
 `xrd-classifier/README.md` for the full retraining procedure.
+
+### prithvi-eo
+
+[Prithvi-EO](https://huggingface.co/ibm-nasa-geospatial) is the
+IBM/NASA family of ViT-based geospatial foundation models pre-trained
+on Harmonized Landsat-Sentinel-2 (HLS) imagery. Variants: 1.0-100M,
+2.0-300M, 2.0-300M-TL, 2.0-600M, 2.0-600M-TL (TL = temporal +
+locational embeddings).
+
+- Base: `nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04`
+- Python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121, sm_90)
+- `terratorch >= 1.2.5` (IBM toolkit; brings Lightning, torchgeo,
+  segmentation-models-pytorch, diffusers, timm as transitive deps)
+
+Pull: `ghcr.io/bradleylab/prithvi-eo:v1`
+
+GPU-primary (H100 sm_90); 100M v1 fine-tuned variants run on a laptop
+GPU with 8+ GB VRAM, but 300M / 600M v2 base models want H100.
+
+Weights are NOT baked. The five Prithvi variants live at
+`ibm-nasa-geospatial/Prithvi-EO-*` on HF Hub and download into
+`$HF_HOME=/opt/hf-cache` on first call to TerraTorch's
+`BACKBONE_REGISTRY.build(..., pretrained=True)`. See
+`prithvi-eo/README.md` for inference + fine-tuning patterns and the
+HLS data-prep references.

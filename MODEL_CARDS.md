@@ -295,6 +295,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Build smoke test passes (2026-05-01); demo `Example/Model.h5` (73 MB) verified on disk; `Example/run_CNN.py` runs the demo on bundled `Spectra/` |
 | Tags | `:v1` (= `:latest`, `:autoxrd-tf2.16-cpu`) |
 
+## prithvi-eo
+
+| | |
+|--|--|
+| Task | Geospatial foundation model — ViT pre-trained on HLS for downstream burn-scar / flood / crop classification / segmentation; container ships TerraTorch's `BACKBONE_REGISTRY` + Lightning task scaffolding |
+| Sensor | image:multi (Harmonized Landsat-Sentinel-2 — 6 bands B2/B3/B4/B5/B6/B7, multi-temporal) |
+| Upstream repo | [IBM/terratorch](https://github.com/IBM/terratorch) (the toolkit); model weights at [`ibm-nasa-geospatial`](https://huggingface.co/ibm-nasa-geospatial) on HF Hub |
+| Upstream license | Apache-2.0 (TerraTorch); Apache-2.0 (Prithvi weights — verify per HF model card) |
+| Paper | Roy, Carney, Castaldi, et al. (2024) — *Prithvi-EO-2.0: A Versatile Multi-Temporal Foundation Model for Earth Observation Applications*, [arXiv:2412.02732](https://arxiv.org/abs/2412.02732). Earlier 1.0 paper Jakubik et al. (2023), arXiv:2310.18660 |
+| Weights source | HF Hub: [`ibm-nasa-geospatial/Prithvi-EO-1.0-100M`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-1.0-100M), [`Prithvi-EO-2.0-300M`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M), [`Prithvi-EO-2.0-300M-TL`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL), [`Prithvi-EO-2.0-600M`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M), [`Prithvi-EO-2.0-600M-TL`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M-TL). Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
+| Weights license | Apache-2.0 |
+| Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `terratorch>=1.2.5` + Lightning + torchgeo + segmentation-models-pytorch + diffusers + timm + geopandas |
+| H100 status | Native sm_90 |
+| Lab status | **utility** — pretrained backbones; downstream task heads + fine-tuning required for any actual prediction. Course doc lists Prithvi as Compute2-primary for the 300M/600M models |
+| First-run / current behavior | Build smoke test passes (2026-05-01); `BACKBONE_REGISTRY` reachable; no production embedding output yet |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
+
 ---
 
 ## Deprecated images
