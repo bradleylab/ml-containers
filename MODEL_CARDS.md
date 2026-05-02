@@ -207,8 +207,9 @@ update its card *in the same PR*. Top-level `README.md` and
 | Container stack | python:3.11-slim + PyTorch 2.5.1 (CPU wheels) + `seisbench>=0.7` + `obspy>=1.4` + `h5py` + `pandas` |
 | H100 status | N/A (CPU runtime by design; CUDA variant can be added later if needed) |
 | Lab status | **utility** — no specific lab seismic deliverable; SeisBench enables phase picking workflows on demand, parallel to sam2's role for image segmentation |
-| First-run / current behavior | Build smoke test passes (2026-05-01); no production inference output yet |
-| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+| Architecture | **Multi-arch from v2** — `linux/amd64` + `linux/arm64`. Apple-Silicon Macs pull native arm64; Compute2 / EC2 pull amd64. v1 was amd64-only |
+| First-run / current behavior | v2 build smoke test passes (2026-05-02); first run-time validation captured in PR review |
+| Tags | `:v2` (= `:latest`, `:torch2.5-cpu`) — current; `:v1` retained for rollback (amd64-only) |
 
 ## neuralhydrology
 

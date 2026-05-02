@@ -11,7 +11,12 @@ continental-scale catalogs where many station-days run in parallel.
 
 ## Image tag
 
-`ghcr.io/bradleylab/seisbench:v1` (also `:latest`, `:torch2.5-cpu`)
+`ghcr.io/bradleylab/seisbench:v2` (also `:latest`, `:torch2.5-cpu`).
+`:v1` retained for rollback (amd64-only).
+
+**Multi-arch.** v2 ships both `linux/amd64` and `linux/arm64` so
+Apple-Silicon Mac users get native-arch images without qemu
+emulation.
 
 ## Stack
 
