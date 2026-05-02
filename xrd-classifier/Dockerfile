@@ -66,7 +66,7 @@ RUN git clone https://github.com/njszym/XRD-AutoAnalyzer.git /opt/xrd-autoanalyz
 RUN python -c "import autoXRD, tensorflow as tf, pymatgen; \
 import importlib.metadata as im; \
 import os; \
-print('autoXRD', im.version('autoXRD'), '| tensorflow', tf.__version__, '| pymatgen', pymatgen.__version__); \
+print('autoXRD', im.version('autoXRD'), '| tensorflow', im.version('tensorflow'), '| pymatgen', im.version('pymatgen')); \
 assert os.path.exists('/opt/xrd-autoanalyzer/Example/Model.h5'), 'demo Model.h5 missing'; \
 print('demo Model.h5 size:', os.path.getsize('/opt/xrd-autoanalyzer/Example/Model.h5'), 'bytes')"
 
