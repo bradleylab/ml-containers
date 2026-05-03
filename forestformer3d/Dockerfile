@@ -110,25 +110,26 @@ RUN pip install 'setuptools<70' wheel ninja cython
 
 # OpenMMLab stack — Plan A pins.
 #
-# Order matters:
+# Order:
 #   1. Install mmengine + mmdet + mmsegmentation pure-Python wheels
 #      (--no-deps to keep our pinned numpy/scipy stable).
-#   2. Install mmcv 2.1.0 from the cu121/torch2.1 prebuilt index. The
-#      cu121/torch2.2 index only ships mmcv 2.2.0, which mmdet3d 1.4.0
-#      strictly forbids (`mmcv < 2.2.0` assertion in mmdet3d/__init__.py).
-#      The torch-2.1 wheel is C++-ABI-compatible with torch 2.2 in the
-#      2.x series.
-#   3. Install mmdet3d 1.4.0 from PyPI wheel (no compile, pure Python).
-#
-# We DO NOT use --no-build-isolation here because everything is a
-# pure-Python wheel install — there is no extension to compile.
+#   2. Build mmcv 2.1.0 from PyPI sdist against the host torch 2.2.2.
+#      The cu121/torch2.1 prebuilt wheel is NOT ABI-compatible with
+#      torch 2.2 — it ships against the torch-2.1 _ops namespace and
+#      hits `undefined symbol: at::_ops::zeros_like::call(...)` at
+#      load time on torch 2.2 (CI run 25292441057). Rebuilding from
+#      source links against the in-image torch and fixes the symbol
+#      table.
+#      Skipping the cu121/torch2.2 prebuilt mmcv 2.2.0 because mmdet3d
+#      1.4.0's __init__ asserts `mmcv < 2.2.0` strictly.
+#   3. Install mmdet3d 1.4.0 from PyPI wheel (pure Python, no compile).
 RUN pip install --no-deps \
         mmengine==0.10.3 \
         mmdet==3.3.0 \
         mmsegmentation==1.2.2 \
-    && pip install mmcv==2.1.0 \
-        -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.1/index.html \
-        --no-deps \
+    && MMCV_WITH_OPS=1 FORCE_CUDA=1 \
+        pip install --no-deps --no-build-isolation \
+            mmcv==2.1.0 \
     && pip install --no-deps mmdet3d==1.4.0
 
 # MinkowskiEngine from CiSong10's CUDA 12 fork — same recipe SAT v2 uses.
