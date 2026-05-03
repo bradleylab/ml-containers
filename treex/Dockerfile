@@ -27,10 +27,13 @@
 #     1.0.3 lags the source, force-reinstall picks up bugfixes)
 #   - circle_detection from upstream main (matches upstream Dockerfile)
 #
-# CPU-only by design. TreeXAlgorithm is classical / unsupervised — no
-# torch, no GPU, no weights. Build context contains a thin wrapper
-# (`scripts/run_treex.py`) that takes a LAS/LAZ tile, runs the ULS
-# preset, and writes a segmented LAZ.
+# CPU-only by design. TreeXAlgorithm is classical / unsupervised and
+# never executes torch ops — but `pointtree.instance_segmentation` does
+# `import pointtree.evaluation._match_instances` at package init, which
+# transitively imports torch. So we install torch CPU wheel (no CUDA)
+# to satisfy the import; runtime stays GPU-free. No weights are baked.
+# Build context contains a thin wrapper (`scripts/run_treex.py`) that
+# takes a LAS/LAZ tile, runs the ULS preset, and writes a segmented LAZ.
 #
 # pyclesperanto-prototype note: pointtree pyproject lists
 # pyclesperanto-prototype>=0.22.0,<1.0.0. Versions ≥0.24.5 re-introduced
@@ -77,6 +80,17 @@ RUN pip install --upgrade pip wheel setuptools
 # below the numpy<2 reintroduction (see header note).
 RUN pip install 'numpy>=2.3,<3'
 
+# Torch CPU wheel: required even for the unsupervised TreeXAlgorithm path
+# because `from pointtree.instance_segmentation import ...` transitively
+# imports `pointtree.evaluation._match_instances`, which imports
+# `pointtorch.metrics.instance_segmentation._match_instances`, which
+# does `import torch` at module load. CPU-only is sufficient — the
+# TreeX algorithm itself never executes torch ops; the import is paid
+# at package init only. Cross-references upstream pointtree issue tracker
+# for the eval-on-init coupling.
+RUN pip install --index-url https://download.pytorch.org/whl/cpu \
+        torch torchvision
+
 # Install pointtree 1.0.1 from PyPI. scikit-build-core + pybind11 will
 # compile the C++ extensions (_tree_x_algorithm_cpp, _operations_cpp)
 # during this step.
@@ -118,7 +132,8 @@ print('pointtree', im.version('pointtree'), \
 '| rasterio', im.version('rasterio'), \
 '| numba', im.version('numba'), \
 '| pygam', im.version('pygam'), \
-'| pyclesperanto-prototype', im.version('pyclesperanto-prototype')); \
+'| pyclesperanto-prototype', im.version('pyclesperanto-prototype'), \
+'| torch', im.version('torch')); \
 assert TreeXAlgorithm is not None and algo is not None"
 
 LABEL org.opencontainers.image.title="treex" \
