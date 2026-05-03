@@ -51,6 +51,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch1.13-cu118-planB
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.2-cu121-planA
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -18,117 +18,156 @@
 # the paper's stable-performance floor (~75 pts/m²). Realistic F1
 # floor is 60-70%, not 76%.
 #
-# ## Build path: Plan B (lowest deviation)
+# ## Build path: Plan A (cu121 + torch 2.2.2 + CiSong10 MinkowskiEngine)
 #
-# Upstream FF3D Dockerfile pins `pytorch:1.13.1-cuda11.6-cudnn8-devel`
-# + `mmengine 0.7.3` + `mmcv 2.0.0` + `mmdet 3.0.0` + `mmdet3d @
-# 22aaa47` + `MinkowskiEngine @ 02fc608` + `spconv-cu116 2.3.6`. Plan B
-# preserves all mm* versions and the 3,515 lines of
-# `replace_mmdetection_files/` patches verbatim, and only swaps the
-# CUDA toolchain / sparse-conv backend so MinkowskiEngine and spconv
-# emit native sm_90 kernels for H100.
+# Plan B (the original `pytorch:1.13.1-cuda11.6-cudnn8` + cu118 nvcc
+# variant, faithfully mirroring upstream pins) failed in CI (run
+# 25285693937, 2026-05-03) at the MinkowskiEngine compile step:
+# `ValueError: Unknown CUDA arch (8.9) or GPU not supported`. PyTorch
+# 1.13.1 predates Hopper / Ada by two years and its
+# `_get_cuda_arch_flags()` rejects sm_89 outright, so 1.13.1 cannot
+# emit native sm_90 kernels regardless of the underlying nvcc. We
+# moved to Plan A, which is the same toolchain proven on
+# `segment-any-tree-h100/Dockerfile` (also H100, also MinkowskiEngine).
 #
-# Note on base image: the spec named `pytorch:1.13.1-cuda11.8-cudnn8-devel`,
-# but that exact Docker Hub tag does not exist (only cuda11.6 ships
-# for torch 1.13.1). We approximate by basing on
-# `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` (cu118 nvcc, sm_90
-# capable) and pip-installing `torch==1.13.1+cu117` from
-# pytorch.org — this is the same approach used in
-# `treelearn/Dockerfile` and is binary-compatible with cu118 runtime.
-# mmcv 2.0.0 cu117/torch1.13 prebuilt wheels are available.
-# spconv-cu118 ships sm_90 PTX inside the wheel.
+# Stack:
+#   Base                pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel
+#   PyTorch             2.2.2 (in base)
+#   mmengine            0.10.3   (mmdet3d 1.4.0 accepts >=0.8.0,<1.0.0)
+#   mmcv                2.1.0    (mmdet3d 1.4.0 accepts >=2.0.0rc4,<2.2.0;
+#                                 cu121/torch2.1 prebuilt wheel —
+#                                 ABI-compat with torch 2.2.x)
+#   mmdet               3.3.0    (in [3.0.0rc5, 3.4.0))
+#   mmsegmentation      1.2.2
+#   mmdet3d             1.4.0    (released wheel)
+#   MinkowskiEngine     CiSong10/cuda12-installation (proven on SAT v2)
+#   spconv-cu121        2.3.8    (latest 2.3.x, cu121 wheels ship sm_90)
+#   cumm-cu121          0.7.11   (matched to spconv-cu121 2.3.8 deps)
+#   PyG ecosystem       torch-2.2.2+cu121 prebuilt wheels
 #
-# Plan A (full port to mm-engine 0.10.x / mmcv 2.1 / mmdet3d 1.4 on
-# torch 2.2 + cu121) is the documented fallback if Plan B fails to
-# compile MinkowskiEngine on sm_90 in CI. See README.md §"Plan A
-# fallback" for the version matrix.
+# ## replace_mmdetection_files/ overlay
+#
+# FF3D upstream ships 3 full-file replacements (3,515 lines total)
+# against `mmengine 0.7.3` + `mmdet3d @ 22aaa47`:
+#   - mmengine/runner/loops.py            (466 L)
+#   - mmengine/model/base_model/base_model.py  (348 L)
+#   - mmdet3d/datasets/transforms/transforms_3d.py  (2,701 L)
+#
+# These were written against the older mm-stack. On Plan A we install
+# mmengine 0.10.x and mmdet3d 1.4.0 from released wheels first, then
+# COPY FF3D's frozen versions over the site-packages locations. The
+# research-agent assessment in
+# `tyson-forest-linkage/docs/METHOD_COMPARISON.md` §4.3 was "API stable,
+# signature drift possible, not a hard blocker". The smoke test at the
+# end of this Dockerfile imports each package after the overlay, so
+# any signature drift surfaces at build time. If the smoke test fails
+# on a renamed/relocated symbol in the FF3D overlay files, the next
+# step is to forward-port FF3D's surgical customizations against the
+# new mmengine 0.10.x / mmdet3d 1.4.0 sources — the deltas vs upstream
+# are typically 50-200 lines against the FF3D copies (see git diff
+# upstream main vs 0.10.x tags for mmengine and v1.4.0 tag for
+# mmdet3d).
 
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    TORCH_NVCC_FLAGS="-Xfatbin -compress-all" \
     TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0" \
     CMAKE_CUDA_ARCHITECTURES="70;75;80;86;89;90" \
     FORCE_CUDA=1 \
     PATH=/usr/local/cuda/bin:$PATH \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
-# System deps mirror upstream Dockerfile + Python 3.10 from deadsnakes.
+# System deps mirror SAT v2 (also H100 + MinkowskiEngine + cu121).
 # build-essential / cmake / ninja: MinkowskiEngine + segmentator csrc
 # libopenblas-dev: MinkowskiEngine BLAS=openblas
 # libsparsehash-dev: torch-points3d kdtree headers
-# libgl1 / libglib2.0-0: open3d / opencv-python runtime
-# ffmpeg / libsm6 / libxrender-dev: open3d / matplotlib runtime
-# libxext6: X11 helper for open3d off-screen rendering
+# libgl1 / libglib2.0-0 / libglu1-mesa-dev / libosmesa6-dev: open3d
+#   off-screen rendering at runtime
+# ffmpeg / libsm6 / libxrender-dev / libxext6: open3d / matplotlib
+# libsndfile1 / libusb-1.0-0-dev / libxcb-shm0: open3d transitive
+# libtbb-dev: parallel STL paths used by some sparse-conv backends
+# git-lfs: model-checkpoint helpers in upstream FF3D
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        software-properties-common ca-certificates wget git \
-        build-essential cmake ninja-build \
-        libopenblas-dev libsparsehash-dev \
-        libgl1 libglib2.0-0 \
-        ffmpeg libsm6 libxext6 libxrender-dev \
-    && add-apt-repository -y ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y --no-install-recommends \
-        python3.10 python3.10-dev python3.10-distutils \
-    && wget -qO /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py \
-    && python3.10 /tmp/get-pip.py \
-    && rm /tmp/get-pip.py \
-    && update-alternatives --install /usr/bin/python  python  /usr/bin/python3.10 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 \
+        git ninja-build cmake build-essential libopenblas-dev \
+        libsparsehash-dev libtbb-dev libglib2.0-0 libglu1-mesa-dev \
+        libosmesa6-dev libsm6 libusb-1.0-0-dev libxcb-shm0 libxext6 \
+        libxrender-dev libsndfile1 libgl1 ffmpeg \
+        wget unzip zip git-lfs ca-certificates \
+    && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install 'setuptools<70' wheel
+# Patch std::to_address collision with CUDA 12 + g++11 (NVIDIA #596).
+# Same fix SAT v2 uses; required before MinkowskiEngine compiles.
+RUN sed -i 's/\bauto __raw = __to_address(__r.get());/auto __raw = std::__to_address(__r.get());/' \
+    /usr/include/c++/11/bits/shared_ptr_base.h || true
 
-# PyTorch 1.13.1+cu117 is the closest available 1.13.1 wheel; cu118
-# torch 1.13.1 wheels were never published. The cu117 build is binary
-# compatible with cu118 runtime libraries on the host.
-RUN pip install --index-url https://download.pytorch.org/whl/cu117 \
-        torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1
+RUN pip install 'setuptools<70' wheel ninja cython
 
-# OpenMMLab stack — exact upstream pins. mmcv prebuilt wheel matches
-# cu117/torch1.13 (no cu118 wheel exists for torch 1.13).
+# OpenMMLab stack — Plan A pins.
 #
-# mmdet3d git install requires --no-build-isolation: its setup.py does
-# `import torch` at module top, and pip's PEP-517 isolated build env
-# doesn't see the host torch unless we disable isolation. We pre-install
-# the build-time helpers (ninja, cython) so the mmdet3d build wheel can
-# proceed with just our existing torch + setuptools.
+# Order matters:
+#   1. Install mmengine + mmdet + mmsegmentation pure-Python wheels
+#      (--no-deps to keep our pinned numpy/scipy stable).
+#   2. Install mmcv 2.1.0 from the cu121/torch2.1 prebuilt index. The
+#      cu121/torch2.2 index only ships mmcv 2.2.0, which mmdet3d 1.4.0
+#      strictly forbids (`mmcv < 2.2.0` assertion in mmdet3d/__init__.py).
+#      The torch-2.1 wheel is C++-ABI-compatible with torch 2.2 in the
+#      2.x series.
+#   3. Install mmdet3d 1.4.0 from PyPI wheel (no compile, pure Python).
+#
+# We DO NOT use --no-build-isolation here because everything is a
+# pure-Python wheel install — there is no extension to compile.
 RUN pip install --no-deps \
-        mmengine==0.7.3 \
-        mmdet==3.0.0 \
-        mmsegmentation==1.0.0 \
-    && pip install mmcv==2.0.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html --no-deps \
-    && pip install ninja cython \
-    && pip install --no-deps --no-build-isolation \
-        "git+https://github.com/open-mmlab/mmdetection3d.git@22aaa47fdb53ce1870ff92cb7e3f96ae38d17f61"
+        mmengine==0.10.3 \
+        mmdet==3.3.0 \
+        mmsegmentation==1.2.2 \
+    && pip install mmcv==2.1.0 \
+        -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.1/index.html \
+        --no-deps \
+    && pip install --no-deps mmdet3d==1.4.0
 
-# MinkowskiEngine — upstream NVIDIA commit 02fc608, rebuilt with
-# TORCH_CUDA_ARCH_LIST including 9.0 so H100 (sm_90) gets native
-# kernels rather than PTX-JIT (which has hung on sparse convs in
-# this container family before — SAT v1 incident).
-#
-# We use `python setup.py install` (mirroring SAT v2's recipe)
-# rather than upstream FF3D's `pip install --install-option=...`
-# form because pip 23.1+ removed `--install-option`. Setuptools'
-# direct setup.py path still honors the same flags.
-RUN git clone https://github.com/NVIDIA/MinkowskiEngine.git /tmp/me \
+# MinkowskiEngine from CiSong10's CUDA 12 fork — same recipe SAT v2 uses.
+# Native sm_90 kernels (PTX-JIT has hung on sparse convs in this
+# container family before; we don't repeat that mistake).
+RUN git clone https://github.com/CiSong10/MinkowskiEngine.git /tmp/me \
     && cd /tmp/me \
-    && git checkout 02fc608bea4c0549b0a7b00ca1bf15dee4a0b228 \
+    && git checkout cuda12-installation \
     && python setup.py install --force_cuda --blas=openblas \
     && cd / && rm -rf /tmp/me
 
-# torch-scatter — upstream pins 2.0.9, build-from-source so the CUDA
-# kernels match our toolchain. Keep arch list inclusive of 9.0.
-RUN git clone https://github.com/rusty1s/pytorch_scatter.git /tmp/ts \
-    && cd /tmp/ts \
-    && git checkout tags/2.0.9 -b v2.0.9 \
-    && pip install --no-deps . \
-    && cd / && rm -rf /tmp/ts
+# spconv + cumm — cu121 wheels (sm_90 capable).
+# spconv-cu121 2.3.8 requires cumm-cu121>=0.7.11,<0.8.0.
+RUN pip install --no-deps \
+        spconv-cu121==2.3.8 \
+        cumm-cu121==0.7.11
 
-# ScanNet superpoint segmentator (Karbo123). Upstream installs to
-# site-packages/segmentator. Pin the same csrc commit as upstream.
+# PyG ecosystem — torch-2.2.2+cu121 prebuilt wheels (matching SAT v2).
+# torch-scatter / torch-cluster ship as wheels; torch-points-kernels
+# does not, so we install it from PyPI (it builds against the host
+# torch headers, so we keep the cython/ninja already installed above).
+RUN pip install --no-cache-dir \
+        torch-scatter torch-cluster \
+        -f https://data.pyg.org/whl/torch-2.2.2+cu121.html
+
+# torch-points-kernels: SAT v2 patches its setup.py for numpy/cython
+# pins and CUDA arch + at:: namespace fixes. We mirror that exactly.
+RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0" \
+    && git clone https://github.com/torch-points3d/torch-points-kernels.git /tmp/tpk \
+    && cd /tmp/tpk \
+    && sed -i 's/"numpy<=1.21"/"numpy"/g' setup.py \
+    && sed -i 's/-arch=sm_35/-arch=sm_50/g' setup.py \
+    && sed -i 's/isIntegralType(/at::isIntegralType(/g' cuda/include/utils.h \
+    && sed -i 's/isFloatingType(/at::isFloatingType(/g' cuda/include/utils.h \
+    && pip install --no-cache-dir --no-build-isolation . \
+    && cd / && rm -rf /tmp/tpk
+
+# ScanNet superpoint segmentator (Karbo123). Upstream FF3D installs
+# this from csrc; pin the same commit.
 RUN git clone https://github.com/Karbo123/segmentator.git /tmp/segmentator \
     && cd /tmp/segmentator/csrc \
     && git reset --hard 76efe46d03dd27afa78df972b17d07f2c6cfb696 \
@@ -142,18 +181,17 @@ RUN git clone https://github.com/Karbo123/segmentator.git /tmp/segmentator \
     && make install \
     && cd / && rm -rf /tmp/segmentator
 
-# Remaining Python deps — mirror upstream Dockerfile pins exactly.
-# spconv-cu118 (not cu116) is the one substitution: it ships sm_90
-# kernels and is API-compatible with the 2.3.x line upstream uses.
-# cumm-cu118 0.4.x correspondingly.
+# Remaining Python deps. Most of upstream FF3D's pinned versions are
+# pure-Python and forward-compatible with the cu121/torch-2.2 stack,
+# but a few of the older pins (numpy 1.24.1, scipy 1.10.1, scikit-learn
+# 1.2.2) are kept because mmdet3d 1.4.0 / FF3D's data pipelines were
+# tested against that line. We drop spconv/cumm here because they're
+# already installed above with the cu121 variant.
 RUN pip install --no-deps \
-        spconv-cu118==2.3.6 \
-        cumm-cu118==0.4.11 \
         addict==2.4.0 \
         yapf==0.33.0 \
         termcolor==2.3.0 \
         packaging==23.1 \
-        numpy==1.24.1 \
         rich==13.3.5 \
         opencv-python==4.7.0.72 \
         pycocotools==2.0.6 \
@@ -162,10 +200,9 @@ RUN pip install --no-deps \
         terminaltables==3.1.10 \
         numba==0.57.0 \
         llvmlite==0.40.0 \
-        pccm==0.4.7 \
-        ccimport==0.4.2 \
+        pccm==0.4.16 \
+        ccimport==0.4.4 \
         pybind11==2.10.4 \
-        ninja==1.11.1 \
         lark==1.1.5 \
         pyquaternion==0.9.9 \
         lyft-dataset-sdk==0.0.8 \
@@ -210,31 +247,28 @@ RUN pip install --no-deps \
         filelock \
         fsspec \
         regex \
-        debugpy
+        debugpy \
+        "laspy[lazrs]"
 
-# torch-points-kernels — upstream README §2 fix. Install --no-deps to
-# avoid pulling a numpy >=2.0 that breaks the build, then reinstall
-# torch-cluster --no-deps (upstream README §3).
-RUN pip install --no-deps --no-cache-dir torch-points-kernels==0.7.0 \
-    && pip uninstall -y torch-cluster || true \
-    && pip install --no-deps --no-cache-dir torch-cluster \
-    && pip install --no-deps "laspy[lazrs]"
-
-# laz-IO for runtime input handling on Tyson tiles.
-RUN pip install --no-deps laspy
-
-# Clone FF3D and place it at /workspace (upstream PYTHONPATH default).
+# Clone FF3D into /workspace (upstream PYTHONPATH default).
 RUN git clone https://github.com/SmartForest-no/ForestFormer3D.git /workspace
 WORKDIR /workspace
 
 ENV PYTHONPATH=/workspace
 
-# Apply the 3,515-line replace_mmdetection_files/ overlay. Upstream
-# README §4 describes this as a manual `cp` step; we bake it into
-# the image so every container is consistent. These are full-file
-# replacements, not patches, so a straight cp is the correct
-# operation. The file paths under site-packages are pinned by the
-# mm* versions installed above (mmengine 0.7.3, mmdet3d @ 22aaa47).
+# Apply the 3,515-line replace_mmdetection_files/ overlay. These are
+# full-file replacements that upstream README §4 documents as a manual
+# `cp` step; we bake it in. The destination paths are derived at build
+# time from the actually-installed mmengine 0.10.x and mmdet3d 1.4.0
+# package locations, so this works regardless of the python prefix.
+#
+# WARNING: FF3D's overlay was authored against mmengine 0.7.3 and
+# mmdet3d @ 22aaa47. On Plan A we have mmengine 0.10.x + mmdet3d 1.4.0,
+# so signature drift in `loops.py`, `base_model.py`, or
+# `transforms_3d.py` is possible. The smoke test below imports each
+# subsystem; if it fails on an AttributeError or TypeError after the
+# overlay, the fix is to forward-port the FF3D customizations against
+# the new mmengine/mmdet3d source rather than blindly overwriting.
 RUN MMENGINE_PATH=$(python -c "import mmengine, os; print(os.path.dirname(mmengine.__file__))") \
     && MMDET3D_PATH=$(python -c "import mmdet3d, os; print(os.path.dirname(mmdet3d.__file__))") \
     && echo "mmengine at $MMENGINE_PATH" \
@@ -251,8 +285,6 @@ RUN MMENGINE_PATH=$(python -c "import mmengine, os; print(os.path.dirname(mmengi
 # build to that endpoint risks transient CI failures. Weights download
 # once on the target host (Compute2 scratch) into a bind-mounted dir
 # and are reused across SLURM jobs.
-#
-# Use the bundled `download_weights.sh` helper.
 COPY download_weights.sh /workspace/download_weights.sh
 RUN chmod +x /workspace/download_weights.sh \
     && mkdir -p /workspace/work_dirs/clean_forestformer \
@@ -269,28 +301,28 @@ RUN chmod +x /workspace/scripts/run_inference.sh
 RUN python -c "\
 import importlib, importlib.metadata as im, sys; \
 print('python', sys.version.split()[0]); \
-import torch; print('torch', torch.__version__, 'cuda_avail (build):', torch.version.cuda); \
-print('mmengine     ', im.version('mmengine')); \
-print('mmcv         ', im.version('mmcv')); \
-print('mmdet        ', im.version('mmdet')); \
-print('mmsegmentation', im.version('mmsegmentation')); \
-print('mmdet3d      ', im.version('mmdet3d')); \
-print('spconv-cu118 ', im.version('spconv-cu118')); \
-print('cumm-cu118   ', im.version('cumm-cu118')); \
-print('numpy        ', im.version('numpy')); \
-print('open3d       ', im.version('open3d')); \
-print('laspy        ', im.version('laspy')); \
+import torch; print('torch', torch.__version__, 'cuda (build):', torch.version.cuda); \
+print('mmengine        ', im.version('mmengine')); \
+print('mmcv            ', im.version('mmcv')); \
+print('mmdet           ', im.version('mmdet')); \
+print('mmsegmentation  ', im.version('mmsegmentation')); \
+print('mmdet3d         ', im.version('mmdet3d')); \
+print('spconv-cu121    ', im.version('spconv-cu121')); \
+print('cumm-cu121      ', im.version('cumm-cu121')); \
+print('numpy           ', im.version('numpy')); \
+print('open3d          ', im.version('open3d')); \
+print('laspy           ', im.version('laspy')); \
 import MinkowskiEngine as ME; \
-print('MinkowskiEngine', im.version('MinkowskiEngine')); \
-import segmentator; print('segmentator    ok (no PEP 621 metadata; csrc-installed)'); \
-import torch_scatter; print('torch_scatter  ', im.version('torch-scatter')); \
-import torch_cluster; print('torch_cluster  ', im.version('torch-cluster')); \
+print('MinkowskiEngine ', im.version('MinkowskiEngine')); \
+import segmentator; print('segmentator     ok (csrc-installed, no PEP-621 metadata)'); \
+import torch_scatter; print('torch_scatter   ', im.version('torch-scatter')); \
+import torch_cluster; print('torch_cluster   ', im.version('torch-cluster')); \
 from torch_points_kernels import instance_iou; print('torch-points-kernels', im.version('torch-points-kernels')); \
 import oneformer3d; print('oneformer3d (FF3D in-tree) loaded from', oneformer3d.__file__); \
 print('SMOKE TEST PASSED')"
 
 LABEL org.opencontainers.image.title="forestformer3d" \
-      org.opencontainers.image.description="ForestFormer3D (Xiang et al. ICCV 2025 Oral) transformer-panoptic 3D forest instance segmentation; H100 sm_90 via cu118 nvcc + spconv-cu118 + MinkowskiEngine rebuilt for sm_90; Plan B build" \
+      org.opencontainers.image.description="ForestFormer3D (Xiang et al. ICCV 2025 Oral) transformer-panoptic 3D forest instance segmentation; H100 sm_90 via cu121 + torch 2.2.2 + CiSong10 MinkowskiEngine; Plan A build" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/forestformer3d/README.md" \
       org.opencontainers.image.version="v1" \

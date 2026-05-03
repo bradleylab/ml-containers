@@ -6,53 +6,63 @@ OneFormer3D, fine-tuned on FOR-instanceV2. Replaces PointGroup-style
 clustering with learned instance queries, removing the post-hoc
 clustering parameters that complicate SegmentAnyTree tuning.
 
-> **EXPERIMENTAL.** Plan B build path. Honors the upstream pinned
-> stack (mmengine 0.7.3 / mmcv 2.0.0 / mmdet 3.0.0 / mmdet3d @
-> 22aaa47 / MinkowskiEngine @ 02fc608 / spconv 2.3.x) and only swaps
-> CUDA toolchain so MinkowskiEngine and spconv emit native sm_90
-> kernels. Plan A (full mm-stack upgrade to torch 2.2 / cu121) is the
-> documented fallback if Plan B fails to compile. See "Plan A
-> fallback" below.
+> **EXPERIMENTAL.** Plan A build path (cu121 + torch 2.2.2 + CiSong10
+> MinkowskiEngine fork). Forward-ports FF3D's mm-stack from the
+> upstream-pinned `mmengine 0.7.3 / mmcv 2.0.0 / mmdet 3.0.0 /
+> mmdet3d @ 22aaa47` to `mmengine 0.10.3 / mmcv 2.1.0 / mmdet 3.3.0 /
+> mmdet3d 1.4.0` so MinkowskiEngine and spconv emit native sm_90
+> kernels for H100. The 3 `replace_mmdetection_files/` overlay files
+> are still applied verbatim from upstream — see "replace_mmdetection_files"
+> below for the signature-drift caveat.
 
 ## Image tag
 
-- `ghcr.io/bradleylab/forestformer3d:v1` (also `:latest`)
+- `ghcr.io/bradleylab/forestformer3d:v1` (also `:latest`,
+  `:torch2.2-cu121-planA`)
 
-## Stack (Plan B)
+## Stack (Plan A, live)
 
 | Layer | Pin | Source / note |
 |---|---|---|
-| Base image | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` | cu118 nvcc supports sm_90 natively |
-| Python | 3.10 | deadsnakes PPA on Ubuntu 22.04 |
-| PyTorch | 1.13.1+cu117 | closest 1.13.1 wheel (no cu118 wheel of 1.13.1 was ever published; cu117 is binary-compatible with cu118 runtime) |
-| mmengine | 0.7.3 | upstream pin |
-| mmcv | 2.0.0 (cu117/torch1.13 wheel) | upstream pin; only cu117 wheels exist for torch 1.13 |
-| mmdet | 3.0.0 | upstream pin |
-| mmsegmentation | 1.0.0 | upstream pin |
-| mmdet3d | git @ 22aaa47fdb53ce1870ff92cb7e3f96ae38d17f61 | upstream pin |
-| MinkowskiEngine | NVIDIA git @ 02fc608 | rebuilt with `TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0"` so H100 gets native kernels |
-| spconv | spconv-cu118==2.3.6, cumm-cu118==0.4.11 | swapped from upstream cu116 wheels; same 2.3.x line |
+| Base image | `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` | matches `segment-any-tree-h100`; cu121 nvcc supports sm_90 natively |
+| Python | 3.10 | from base image |
+| PyTorch | 2.2.2 | in base |
+| mmengine | 0.10.3 | in mmdet3d-1.4.0 accepted range `[0.8.0, 1.0.0)` |
+| mmcv | 2.1.0 (cu121/torch2.1 wheel) | mmdet3d 1.4.0 strictly requires `<2.2.0`; the cu121/torch2.2 prebuilt index only ships 2.2.0, so we pull mmcv 2.1.0 from the cu121/torch2.1 index — same C++ ABI as torch 2.2.x |
+| mmdet | 3.3.0 | in mmdet3d-1.4.0 accepted range `[3.0.0rc5, 3.4.0)` |
+| mmsegmentation | 1.2.2 | latest 1.2.x |
+| mmdet3d | 1.4.0 | released wheel; FF3D's in-tree customizations were against `@ 22aaa47` which is roughly 1.3.0-era — see overlay caveat below |
+| MinkowskiEngine | [`CiSong10/MinkowskiEngine` @ `cuda12-installation`](https://github.com/CiSong10/MinkowskiEngine/tree/cuda12-installation) | proven on `segment-any-tree-h100`; rebuilt with `TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0"` so H100 gets native kernels |
+| spconv | spconv-cu121 == 2.3.8 | latest 2.3.x cu121 wheel; ships sm_90 kernels |
+| cumm | cumm-cu121 == 0.7.11 | matched to spconv-cu121 2.3.8 deps (`>=0.7.11,<0.8.0`) |
 | segmentator | Karbo123 csrc @ 76efe46 | upstream pin |
-| torch-scatter | 2.0.9 (source build) | upstream pin |
-| torch-points-kernels | 0.7.0 (`--no-deps`) | upstream README §2 fix |
-| torch-cluster | reinstalled `--no-deps` | upstream README §3 fix |
+| torch-scatter / torch-cluster | torch-2.2.2+cu121 prebuilt | matches SAT v2 |
+| torch-points-kernels | git source w/ SAT v2 patches | upstream README §2 fix; numpy/cython pins + `at::` namespace + arch ≥ sm_50 |
 
-The `replace_mmdetection_files/` overlay (3,515 lines: `loops.py`
-466 L, `base_model.py` 348 L, `transforms_3d.py` 2,701 L) is applied
-inside the Dockerfile by copying the three files over the
-site-packages locations of the installed `mmengine` and `mmdet3d` —
-exactly mirroring the manual `cp` step in the upstream `readme.md`
-§4. Because Plan B preserves the upstream mm* versions, no re-diffing
-is required.
+## replace_mmdetection_files overlay
 
-### Why not the literal `pytorch:1.13.1-cuda11.8-cudnn8-devel`?
+FF3D ships 3 full-file replacements (3,515 lines total) authored against
+`mmengine 0.7.3` + `mmdet3d @ 22aaa47`:
 
-That Docker Hub tag does not exist. The PyTorch project shipped only
-`1.13.1-cuda11.6-cudnn8-{runtime,devel}`. To get cu118 nvcc
-(required for native sm_90 compile) we base on
-`nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` and pip-install the
-torch 1.13.1+cu117 wheel — same approach used in
-[`treelearn/Dockerfile`](../treelearn/Dockerfile).
+- `mmengine/runner/loops.py` (466 L)
+- `mmengine/model/base_model/base_model.py` (348 L)
+- `mmdet3d/datasets/transforms/transforms_3d.py` (2,701 L)
+
+The Dockerfile applies them as a verbatim `cp` over the installed
+`mmengine 0.10.x` and `mmdet3d 1.4.0` site-packages locations (paths
+derived at build time via `python -c "import mmengine, os; ..."`).
+
+The research-agent assessment from
+[`tyson-forest-linkage/docs/METHOD_COMPARISON.md`](https://github.com/bradleylab/tyson-forest-linkage)
+§4.3 is "API stable, signature drift possible, not a hard blocker".
+
+If the smoke test (or first inference) fails on an `AttributeError` /
+`TypeError` originating in one of those three files, the fix is to
+forward-port FF3D's surgical customizations against the new
+mmengine/mmdet3d source rather than blindly overwriting. The deltas
+between FF3D's frozen versions and upstream `loops.py` /
+`base_model.py` / `transforms_3d.py` are typically 50-200 lines of
+real change against thousands of upstream lines.
 
 ## Pre-trained weights — runtime fetch
 
@@ -128,7 +138,7 @@ sbatch -A compute2-alexander.s.bradley \
 `PYTHONNOUSERSITE=1` is required by the ml-containers Compute2 rule
 (otherwise `~/.local/lib/python3.10/site-packages/` leaks in via
 enroot's `$HOME` bind-mount and shadows the container's pinned
-`numpy 1.24.1` / `mmcv 2.0.0` / etc.).
+mm-stack).
 
 For dense plots where one inference round leaves "blue points"
 unsegmented, FF3D ships `tools/inference_bluepoint.sh` — see upstream
@@ -160,36 +170,39 @@ SegmentAnyTree Wytham calibration in
 [`tyson-forest-linkage/docs/METHOD_COMPARISON.md`](https://github.com/bradleylab/tyson-forest-linkage)
 §3.3) by a wide margin.
 
-## Plan A fallback
+## Plan B (historical context — CI-failed 2026-05-03)
 
-If Plan B's MinkowskiEngine fails to compile on sm_90 (most likely
-failure mode: same PTX hang as SAT v1 had on sparse convs), drop to
-Plan A — full port of the mm* stack onto torch 2.2 + cu121:
+The original PR-33 build attempted to mirror upstream FF3D's exact
+pinned stack and only swap CUDA toolchain:
 
-| Layer | Plan B pin | Plan A pin |
-|---|---|---|
-| Base | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` | `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` |
-| PyTorch | 1.13.1+cu117 | 2.2.2 (in base) |
-| mmengine | 0.7.3 | 0.10.3+ |
-| mmcv | 2.0.0 | 2.1.0 |
-| mmdet | 3.0.0 | 3.3.0 |
-| mmsegmentation | 1.0.0 | 1.2.2 |
-| mmdet3d | git @ 22aaa47 | 1.4.0 |
-| MinkowskiEngine | NVIDIA @ 02fc608 | [`CiSong10/MinkowskiEngine` @ `cuda12-installation`](https://github.com/CiSong10/MinkowskiEngine/tree/cuda12-installation) (proven on `segment-any-tree-h100`) |
-| spconv | spconv-cu118 2.3.6 | spconv-cu121 2.3.7 |
-| cumm | cumm-cu118 0.4.11 | cumm-cu121 0.5.x |
+| Layer | Plan B pin (CI-failed) |
+|---|---|
+| Base | `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` |
+| PyTorch | 1.13.1+cu117 |
+| mmengine | 0.7.3 |
+| mmcv | 2.0.0 (cu117/torch1.13 wheel) |
+| mmdet | 3.0.0 |
+| mmsegmentation | 1.0.0 |
+| mmdet3d | git @ 22aaa47fdb53ce1870ff92cb7e3f96ae38d17f61 |
+| MinkowskiEngine | NVIDIA @ 02fc608 |
+| spconv | spconv-cu118 2.3.6, cumm-cu118 0.4.11 |
 
-Plan A requires re-diffing the 3 `replace_mmdetection_files/` files
-against mmengine 0.10.x and mmdet3d 1.4 source and porting FF3D's
-customizations forward — the research-agent assessment from
-[`tyson-forest-linkage/docs/METHOD_COMPARISON.md`](https://github.com/bradleylab/tyson-forest-linkage)
-§4.3 is "API stable, signature drift possible, not a hard blocker"
-but expect ~1 day of build debugging.
+Plan B failed in CI run
+[25285693937](https://github.com/bradleylab/ml-containers/actions/runs/25285693937)
+at MinkowskiEngine compile:
 
-The matching `segment-any-tree-h100/Dockerfile` is the closest
-template for a Plan A build — it solves the same H100 +
-MinkowskiEngine + spconv problem class on torch 2.2 / cu121 with the
-CiSong10 fork.
+```
+torch/utils/cpp_extension.py:1793, in _get_cuda_arch_flags
+    raise ValueError(f"Unknown CUDA arch ({arch}) or GPU not supported")
+ValueError: Unknown CUDA arch (8.9) or GPU not supported
+```
+
+PyTorch 1.13.1 was released 2022-12 — two years before Hopper /
+Ada (sm_89, sm_90) entered its supported arch list. The arch
+validation in `cpp_extension.py` rejects `8.9` (and `9.0`) outright
+before nvcc is even invoked, so even with cu118 nvcc on the host the
+compile path can never reach H100. Plan B was unsalvageable; Plan A
+is the live build path.
 
 ## License
 
