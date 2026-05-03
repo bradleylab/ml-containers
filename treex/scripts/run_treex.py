@@ -22,6 +22,10 @@ Outputs (in --output-dir):
     <stem>_treex_trunks.parquet — table of trunk centers (x, y) + diameter
 """
 
+# pointtree + pointtorch are installed only inside the container image
+# (ghcr.io/bradleylab/treex). Local static analyzers cannot resolve them.
+# pyright: reportMissingImports=false
+
 from __future__ import annotations
 
 import argparse
