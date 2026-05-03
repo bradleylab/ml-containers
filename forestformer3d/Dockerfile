@@ -168,15 +168,29 @@ RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0" \
 
 # ScanNet superpoint segmentator (Karbo123). Upstream FF3D installs
 # this from csrc; pin the same commit.
+#
+# Notes on adapting the upstream cmake invocation to torch 2.2:
+#   1. `torch.utils.cmake_prefix_path` is a *string attribute* in
+#      torch 2.x — not a callable. Upstream FF3D's `print(torch.utils.cmake_prefix_path())`
+#      worked on torch 1.13.x (where it was a function) and raises
+#      TypeError on 2.x. Drop the parens.
+#   2. The python -c args use single-quote outer + double-quote inner
+#      (no backslash escapes), which survives Dockerfile RUN parsing
+#      cleanly and avoids the `\"` line-continuation gotcha that hit
+#      this build in CI (run 25286124144).
 RUN git clone https://github.com/Karbo123/segmentator.git /tmp/segmentator \
     && cd /tmp/segmentator/csrc \
     && git reset --hard 76efe46d03dd27afa78df972b17d07f2c6cfb696 \
+    && CMAKE_PREFIX=$(python -c 'import torch; print(torch.utils.cmake_prefix_path)') \
+    && PY_INC=$(python -c 'from sysconfig import get_path; print(get_path("include"))') \
+    && PY_LIB=$(python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR") + "/libpython3.10.so")') \
+    && PY_PURELIB=$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])') \
     && mkdir -p build && cd build \
     && cmake .. \
-        -DCMAKE_PREFIX_PATH="$(python -c 'import torch; print(torch.utils.cmake_prefix_path())')" \
-        -DPYTHON_INCLUDE_DIR="$(python -c 'from sysconfig import get_path; print(get_path(\"include\"))')" \
-        -DPYTHON_LIBRARY="$(python -c 'import sysconfig; print(sysconfig.get_config_var(\"LIBDIR\") + \"/libpython3.10.so\")')" \
-        -DCMAKE_INSTALL_PREFIX="$(python -c 'import sysconfig; print(sysconfig.get_paths()[\"purelib\"])')" \
+        -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX" \
+        -DPYTHON_INCLUDE_DIR="$PY_INC" \
+        -DPYTHON_LIBRARY="$PY_LIB" \
+        -DCMAKE_INSTALL_PREFIX="$PY_PURELIB" \
     && make -j"$(nproc)" \
     && make install \
     && cd / && rm -rf /tmp/segmentator
@@ -197,6 +211,8 @@ RUN pip install --no-deps \
         pycocotools==2.0.6 \
         Shapely==1.8.5 \
         scipy==1.10.1 \
+        scikit-image==0.21.0 \
+        prettytable==3.10.0 \
         terminaltables==3.1.10 \
         numba==0.57.0 \
         llvmlite==0.40.0 \
