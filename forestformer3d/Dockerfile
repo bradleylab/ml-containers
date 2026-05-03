@@ -166,45 +166,15 @@ RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0" \
     && pip install --no-cache-dir --no-build-isolation . \
     && cd / && rm -rf /tmp/tpk
 
-# ScanNet superpoint segmentator (Karbo123). Upstream FF3D installs
-# this from csrc; pin the same commit.
-#
-# Notes on adapting the upstream cmake invocation to torch 2.2:
-#   1. `torch.utils.cmake_prefix_path` is a *string attribute* in
-#      torch 2.x — not a callable. Upstream FF3D's `print(torch.utils.cmake_prefix_path())`
-#      worked on torch 1.13.x (where it was a function) and raises
-#      TypeError on 2.x. Drop the parens.
-#   2. The python -c args use single-quote outer + double-quote inner
-#      (no backslash escapes), which survives Dockerfile RUN parsing
-#      cleanly and avoids the `\"` line-continuation gotcha (CI run
-#      25286124144).
-#   3. CMAKE_CXX_STANDARD bumped 14 -> 17. Torch 2.x C++ headers
-#      (cloneable.h, conv.h) need C++17 to template-instantiate cleanly
-#      under g++11 (CI run 25286954798).
-#   4. Install location: segmentator's CMakeLists creates a SYMLINK at
-#      $CMAKE_INSTALL_PREFIX/segmentator pointing into the source tree
-#      (csrc/). If we delete the source tree after install, the symlink
-#      target evaporates and `import segmentator.csrc.build.libsegmentator`
-#      fails with ModuleNotFoundError (CI run 25287773931). Keep the
-#      source tree under /opt/segmentator-src (a stable, non-tmp path)
-#      so the in-place compiled .so survives container runtime.
-RUN git clone https://github.com/Karbo123/segmentator.git /opt/segmentator-src \
-    && cd /opt/segmentator-src/csrc \
-    && git reset --hard 76efe46d03dd27afa78df972b17d07f2c6cfb696 \
-    && sed -i 's/CMAKE_CXX_STANDARD 14/CMAKE_CXX_STANDARD 17/' CMakeLists.txt \
-    && CMAKE_PREFIX=$(python -c 'import torch; print(torch.utils.cmake_prefix_path)') \
-    && PY_INC=$(python -c 'from sysconfig import get_path; print(get_path("include"))') \
-    && PY_LIB=$(python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR") + "/libpython3.10.so")') \
-    && PY_PURELIB=$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])') \
-    && mkdir -p build && cd build \
-    && cmake .. \
-        -DCMAKE_CXX_STANDARD=17 \
-        -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX" \
-        -DPYTHON_INCLUDE_DIR="$PY_INC" \
-        -DPYTHON_LIBRARY="$PY_LIB" \
-        -DCMAKE_INSTALL_PREFIX="$PY_PURELIB" \
-    && make -j"$(nproc)" \
-    && make install
+# Segmentator: built IN-TREE inside FF3D's bundled segmentator/csrc/ —
+# build is deferred until after the FF3D clone (further down). Reason:
+# FF3D ships its own `segmentator/__init__.py` + `main.py`, which import
+# `from .csrc.build.libsegmentator import ...` (a *relative* import
+# within FF3D's local segmentator package on PYTHONPATH=/workspace).
+# A separately-installed segmentator at site-packages or /opt/* is not
+# reachable from FF3D's relative-import path; it must be built where
+# FF3D expects to find it. CI runs 25287773931 / 25288646318 (Plan A
+# iterations 3 + 4) failed at this exact import boundary.
 
 # Remaining Python deps. Most of upstream FF3D's pinned versions are
 # pure-Python and forward-compatible with the cu121/torch-2.2 stack,
@@ -282,6 +252,41 @@ RUN git clone https://github.com/SmartForest-no/ForestFormer3D.git /workspace
 WORKDIR /workspace
 
 ENV PYTHONPATH=/workspace
+
+# Build segmentator in-tree at /workspace/segmentator/csrc/build/.
+#
+# FF3D's bundled segmentator/csrc/ ships only segmentator.cpp; the
+# CMakeLists.txt is sourced from the upstream Karbo123 repo (the file
+# FF3D references in its segmentator/README.md). We pin the same
+# commit (76efe46) the rest of the lab uses.
+#
+# Adaptations from upstream:
+#   - CMAKE_CXX_STANDARD 14 -> 17 (torch 2.x headers need C++17 under g++11)
+#   - torch.utils.cmake_prefix_path is a string attribute on torch 2.x,
+#     not a callable (drop parens vs FF3D README example)
+#
+# After build, touch __init__.py for csrc/ and csrc/build/ so the
+# regular-package parent (segmentator/__init__.py exists) can resolve
+# the submodule import chain `segmentator.csrc.build.libsegmentator`.
+# Namespace-package fallback won't apply because the parent is a
+# regular package.
+RUN curl -fsSL https://raw.githubusercontent.com/Karbo123/segmentator/76efe46d03dd27afa78df972b17d07f2c6cfb696/csrc/CMakeLists.txt \
+        -o /workspace/segmentator/csrc/CMakeLists.txt \
+    && sed -i 's/CMAKE_CXX_STANDARD 14/CMAKE_CXX_STANDARD 17/' \
+        /workspace/segmentator/csrc/CMakeLists.txt \
+    && cd /workspace/segmentator/csrc \
+    && CMAKE_PREFIX=$(python -c 'import torch; print(torch.utils.cmake_prefix_path)') \
+    && PY_INC=$(python -c 'from sysconfig import get_path; print(get_path("include"))') \
+    && PY_LIB=$(python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR") + "/libpython3.10.so")') \
+    && mkdir -p build && cd build \
+    && cmake .. \
+        -DCMAKE_CXX_STANDARD=17 \
+        -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX" \
+        -DPYTHON_INCLUDE_DIR="$PY_INC" \
+        -DPYTHON_LIBRARY="$PY_LIB" \
+    && make -j"$(nproc)" \
+    && touch /workspace/segmentator/csrc/__init__.py \
+              /workspace/segmentator/csrc/build/__init__.py
 
 # Apply the 3,515-line replace_mmdetection_files/ overlay. These are
 # full-file replacements that upstream README §4 documents as a manual
