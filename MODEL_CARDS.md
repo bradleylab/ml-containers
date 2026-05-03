@@ -314,6 +314,24 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Build smoke test passes (2026-05-01); `BACKBONE_REGISTRY` reachable; no production embedding output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 
+## treex
+
+| | |
+|--|--|
+| Task | Tree-instance segmentation — unsupervised / classical, multi-platform (TLS / PLS / ULS) |
+| Sensor | lidar:tls,pls,uls (point clouds in LAS / LAZ / PLY) |
+| Upstream repo | [ai4trees/pointtree](https://github.com/ai4trees/pointtree) (Python package `pointtree`, author Josafat-Mattias Burmeister) |
+| Upstream license | MIT |
+| Paper | Burmeister, Tockner, Reder, Engel, Richter, Mund, Döllner (2025), *treeX: Unsupervised Tree Instance Segmentation in Dense Forest Point Clouds*, [arXiv:2509.03633](https://doi.org/10.48550/arXiv.2509.03633) |
+| Weights source | None (classical / unsupervised algorithm; no learned components) |
+| Weights license | N/A |
+| Container stack | python:3.11-slim + numpy>=2.3 + pointtree==1.0.1 (PyPI; pybind11 + scikit-build-core compile C++ extensions at install) + pointtorch + circle_detection (force-reinstalled from upstream `main` to mirror the upstream Dockerfile) + cloth-simulation-filter + pyclesperanto-prototype<0.24.5 + numba + rasterio + pygam + scikit-learn |
+| H100 status | N/A (CPU-only by design; `TreeXAlgorithm` is the unsupervised path and does not call torch) |
+| Lab status | **experimental** — first end-to-end run scheduled against Tyson UAV `tile_-10_10` (89 pts/m², 100×100 m, leaf-on closed-canopy hardwood) on Compute2 `general-cpu`. Reported ULS F1 = 0.58 on Wytham + FOR-instance (Burmeister et al. 2025); expect noticeable recall gaps on suppressed stems |
+| First-run / current behavior | Smoke test passes at build time (`TreeXAlgorithm` + `TreeXPresetULS` instantiate); no production output yet |
+| Tags | `:v1` (= `:latest`) |
+| Notes | Container supports only the `TreeXAlgorithm` (unsupervised) path. The companion `CoarseToFineAlgorithm` from the same package needs torch + torch-scatter + a learned semantic-segmentation checkpoint and would require a separate, much larger container variant |
+
 ---
 
 ## Deprecated images
