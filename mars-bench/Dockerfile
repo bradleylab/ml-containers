@@ -54,10 +54,22 @@ RUN pip install --upgrade pip wheel \
     && pip install --index-url https://download.pytorch.org/whl/cu121 \
         torch==2.5.1 torchvision==0.20.1
 
+# Upstream MOMO has a self-conflict in its requirement.txt: it pins
+# `timm==0.6.12` (an old version) but lists `segmentation-models-pytorch`
+# without a version, which resolves to smp 0.5.x that itself pins
+# `timm>=0.9`. Resolve by installing a compatible smp BEFORE MOMO so
+# pip leaves the existing smp alone (MOMO has no smp version pin to
+# fight us). smp 0.3.x is the last series compatible with timm 0.6.x
+# (smp 0.4.0 bumped its timm floor); pinning <0.4 lets pip pick the
+# best 0.3.x release.
+RUN pip install \
+        "timm==0.6.12" \
+        "segmentation-models-pytorch<0.4"
+
 # kerner-lab/MOMO at a pinned commit (2026-05-01). Bumping the SHA
 # requires bumping the image tag too. The package installs three
 # top-level modules: `models`, `utils`, `datasets_finetune` (note:
-# generic names — fine inside this container, but a user pip-installing
+# generic names — fine inside this container, but a user installing
 # this on a host alongside other tools could see import collisions).
 ARG MOMO_GIT_SHA=a837ab5ea1e4b1711bb3d06cc21606eb3d49df25
 RUN pip install \
