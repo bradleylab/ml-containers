@@ -181,12 +181,14 @@ RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0" \
 RUN git clone https://github.com/Karbo123/segmentator.git /tmp/segmentator \
     && cd /tmp/segmentator/csrc \
     && git reset --hard 76efe46d03dd27afa78df972b17d07f2c6cfb696 \
+    && sed -i 's/CMAKE_CXX_STANDARD 14/CMAKE_CXX_STANDARD 17/' CMakeLists.txt \
     && CMAKE_PREFIX=$(python -c 'import torch; print(torch.utils.cmake_prefix_path)') \
     && PY_INC=$(python -c 'from sysconfig import get_path; print(get_path("include"))') \
     && PY_LIB=$(python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR") + "/libpython3.10.so")') \
     && PY_PURELIB=$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])') \
     && mkdir -p build && cd build \
     && cmake .. \
+        -DCMAKE_CXX_STANDARD=17 \
         -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX" \
         -DPYTHON_INCLUDE_DIR="$PY_INC" \
         -DPYTHON_LIBRARY="$PY_LIB" \
