@@ -89,12 +89,20 @@ RUN pip install --index-url https://download.pytorch.org/whl/cu117 \
 
 # OpenMMLab stack — exact upstream pins. mmcv prebuilt wheel matches
 # cu117/torch1.13 (no cu118 wheel exists for torch 1.13).
+#
+# mmdet3d git install requires --no-build-isolation: its setup.py does
+# `import torch` at module top, and pip's PEP-517 isolated build env
+# doesn't see the host torch unless we disable isolation. We pre-install
+# the build-time helpers (ninja, cython) so the mmdet3d build wheel can
+# proceed with just our existing torch + setuptools.
 RUN pip install --no-deps \
         mmengine==0.7.3 \
         mmdet==3.0.0 \
         mmsegmentation==1.0.0 \
-        "git+https://github.com/open-mmlab/mmdetection3d.git@22aaa47fdb53ce1870ff92cb7e3f96ae38d17f61" \
-    && pip install mmcv==2.0.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html --no-deps
+    && pip install mmcv==2.0.0 -f https://download.openmmlab.com/mmcv/dist/cu117/torch1.13.0/index.html --no-deps \
+    && pip install ninja cython \
+    && pip install --no-deps --no-build-isolation \
+        "git+https://github.com/open-mmlab/mmdetection3d.git@22aaa47fdb53ce1870ff92cb7e3f96ae38d17f61"
 
 # MinkowskiEngine — upstream NVIDIA commit 02fc608, rebuilt with
 # TORCH_CUDA_ARCH_LIST including 9.0 so H100 (sm_90) gets native
