@@ -64,6 +64,7 @@ locally.
 | `backman-thermal-deer` | `backman-thermal-deer/` | full recipe (runtime-only; model bind-mounted) |
 | `deepforest` | `deepforest/` | full recipe (NEON checkpoint via HF Hub) |
 | `forainet` | `forainet/` | full recipe — **experimental** torch 2.2 / sm_90 port |
+| `forestformer3d` | `forestformer3d/` | full recipe — **experimental** Plan B build (torch 1.13 + cu118 + sm_90); Plan A fallback documented |
 | `seisbench` | `seisbench/` | full recipe (CPU; weights via model zoo at runtime) |
 | `neuralhydrology` | `neuralhydrology/` | full recipe (CPU; user-supplied checkpoint + forcings) |
 | `remoteclip` | `remoteclip/` | full recipe (CPU; OpenCLIP arch + HF Hub weights at runtime) |
@@ -218,6 +219,39 @@ Pull: `ghcr.io/bradleylab/forainet:v1`
 `PointGroup-PAPER.pt` distributed by upstream via Dropbox under
 unclear license — bind-mount at runtime. See `forainet/README.md`
 for the fetch command and the experimental-status caveat.
+
+### forestformer3d
+
+> **EXPERIMENTAL.** Plan B build (lowest deviation from upstream).
+
+ForestFormer3D (Xiang et al., ICCV 2025 Oral, [arXiv:2506.16991](https://arxiv.org/abs/2506.16991))
+— transformer-panoptic 3D forest instance segmentation built on
+OneFormer3D, fine-tuned on FOR-instanceV2 (extends FOR-instance with
+TU_WIEN deciduous alluvial leaf-off + BlueCat broadleaf temperate).
+Replaces PointGroup-style clustering with learned instance queries,
+removing the post-hoc clustering parameters that complicate
+SegmentAnyTree tuning.
+
+- Base: `nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04` + pip torch 1.13.1+cu117
+- MinkowskiEngine NVIDIA @ 02fc608, rebuilt with `TORCH_CUDA_ARCH_LIST="...9.0"` for native H100
+- spconv-cu118 2.3.6 + cumm-cu118 0.4.11 (sm_90 PTX baked into wheel)
+- mmengine 0.7.3 / mmcv 2.0.0 / mmdet 3.0.0 / mmsegmentation 1.0.0 / mmdet3d @ 22aaa47 — exact upstream pins
+- `replace_mmdetection_files/` overlay (3,515 lines) applied at build time
+
+Pull: `ghcr.io/bradleylab/forestformer3d:v1`
+
+Weights are NOT baked. The pretrained `epoch_3000_fix.pth` ships
+inside `clean_forestformer.zip` on
+[Zenodo record 16742708](https://zenodo.org/records/16742708)
+(~198 MB). License: CC BY-NC 4.0 (inherited from OneFormer3D base);
+academic use OK. Use the bundled `download_weights.sh` for a
+runtime fetch with retry/backoff and md5 verification — see
+`forestformer3d/README.md`.
+
+If Plan B's MinkowskiEngine fails to compile on sm_90 in CI, the
+documented Plan A fallback bumps the entire mm-stack onto torch 2.2 +
+cu121 (mirroring `segment-any-tree-h100`). See `forestformer3d/README.md`
+§"Plan A fallback".
 
 ### seisbench
 
