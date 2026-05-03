@@ -270,8 +270,8 @@ ENV PYTHONPATH=/workspace
 # the submodule import chain `segmentator.csrc.build.libsegmentator`.
 # Namespace-package fallback won't apply because the parent is a
 # regular package.
-RUN curl -fsSL https://raw.githubusercontent.com/Karbo123/segmentator/76efe46d03dd27afa78df972b17d07f2c6cfb696/csrc/CMakeLists.txt \
-        -o /workspace/segmentator/csrc/CMakeLists.txt \
+RUN wget -q https://raw.githubusercontent.com/Karbo123/segmentator/76efe46d03dd27afa78df972b17d07f2c6cfb696/csrc/CMakeLists.txt \
+        -O /workspace/segmentator/csrc/CMakeLists.txt \
     && sed -i 's/CMAKE_CXX_STANDARD 14/CMAKE_CXX_STANDARD 17/' \
         /workspace/segmentator/csrc/CMakeLists.txt \
     && cd /workspace/segmentator/csrc \
