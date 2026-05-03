@@ -12,7 +12,13 @@ use case where H100 throughput matters.
 
 ## Image tag
 
-`ghcr.io/bradleylab/clay:v1` (also `:latest`, `:torch2.5-cu121`)
+`ghcr.io/bradleylab/clay:v2` (also `:latest`, `:torch2.5-cu121`).
+`:v1` retained for rollback. v2 bundles the upstream
+`configs/metadata.yaml` (pinned to `CLAY_GIT_SHA`) at
+`/work/configs/metadata.yaml` so `ClayMAEModule.load_from_checkpoint`
+works without callers having to pass `metadata_path=...`. Users
+bind-mounting their own data should mount it at `/data`, not `/work`,
+or the bundled metadata gets shadowed.
 
 ## Stack
 
@@ -45,7 +51,7 @@ dir so the checkpoint only downloads once per host:
 docker run --rm -it --gpus all \
   -v "$PWD/hf-cache:/opt/hf-cache" \
   -v "$PWD/data:/data" \
-  ghcr.io/bradleylab/clay:v1
+  ghcr.io/bradleylab/clay:v2
 ```
 
 ## Inference
@@ -94,7 +100,7 @@ sbatch -A compute2-alexander.s.bradley \
        --mem=64G \
        --time=04:00:00 \
        --wrap='srun \
-         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+clay+v1.sqsh \
+         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+clay+v2.sqsh \
          --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/opt/hf-cache,/scratch2/fs1/alexander.s.bradley/datacubes:/data,/scratch2/fs1/alexander.s.bradley/embeddings:/outputs \
          bash -lc "export PYTHONNOUSERSITE=1; python /scratch2/fs1/alexander.s.bradley/scripts/clay_embed.py"'
 ```

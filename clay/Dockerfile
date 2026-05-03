@@ -64,21 +64,39 @@ RUN pip install \
 
 RUN mkdir -p /opt/hf-cache
 
-# Smoke test: reach claymodel's public API + torch CUDA build. No
-# weight fetch at build time. importlib.metadata for portable version
+# v1 had a runtime gap: the upstream pip install of claymodel does not
+# include configs/metadata.yaml as package data, but
+# ClayMAEModule.load_from_checkpoint(...) consults it via a relative
+# default path of 'configs/metadata.yaml'. Fetch the file from upstream
+# at the pinned SHA and place it at /work/configs/metadata.yaml so the
+# default lookup resolves under WORKDIR=/work. Users bind-mounting
+# their own data should mount at /data, not /work. CLAY_METADATA_PATH
+# is also exported for callers who'd rather pass an explicit absolute
+# path via ClayMAEModule(..., metadata_path=os.environ['CLAY_METADATA_PATH']).
+RUN mkdir -p /work/configs \
+    && wget -qO /work/configs/metadata.yaml \
+       "https://raw.githubusercontent.com/Clay-foundation/model/${CLAY_GIT_SHA}/configs/metadata.yaml" \
+    && test -s /work/configs/metadata.yaml
+ENV CLAY_METADATA_PATH=/work/configs/metadata.yaml
+
+# Smoke test: reach claymodel's public API + torch CUDA build, plus
+# verify the bundled metadata.yaml exists. No weight fetch at build
+# time. importlib.metadata for portable version
 # (per ~/.claude/rules/ml-containers.md).
-RUN python -c "import torch, claymodel; \
+RUN python -c "import os, torch, claymodel; \
 import importlib.metadata as im; \
 from claymodel.module import ClayMAEModule; \
 from claymodel.datamodule import ClayDataModule; \
+assert os.path.exists('/work/configs/metadata.yaml'), 'configs/metadata.yaml missing'; \
 print('claymodel', im.version('claymodel'), '| torch', torch.__version__, '| cuda-build', torch.version.cuda); \
+print('metadata: /work/configs/metadata.yaml ok'); \
 assert ClayMAEModule is not None and ClayDataModule is not None"
 
 LABEL org.opencontainers.image.title="clay" \
       org.opencontainers.image.description="Clay Foundation Model — multi-sensor Earth-observation foundation model (ViT-MAE) for per-patch embeddings; H100 sm_90; weights via Hugging Face Hub at made-with-clay/Clay" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/clay/README.md" \
-      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.version="v2" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="Apache-2.0" \
       bradleylab.model.upstream="https://github.com/Clay-foundation/model" \

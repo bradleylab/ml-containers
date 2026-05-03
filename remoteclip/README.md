@@ -83,7 +83,13 @@ with torch.no_grad():
     text_features  = model.encode_text(text)
     image_features /= image_features.norm(dim=-1, keepdim=True)
     text_features  /= text_features.norm(dim=-1, keepdim=True)
-    similarity = (image_features @ text_features.T).softmax(dim=-1)
+    # Standard CLIP convention: scale cosine similarities by the
+    # learned temperature (logit_scale.exp() ~= 100) before softmax.
+    # Without the scaling, raw cosine values are in roughly [0, 0.2]
+    # and softmax compresses them to near-uniform probabilities
+    # regardless of input. With it, the strongest match dominates.
+    logits = model.logit_scale.exp() * image_features @ text_features.T
+    similarity = logits.softmax(dim=-1)
 print(similarity)
 ```
 

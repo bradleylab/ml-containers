@@ -41,7 +41,7 @@ host directory there to avoid re-downloading per job.
 docker run --rm -it \
   -v "$PWD/seisbench-cache:/opt/seisbench-cache" \
   -v "$PWD/data:/data" \
-  ghcr.io/bradleylab/seisbench:v1
+  ghcr.io/bradleylab/seisbench:v2
 ```
 
 (Each pretrained model is a few MB; first-run downloads are quick.)
@@ -52,7 +52,7 @@ docker run --rm -it \
 import obspy
 import seisbench.models as sbm
 
-model = sbm.PhaseNet.from_pretrained("ncedc")  # or "stead", "instance", etc.
+model = sbm.PhaseNet.from_pretrained("original")  # or "stead", "instance", etc.
 
 st = obspy.read("/data/example.mseed")          # or use FDSN client
 result = model.classify(st)
@@ -92,7 +92,7 @@ sbatch -A compute2-alexander.s.bradley \
        --time=04:00:00 \
        --array=0-99 \
        --wrap='srun \
-         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+seisbench+v1.sqsh \
+         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+seisbench+v2.sqsh \
          --container-mounts=/scratch2/fs1/alexander.s.bradley/seisbench-cache:/opt/seisbench-cache,/scratch2/fs1/alexander.s.bradley/waveforms:/data \
          bash -lc "export PYTHONNOUSERSITE=1; python /scratch2/fs1/alexander.s.bradley/scripts/pick_station_day.py"'
 ```
@@ -107,5 +107,5 @@ login node would otherwise shadow the container's site-packages. See
 - Pretrained models are zero-shot on new networks but not necessarily
   optimal — performance on a specific WUSTL or regional network may
   improve with transfer learning.
-- The `:v1` image is CPU-only. For real-time / streaming use cases a
-  CUDA build would help; not on the roadmap until a use case lands.
+- The image is CPU-only. For real-time / streaming use cases a CUDA
+  build would help; not on the roadmap until a use case lands.
