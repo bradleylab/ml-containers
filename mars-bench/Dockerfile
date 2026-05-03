@@ -60,21 +60,45 @@ RUN pip install --upgrade pip wheel \
 # generic names — fine inside this container, but a user installing
 # this on a host alongside other tools could see import collisions).
 #
-# Upstream MOMO has a self-conflict in its requirement.txt: it pins
-# `timm==0.6.12` (old) but lists `segmentation-models-pytorch` without
-# a version, so pip's resolver pulls smp 0.5.x (latest), which itself
-# requires `timm>=0.9` — mutually exclusive. Pinning smp explicitly in
-# the SAME install command as MOMO (not in a prior RUN, which the
-# resolver overrides when MOMO's deps are processed) forces a 0.3.x
-# release that's compatible with timm 0.6.x. smp 0.4.0 bumped its
-# timm floor.
+# Upstream MOMO's pyproject has a genuinely unsatisfiable dep set:
+# `timm==0.6.12` AND `segmentation-models-pytorch>=0.5.0`, but smp
+# 0.5.0 itself requires `timm>=0.9`. Caught when this image's first
+# build hit ResolutionImpossible (PR #31, 2026-05-03).
+#
+# Workaround: install MOMO with --no-deps, then install all its real
+# runtime deps ourselves with timm>=0.9. Verified safe by inspecting
+# MOMO's actual timm usage — the only timm imports are
+# `timm.models.vision_transformer.{PatchEmbed, Block}`, which are
+# stable across timm 0.6.x through 1.x. The 0.6.12 pin is overly
+# restrictive on the upstream side, not actually required by the code.
 ARG MOMO_GIT_SHA=a837ab5ea1e4b1711bb3d06cc21606eb3d49df25
+RUN pip install --no-deps \
+        "git+https://github.com/kerner-lab/MOMO.git@${MOMO_GIT_SHA}"
+
+# MOMO's real runtime deps (mirrored from its pyproject.toml floors)
+# with timm bumped to >=0.9. torch + torchvision already installed
+# from the cu121 index above; not repeated here.
 RUN pip install \
-        "git+https://github.com/kerner-lab/MOMO.git@${MOMO_GIT_SHA}" \
-        "segmentation-models-pytorch<0.4" \
-        "timm==0.6.12" \
-        "huggingface_hub>=0.25.0" \
-        "Pillow>=10.0"
+        "pytorch-lightning>=2.4.0" \
+        "hydra-core>=1.3.2" \
+        "omegaconf>=2.1.0" \
+        "pandas>=2.2.2" \
+        "Pillow>=10.2.0" \
+        "segmentation-models-pytorch>=0.5.0" \
+        "albumentations>=2.0.8" \
+        "opencv-python>=4.12.0" \
+        "tifffile>=2025.5.10" \
+        "rasterio>=1.4.3" \
+        "shapely" \
+        "scikit-learn" \
+        "scikit-image" \
+        "imbalanced-learn" \
+        "timm>=0.9" \
+        "wandb>=0.18.5" \
+        "matplotlib" \
+        "einops" \
+        "lxml" \
+        "huggingface_hub>=0.25.0"
 
 RUN mkdir -p /opt/hf-cache
 
