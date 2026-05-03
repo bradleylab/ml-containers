@@ -176,10 +176,20 @@ RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0" \
 #      TypeError on 2.x. Drop the parens.
 #   2. The python -c args use single-quote outer + double-quote inner
 #      (no backslash escapes), which survives Dockerfile RUN parsing
-#      cleanly and avoids the `\"` line-continuation gotcha that hit
-#      this build in CI (run 25286124144).
-RUN git clone https://github.com/Karbo123/segmentator.git /tmp/segmentator \
-    && cd /tmp/segmentator/csrc \
+#      cleanly and avoids the `\"` line-continuation gotcha (CI run
+#      25286124144).
+#   3. CMAKE_CXX_STANDARD bumped 14 -> 17. Torch 2.x C++ headers
+#      (cloneable.h, conv.h) need C++17 to template-instantiate cleanly
+#      under g++11 (CI run 25286954798).
+#   4. Install location: segmentator's CMakeLists creates a SYMLINK at
+#      $CMAKE_INSTALL_PREFIX/segmentator pointing into the source tree
+#      (csrc/). If we delete the source tree after install, the symlink
+#      target evaporates and `import segmentator.csrc.build.libsegmentator`
+#      fails with ModuleNotFoundError (CI run 25287773931). Keep the
+#      source tree under /opt/segmentator-src (a stable, non-tmp path)
+#      so the in-place compiled .so survives container runtime.
+RUN git clone https://github.com/Karbo123/segmentator.git /opt/segmentator-src \
+    && cd /opt/segmentator-src/csrc \
     && git reset --hard 76efe46d03dd27afa78df972b17d07f2c6cfb696 \
     && sed -i 's/CMAKE_CXX_STANDARD 14/CMAKE_CXX_STANDARD 17/' CMakeLists.txt \
     && CMAKE_PREFIX=$(python -c 'import torch; print(torch.utils.cmake_prefix_path)') \
@@ -194,8 +204,7 @@ RUN git clone https://github.com/Karbo123/segmentator.git /tmp/segmentator \
         -DPYTHON_LIBRARY="$PY_LIB" \
         -DCMAKE_INSTALL_PREFIX="$PY_PURELIB" \
     && make -j"$(nproc)" \
-    && make install \
-    && cd / && rm -rf /tmp/segmentator
+    && make install
 
 # Remaining Python deps. Most of upstream FF3D's pinned versions are
 # pure-Python and forward-compatible with the cu121/torch-2.2 stack,
