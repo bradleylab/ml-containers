@@ -80,16 +80,19 @@ RUN pip install --upgrade pip wheel setuptools
 # below the numpy<2 reintroduction (see header note).
 RUN pip install 'numpy>=2.3,<3'
 
-# Torch CPU wheel: required even for the unsupervised TreeXAlgorithm path
-# because `from pointtree.instance_segmentation import ...` transitively
-# imports `pointtree.evaluation._match_instances`, which imports
-# `pointtorch.metrics.instance_segmentation._match_instances`, which
-# does `import torch` at module load. CPU-only is sufficient — the
-# TreeX algorithm itself never executes torch ops; the import is paid
-# at package init only. Cross-references upstream pointtree issue tracker
-# for the eval-on-init coupling.
+# Torch + torch-scatter CPU wheels: required even for the unsupervised
+# TreeXAlgorithm path because `from pointtree.instance_segmentation
+# import ...` transitively imports `pointtree.evaluation._match_instances`,
+# which imports `pointtorch.metrics.instance_segmentation._match_instances`,
+# which does `import torch` AND `from torch_scatter import scatter_max,
+# scatter_min` at module load. CPU-only is sufficient — the TreeX path
+# itself never executes torch ops; the imports are paid at package init.
+# torch pinned to 2.4.0 so torch-scatter resolves to a PyG prebuilt wheel
+# (avoids a multi-minute source compile).
 RUN pip install --index-url https://download.pytorch.org/whl/cpu \
-        torch torchvision
+        torch==2.4.0 torchvision==0.19.0
+RUN pip install -f https://data.pyg.org/whl/torch-2.4.0+cpu.html \
+        torch-scatter
 
 # Install pointtree 1.0.1 from PyPI. scikit-build-core + pybind11 will
 # compile the C++ extensions (_tree_x_algorithm_cpp, _operations_cpp)
@@ -133,7 +136,8 @@ print('pointtree', im.version('pointtree'), \
 '| numba', im.version('numba'), \
 '| pygam', im.version('pygam'), \
 '| pyclesperanto-prototype', im.version('pyclesperanto-prototype'), \
-'| torch', im.version('torch')); \
+'| torch', im.version('torch'), \
+'| torch-scatter', im.version('torch-scatter')); \
 assert TreeXAlgorithm is not None and algo is not None"
 
 LABEL org.opencontainers.image.title="treex" \
