@@ -1,0 +1,56 @@
+name: Build ForestFormer3D
+
+on:
+  push:
+    paths:
+      - 'forestformer3d/**'
+      - '!forestformer3d/**/*.md'
+      - '.github/workflows/build-forestformer3d.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: bradleylab/forestformer3d
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space on runner
+        # MinkowskiEngine + mm-stack + spconv + open3d + tensorboard
+        # easily push the image past the ~14 GB default free disk on
+        # ubuntu-latest. Same dance as build-treelearn.yml /
+        # build-sat-h100.yml.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker image prune -af || true
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: forestformer3d
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch1.13-cu118-planB
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

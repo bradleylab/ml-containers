@@ -193,6 +193,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | TBD (2026-05-01) |
 | Tags | `:v2` (= `:latest`, weights baked); `:v1` (legacy, weights bind-mounted at runtime) |
 
+## forestformer3d
+
+| | |
+|--|--|
+| Task | Transformer-panoptic 3D forest instance segmentation (OneFormer3D-based) — replaces PointGroup-style clustering with learned instance queries; no post-hoc clustering parameters |
+| Sensor | Airborne / UAV lidar; trained on FOR-instanceV2 (extends FOR-instance with TU_WIEN deciduous alluvial leaf-off + BlueCat broadleaf temperate) |
+| Upstream repo | [SmartForest-no/ForestFormer3D](https://github.com/SmartForest-no/ForestFormer3D) |
+| Upstream license | CC BY-NC 4.0 (inherited from OneFormer3D base) — academic use OK; commercial requires upstream permission |
+| Paper | Xiang et al. (2025), *Proceedings of ICCV* (Oral) — [arXiv:2506.16991](https://arxiv.org/abs/2506.16991) |
+| Weights source | Zenodo record [16742708](https://zenodo.org/records/16742708): `clean_forestformer.zip` (~198 MB, md5 `553d67379331966509076f3fbb409e57`) → `epoch_3000_fix.pth`. Runtime fetch via `download_weights.sh` (Zenodo can be flaky) |
+| Weights license | CC BY-NC 4.0 |
+| Container stack | nvidia/cuda 11.8.0-cudnn8-devel-ubuntu22.04 + pip torch 1.13.1+cu117 + mmengine 0.7.3 / mmcv 2.0.0 / mmdet 3.0.0 / mmsegmentation 1.0.0 / mmdet3d @ 22aaa47 + MinkowskiEngine NVIDIA @ 02fc608 (rebuilt sm_90) + spconv-cu118 2.3.6 + cumm-cu118 0.4.11 + segmentator @ 76efe46 + torch-scatter 2.0.9. `replace_mmdetection_files/` overlay applied at build time |
+| H100 status | Native sm_90 (Plan B build — lowest deviation from upstream pinned stack; Plan A fallback to torch 2.2 / cu121 documented in `forestformer3d/README.md`) |
+| Lab status | **experimental** — first end-to-end run pending. Realistic Tyson F1 expectation: 60-70% (89 pts/m² is below FOR-instanceV2 training distribution; closed-canopy leaf-on broadleaf not in training). Published per-site F1: TU_WIEN 76.7%, Wytham 75.0%, BlueCat 61.7% |
+| First-run / current behavior | TBD |
+| Tags | `:v1` (= `:latest` = `:torch1.13-cu118-planB`); weights NOT baked, fetched via `download_weights.sh` |
+
 ## seisbench
 
 | | |
