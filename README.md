@@ -71,6 +71,7 @@ locally.
 | `clay` | `clay/` | full recipe (GPU sm_90; ViT-MAE foundation model, runtime fetch from HF Hub) |
 | `xrd-classifier` | `xrd-classifier/` | full recipe (CPU; autoXRD multi-phase ID; demo Li-Mn-Ti-O-F model baked in) |
 | `prithvi-eo` | `prithvi-eo/` | full recipe (GPU sm_90; IBM/NASA HLS foundation model via TerraTorch, runtime fetch from HF Hub) |
+| `treex` | `treex/` | full recipe (CPU; Burmeister et al. 2025 unsupervised tree-instance segmentation; classical, no weights) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -380,3 +381,30 @@ Weights are NOT baked. The five Prithvi variants live at
 `BACKBONE_REGISTRY.build(..., pretrained=True)`. See
 `prithvi-eo/README.md` for inference + fine-tuning patterns and the
 HLS data-prep references.
+
+### treex
+
+[treeX](https://doi.org/10.48550/arXiv.2509.03633) (Burmeister et al.
+2025, arXiv:2509.03633) — re-engineered classical / unsupervised tree
+instance segmentation in dense forest point clouds. Multi-platform
+(TLS / PLS / ULS), evaluated on Wytham Woods + FOR-instance with a
+reported ULS F1 of 0.58. Provides an alternative classical baseline
+to `ams3d-crownseg` (crown-only) for UAV lidar, and to `3dfin`
+(stem + DBH only) for TLS.
+
+- Base: `python:3.11-slim`
+- Upstream package: `pointtree` from
+  [`ai4trees/pointtree`](https://github.com/ai4trees/pointtree)
+- Compiled C++ extensions (pybind11 + scikit-build-core) build at
+  install time; no GPU.
+- **CPU-only**, classical, no shipped weights.
+
+Pull: `ghcr.io/bradleylab/treex:v1`
+
+Only the `TreeXAlgorithm` (unsupervised) path is supported. The
+companion `CoarseToFineAlgorithm` from the same package needs torch +
+torch-scatter and a learned semantic-segmentation checkpoint; that
+would require a separate, much larger container variant. See
+`treex/README.md` for the wrapper script, Compute2 enroot/pyxis
+launch pattern, and known caveats (notably the modest ULS F1 in the
+upstream evaluation).
