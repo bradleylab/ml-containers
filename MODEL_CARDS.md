@@ -258,7 +258,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights license | ODC-BY |
 | Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `satlaspretrain-models>=0.3.1` |
 | H100 status | Native sm_90 |
-| Lab status | **utility** — pretrained backbones, no specific lab task; downstream fine-tuning + heads required for any actual prediction. Course doc lists Satlas as "Compute2 primary" |
+| Lab status | **utility** — pretrained backbones, no specific lab task; downstream fine-tuning + heads required for any actual prediction. Recommended tier: Compute2 H100 |
 | First-run / current behavior | Build smoke test passes (2026-05-01); 14 checkpoint IDs reachable via `SatlasPretrain_weights`; no production inference output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 
@@ -275,7 +275,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights license | Apache-2.0 (per upstream README) |
 | Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `claymodel==1.5.0` (pinned to upstream commit `f14e698`) + Lightning / timm / vit-pytorch / geopandas / scikit-image |
 | H100 status | Native sm_90 |
-| Lab status | **utility** — pretrained foundation model, no specific lab task; downstream embedding + adapter required for any prediction. Course doc lists Clay as Compute2-primary (batch embedding is the killer use) |
+| Lab status | **utility** — pretrained foundation model, no specific lab task; downstream embedding + adapter required for any prediction. Recommended tier: Compute2 H100 (batch embedding is the killer use) |
 | First-run / current behavior | Build smoke test passes (2026-05-01); `ClayMAEModule` and `ClayDataModule` import cleanly; no production embedding output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 
@@ -310,7 +310,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights license | Apache-2.0 |
 | Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `terratorch>=1.2.5` + Lightning + torchgeo + segmentation-models-pytorch + diffusers + timm + geopandas |
 | H100 status | Native sm_90 |
-| Lab status | **utility** — pretrained backbones; downstream task heads + fine-tuning required for any actual prediction. Course doc lists Prithvi as Compute2-primary for the 300M/600M models |
+| Lab status | **utility** — pretrained backbones; downstream task heads + fine-tuning required for any actual prediction. Recommended tier: Compute2 H100 for the 300M/600M models |
 | First-run / current behavior | Build smoke test passes (2026-05-01); `BACKBONE_REGISTRY` reachable; no production embedding output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 

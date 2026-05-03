@@ -104,8 +104,8 @@ sbatch -A compute2-alexander.s.bradley \
   repeated jobs. Always pre-download or wrap the loader.
 - These are **backbones**, not task heads — fine-tuning for a
   specific downstream task (which buildings, which infrastructure,
-  etc.) requires labelled data and a training step. The course
-  guide's framing of "infrastructure detection out of the box"
+  etc.) requires labelled data and a training step. Any framing of
+  this image as "infrastructure detection out of the box" actually
   refers to the separate downstream models hosted at
   [allenai/satlas](https://github.com/allenai/satlas), which is a
   different package (not yet containerized here).
