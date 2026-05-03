@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'neuralhydrology/**'
+      - '!neuralhydrology/**/*.md'
       - '.github/workflows/build-neuralhydrology.yml'
   workflow_dispatch:
 

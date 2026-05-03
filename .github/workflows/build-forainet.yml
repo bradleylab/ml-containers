@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'forainet/**'
+      - '!forainet/**/*.md'
       - '.github/workflows/build-forainet.yml'
   workflow_dispatch:
 

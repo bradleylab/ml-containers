@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'sam2/**'
+      - '!sam2/**/*.md'
       - '.github/workflows/build-sam2.yml'
   workflow_dispatch:
     inputs:

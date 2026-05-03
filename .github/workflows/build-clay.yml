@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'clay/**'
+      - '!clay/**/*.md'
       - '.github/workflows/build-clay.yml'
   workflow_dispatch:
 

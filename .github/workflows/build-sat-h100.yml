@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'segment-any-tree-h100/**'
+      - '!segment-any-tree-h100/**/*.md'
       - '.github/workflows/build-sat-h100.yml'
   workflow_dispatch:
 

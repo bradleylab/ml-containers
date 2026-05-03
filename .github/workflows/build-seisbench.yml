@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'seisbench/**'
+      - '!seisbench/**/*.md'
       - '.github/workflows/build-seisbench.yml'
   workflow_dispatch:
 

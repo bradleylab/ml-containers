@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'prithvi-eo/**'
+      - '!prithvi-eo/**/*.md'
       - '.github/workflows/build-prithvi-eo.yml'
   workflow_dispatch:
 
