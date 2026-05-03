@@ -156,7 +156,13 @@ RUN pip install --no-cache-dir \
 
 # torch-points-kernels: SAT v2 patches its setup.py for numpy/cython
 # pins and CUDA arch + at:: namespace fixes. We mirror that exactly.
-RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0" \
+#
+# numpy is pinned to the 1.24.x line: numba 0.57.0 (installed below in
+# the bulk pip block, matching FF3D's tested stack) enforces numpy<=1.24
+# at import time via `_ensure_critical_deps()`. A wider pin like
+# `>=1.24,<2.0` resolves to numpy 1.26.x and breaks `import numba` in
+# FF3D's `segmentator/utils.py` (CI run 25290631280).
+RUN pip install --no-cache-dir "numpy>=1.24,<1.25" "cython<3.0" \
     && git clone https://github.com/torch-points3d/torch-points-kernels.git /tmp/tpk \
     && cd /tmp/tpk \
     && sed -i 's/"numpy<=1.21"/"numpy"/g' setup.py \
