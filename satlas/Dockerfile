@@ -7,10 +7,10 @@
 # (all bands), and 0.5–2 m/px aerial imagery, with Swin-v2-{Base,Tiny}
 # and ResNet{50,152} backbones.
 #
-# This image is GPU-primary (Compute2 H100 sm_90) since the course
-# tier for Satlas is "Compute2 primary; runs on laptop but slow."
-# CPU inference still works — pass `device='cpu'` to
-# `Weights().get_pretrained_model(...)`.
+# This image is GPU-primary (Compute2 H100 sm_90) — Satlas runs on a
+# laptop but feels sluggish for anything beyond a single tile, so the
+# H100 is the recommended target. CPU inference still works — pass
+# `device='cpu'` to `Weights().get_pretrained_model(...)`.
 #
 # Upstream: https://github.com/allenai/satlaspretrain_models
 # Paper:    https://openaccess.thecvf.com/content/ICCV2023/html/Bastani_SatlasPretrain_A_Large-Scale_Dataset_for_Remote_Sensing_Image_Understanding_ICCV_2023_paper.html

@@ -6,9 +6,9 @@
 # similarity search, clustering, or lightweight downstream
 # classification with minimal labels.
 #
-# Course tier: Compute2 primary (batch embedding is the killer use
-# case where H100 throughput matters; single-tile embedding works on
-# laptop GPU but isn't where Clay earns its keep).
+# Tier: Compute2 primary. Batch embedding is where H100 throughput
+# matters; single-tile embedding works on laptop GPU but isn't where
+# Clay earns its keep.
 #
 # Upstream: https://github.com/Clay-foundation/model
 # Weights:  https://huggingface.co/made-with-clay/Clay  (v1.5/clay-v1.5.ckpt)
