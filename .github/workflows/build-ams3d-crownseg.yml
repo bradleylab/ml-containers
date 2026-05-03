@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'ams3d-crownseg/**'
+      - '!ams3d-crownseg/**/*.md'
       - '.github/workflows/build-ams3d-crownseg.yml'
   workflow_dispatch:
 

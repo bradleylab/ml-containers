@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'deepforest/**'
+      - '!deepforest/**/*.md'
       - '.github/workflows/build-deepforest.yml'
   workflow_dispatch:
 

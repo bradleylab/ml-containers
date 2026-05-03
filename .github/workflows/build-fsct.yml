@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'fsct/**'
+      - '!fsct/**/*.md'
       - '.github/workflows/build-fsct.yml'
   workflow_dispatch:
 

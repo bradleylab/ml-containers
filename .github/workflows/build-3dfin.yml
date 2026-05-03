@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '3dfin/**'
+      - '!3dfin/**/*.md'
       - '.github/workflows/build-3dfin.yml'
   workflow_dispatch:
 

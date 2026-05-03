@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'pointstowood/**'
+      - '!pointstowood/**/*.md'
       - '.github/workflows/build-pointstowood.yml'
   workflow_dispatch:
 

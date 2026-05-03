@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'satlas/**'
+      - '!satlas/**/*.md'
       - '.github/workflows/build-satlas.yml'
   workflow_dispatch:
 

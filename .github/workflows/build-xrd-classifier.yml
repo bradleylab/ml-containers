@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'xrd-classifier/**'
+      - '!xrd-classifier/**/*.md'
       - '.github/workflows/build-xrd-classifier.yml'
   workflow_dispatch:
 

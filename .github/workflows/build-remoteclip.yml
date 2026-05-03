@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'remoteclip/**'
+      - '!remoteclip/**/*.md'
       - '.github/workflows/build-remoteclip.yml'
   workflow_dispatch:
 

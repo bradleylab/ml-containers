@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'backman-thermal-deer/**'
+      - '!backman-thermal-deer/**/*.md'
       - '.github/workflows/build-backman-thermal-deer.yml'
   workflow_dispatch:
 

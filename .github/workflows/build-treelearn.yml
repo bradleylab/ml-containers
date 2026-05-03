@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'treelearn/**'
+      - '!treelearn/**/*.md'
       - '.github/workflows/build-treelearn.yml'
   workflow_dispatch:
 
