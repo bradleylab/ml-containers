@@ -204,6 +204,7 @@ RUN pip install --no-deps \
         numba==0.57.0 \
         llvmlite==0.40.0 \
         pccm==0.4.16 \
+        portalocker \
         ccimport==0.4.4 \
         pybind11==2.10.4 \
         lark==1.1.5 \
