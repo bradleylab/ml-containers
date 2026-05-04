@@ -349,6 +349,25 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`) |
 | Notes | Container supports only the `TreeXAlgorithm` (unsupervised) path. The companion `CoarseToFineAlgorithm` from the same package needs torch + torch-scatter + a learned semantic-segmentation checkpoint and would require a separate, much larger container variant |
 
+## raman-classifier
+
+| | |
+|--|--|
+| Task | Raman mineral identification via nearest-neighbour matching against the RRUFF reference library |
+| Sensor | Raman spectrum (1D, 2-column wavenumber/intensity text input) |
+| Upstream repo | [barahona-research-group/RamanSPy](https://github.com/barahona-research-group/RamanSPy) |
+| Upstream license | BSD-3 (ramanspy code). RRUFF reference data: cite Lafuente et al. 2015 — no explicit Creative Commons license posted by the project |
+| Paper | Georgiev, Pedersen, Xie, Fern, Barahona (2024), *Anal. Chem.* — *RamanSPy: An Open-Source Python Package for Integrative Raman Spectroscopy Data Analysis*, [doi:10.1021/acs.analchem.4c00383](https://doi.org/10.1021/acs.analchem.4c00383). Reference data: Lafuente B, Downs RT, Yang H, Stone N (2015). *The power of databases: the RRUFF project*. In: Highlights in Mineralogical Crystallography, T Armbruster & RM Danisi, eds., De Gruyter, Berlin, 1-30 |
+| Weights source | None (classical algorithm). Reference library is RRUFF `excellent_unoriented` (~229 MB raw archive), preprocessed at build time and baked as a single ~30-50 MB numpy index at `/opt/rruff_index.npz` |
+| Weights license | N/A. RRUFF reference spectra are redistributed in preprocessed numerical form; downstream users must cite Lafuente et al. 2015 |
+| Container stack | python:3.11-slim + numpy>=1.26,<2.3 + scipy>=1.11 + ramanspy>=0.2 (BSD-3) |
+| H100 status | N/A (CPU-only; single-spectrum match is sub-second after index load) |
+| Lab status | **utility** — Path A of the long-deferred raman-classifier slot. Path B (Liu-2017-style 1D-CNN trained on RRUFF, weights deposited at Zenodo + HF Hub under Apache-2) remains queued |
+| Architecture | **Multi-arch** — `linux/amd64` + `linux/arm64`. ramanspy and its scientific-Python dependencies all publish aarch64 wheels |
+| First-run / current behavior | Build smoke test passes at build time (ramanspy public API reachable + RRUFF index built and shape-validated); real-data validation pending — see PR review |
+| Tags | `:v1` (= `:latest`, `:rruff-excellent-cpu`) |
+| Notes | Index covers the 100-1500 cm⁻¹ fingerprint region at 1 cm⁻¹ resolution. OH/H₂O stretch peaks (3000-3700 cm⁻¹) and other RRUFF archives (`fair_unoriented`, `excellent_oriented`, `poor_unoriented`, `unrated_*`, `LR-Raman`) are excluded by default to keep the image lean; rebuild with extra `--dataset` and/or `--wavenumber-max` flags to widen coverage |
+
 ---
 
 ## Deprecated images
