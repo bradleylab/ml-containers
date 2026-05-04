@@ -75,6 +75,7 @@ locally.
 | `treex` | `treex/` | full recipe (CPU; Burmeister et al. 2025 unsupervised tree-instance segmentation; classical, no weights) |
 | `raman-classifier` | `raman-classifier/` | full recipe (CPU; ramanspy + RRUFF excellent_unoriented baked at build time; classical NN matcher, no learned weights) |
 | `geoclip` | `geoclip/` | full recipe (CPU; Vivanco Cepeda et al. 2023 worldwide image geolocalization; CLIP-L/14 weights baked at build time, offline runtime) |
+| `dofa` | `dofa/` | full recipe (CPU; Xiong et al. 2024 multispectral/SAR/optical foundation model; Base weights baked at build, Large lazy) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -493,3 +494,25 @@ Use cases: geo-tagged dataset QA (detect implausible EXIF GPS),
 locating photos with stripped EXIF, provenance / dedup. Not
 designed for sub-meter accuracy — typical resolution is country /
 continent at ~1 km tolerance for street-level scenes.
+
+### dofa
+
+[DOFA](https://arxiv.org/abs/2403.15356) (Dynamic One-For-All;
+Xiong et al. 2024) — multispectral / SAR / optical / hyperspectral
+foundation model with a wavelength-conditioning hypernetwork. A
+single ViT backbone adaptable to arbitrary spectral configurations
+via a per-band wavelength input. Trained with masked image modelling
+on SatlasPretrain + Five-Billion-Pixels + HySpecNet-11k.
+
+- Base: `python:3.11-slim`
+- Stack: torch 2.5.1 CPU + torchvision 0.20.1 + `torchgeo>=0.6` + `timm>=1.0`
+- **CPU-only**, CC-BY-4.0 weights.
+- Base weights baked at build (445 MB, 768-D embeddings).
+  Large (1.35 GB, 1024-D) is fetched lazily via `--variant large`.
+
+Pull: `ghcr.io/bradleylab/dofa:v1`
+
+Embedding-only — no task head. Downstream classification / change
+detection / retrieval requires a small head trained on top. For the
+text-aligned variant see `bradleylab/dofa-clip` (separate container,
+CC-BY-NC-4.0).

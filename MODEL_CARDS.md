@@ -387,6 +387,25 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
 | Notes | Differs from `remoteclip:v2` in that GeoCLIP weights are baked into the image at build time (~900 MB); `remoteclip` keeps weights at runtime via mounted HF cache. Pragmatic choice for one-shot photo QA vs. batch embedding workflows. Predictions over the fixed 100K-point gallery — for sub-kilometre accuracy, use `top_k_radius` mode (not exposed in v1) |
 
+## dofa
+
+| | |
+|--|--|
+| Task | Multispectral / SAR / optical / hyperspectral foundation model — embedding extraction (no shipped task head) |
+| Sensor | Image:multispectral (Sentinel-2, Landsat, Gaofen), SAR (Sentinel-1), RGB (NAIP), hyperspectral. Wavelengths supplied at runtime |
+| Upstream repo | [zhu-xlab/DOFA](https://github.com/zhu-xlab/DOFA); torchgeo loader at [microsoft/torchgeo](https://github.com/microsoft/torchgeo) |
+| Upstream license | CC-BY-4.0 (torchgeo `dofa_*` weights) |
+| Paper | Xiong, Z. et al. (2024) *Neural Plasticity-Inspired Foundation Model for Observing the Earth Crossing Modalities* — [arXiv:2403.15356](https://arxiv.org/abs/2403.15356) |
+| Weights source | Hugging Face Hub: [`torchgeo/dofa`](https://huggingface.co/torchgeo/dofa). Base (445 MB, 768-D embeddings, ~111M params) baked at build time; Large (1.35 GB, 1024-D embeddings, ~336M params) fetched lazily on `--variant large`. Cache at `$TORCH_HOME=/opt/torch-cache` |
+| Weights license | CC-BY-4.0 (per HF model card) |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 + torchvision 0.20.1 (CPU wheels) + `torchgeo>=0.6` + `timm>=1.0` + `huggingface_hub>=0.25` |
+| H100 status | N/A in v1 (CPU runtime; GPU variant deferred until a batch-embedding workload lands) |
+| Lab status | **utility** — embeddings only, no task head; useful for downstream classification / change-detection / retrieval workflows |
+| Architecture | **Multi-arch** — `linux/amd64` + `linux/arm64`. All deps publish aarch64 wheels |
+| First-run / current behavior | Build smoke test passes at build time (Base instantiates with DOFA_MAE weights, synthetic 12-band S2-shaped input → embedding shape (1, 768) verified) |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+| Notes | Wavelength-conditioning hypernetwork: user must pass per-band wavelengths in micrometers at inference. Convenience flags `--sentinel2-{12,10}band`, `--sentinel1`, `--naip-rgb` cover common configurations; `--wavelengths` for arbitrary lists. Embedding-only — task heads are downstream user responsibility. **For the text-aligned variant** see `bradleylab/dofa-clip` (separate container, CC-BY-NC-4.0) |
+
 ---
 
 ## Deprecated images
