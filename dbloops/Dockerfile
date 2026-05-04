@@ -58,20 +58,19 @@ RUN curl -fsSL \
 # Install the compiled DBloops binary + its mcc-generated launch wrapper.
 WORKDIR /opt/dbloops
 COPY bin/ ./bin/
+COPY scripts/ ./scripts/
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh ./bin/run_run_dbloops_patch.sh ./bin/run_dbloops_patch
 
-# Smoke test: synthesize a small XYZ patch, run the binary end-to-end,
-# verify .mat output exists. Catches missing toolbox runtime libs and
-# entrypoint wiring at build time. We use bash with pipefail so a
-# non-zero exit anywhere in the pipeline aborts the build.
+# Smoke test: synthesize a clusterable XYZ patch (30 boulders + matrix
+# points -- uniform random caused all points to fall out as DBSCAN
+# noise, so DBloops returned with no clusters and the wrapper's
+# 6-output destructure tripped MATLAB:unassignedOutputs), run the
+# binary end-to-end, verify the .mat lands. Catches missing toolbox
+# runtime libs and entrypoint wiring at build time.
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 RUN mkdir -p /tmp/smoke \
-    && python3 -c "import numpy as np; \
-np.random.seed(42); \
-n = 2000; \
-pts = np.column_stack([np.random.uniform(0, 3, n), np.random.uniform(0, 3, n), np.random.uniform(0, 0.3, n)]); \
-np.savetxt('/tmp/smoke/in.xyz', pts, fmt='%.6f')" \
+    && python3 /opt/dbloops/scripts/make_smoke_xyz.py /tmp/smoke/in.xyz \
     && PATCH_XYZ=/tmp/smoke/in.xyz PATCH_OUT=/tmp/smoke/out NP_VAL=18 \
        /opt/dbloops/entrypoint.sh \
     && test -s /tmp/smoke/out.mat \
