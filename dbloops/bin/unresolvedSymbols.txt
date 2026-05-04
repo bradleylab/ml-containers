@@ -1,0 +1,2 @@
+Path	Symbol	Reason
+run_dbloops_/G3point/Utils/geom3d/meshes3d/createSoccerBall.m	bucky	undeployable
