@@ -74,6 +74,7 @@ locally.
 | `prithvi-eo` | `prithvi-eo/` | full recipe (GPU sm_90; IBM/NASA HLS foundation model via TerraTorch, runtime fetch from HF Hub) |
 | `treex` | `treex/` | full recipe (CPU; Burmeister et al. 2025 unsupervised tree-instance segmentation; classical, no weights) |
 | `raman-classifier` | `raman-classifier/` | full recipe (CPU; ramanspy + RRUFF excellent_unoriented baked at build time; classical NN matcher, no learned weights) |
+| `geoclip` | `geoclip/` | full recipe (CPU; Vivanco Cepeda et al. 2023 worldwide image geolocalization; CLIP-L/14 weights baked at build time, offline runtime) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -469,3 +470,26 @@ Path B (Liu-2017-style 1D-CNN trained on RRUFF, weights deposited at
 Zenodo + HF Hub under Apache-2) remains queued as a follow-up; this
 container's preprocessing + index format is the planned inference
 harness for those weights when they exist.
+
+### geoclip
+
+[GeoCLIP](https://arxiv.org/abs/2309.16020) (Vivanco Cepeda, Nayak,
+Shah, NeurIPS 2023) — worldwide image geolocalization via CLIP-style
+alignment between RGB photo embeddings and a learned location
+encoder over MP-16 (~4.7M global geo-tagged photos). Given an image,
+returns top-k predicted `(lat, lon)` locations and probabilities.
+
+- Base: `python:3.11-slim`
+- Stack: torch 2.5.1 CPU + torchvision 0.20.1 + `geoclip>=1.2`
+- **CPU-only**, MIT licensed.
+- **Weights baked at build time** (~900 MB CLIP-L/14 + location
+  encoder + 100K-point GPS gallery). Different from `remoteclip` —
+  pragmatic choice for one-shot photo QA where avoiding the
+  first-run weight download matters.
+
+Pull: `ghcr.io/bradleylab/geoclip:v1`
+
+Use cases: geo-tagged dataset QA (detect implausible EXIF GPS),
+locating photos with stripped EXIF, provenance / dedup. Not
+designed for sub-meter accuracy — typical resolution is country /
+continent at ~1 km tolerance for street-level scenes.

@@ -368,6 +368,25 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:rruff-excellent-cpu`) |
 | Notes | Index covers the 100-1500 cm⁻¹ fingerprint region at 1 cm⁻¹ resolution. OH/H₂O stretch peaks (3000-3700 cm⁻¹) and other RRUFF archives (`fair_unoriented`, `excellent_oriented`, `poor_unoriented`, `unrated_*`, `LR-Raman`) are excluded by default to keep the image lean; rebuild with extra `--dataset` and/or `--wavenumber-max` flags to widen coverage |
 
+## geoclip
+
+| | |
+|--|--|
+| Task | Worldwide image geolocalization — given an RGB photo, return top-k predicted (lat, lon) locations and probabilities |
+| Sensor | Image:rgb (anything Pillow reads at ~224×224 after CLIP preprocessing) |
+| Upstream repo | [VicenteVivan/geo-clip](https://github.com/VicenteVivan/geo-clip) |
+| Upstream license | MIT |
+| Paper | Vivanco Cepeda, Nayak, Shah (2023), *NeurIPS* — *GeoCLIP: Clip-Inspired Alignment between Locations and Images for Effective Worldwide Geo-localization*, [arXiv:2309.16020](https://arxiv.org/abs/2309.16020) |
+| Weights source | Hugging Face Hub (fetched on `GeoCLIP(from_pretrained=True)` instantiation). Backbone is CLIP ViT-L/14 image encoder + small MLP location encoder + 100K-point GPS gallery (`coordinates_100K.csv` bundled with the pip package). Baked into image at `$HF_HOME=/opt/hf-cache` during build, so runtime is offline |
+| Weights license | Per upstream repo (MIT-aligned); verify before redistribution |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 + torchvision 0.20.1 (CPU wheels) + `geoclip>=1.2` + `huggingface_hub>=0.25` + Pillow |
+| H100 status | N/A (CPU runtime by design; model is small enough that GPU adds no value for typical one-shot use) |
+| Lab status | **utility** — geo-tagged photo QA, locating photos with stripped EXIF, provenance / deduplication |
+| Architecture | **Multi-arch** — `linux/amd64` + `linux/arm64`. All deps publish aarch64 wheels |
+| First-run / current behavior | Build smoke test passes at build time (instantiates GeoCLIP, validates `gps_gallery.shape == (100000, 2)`); weights are baked at build time so runtime is offline-capable |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+| Notes | Differs from `remoteclip:v2` in that GeoCLIP weights are baked into the image at build time (~900 MB); `remoteclip` keeps weights at runtime via mounted HF cache. Pragmatic choice for one-shot photo QA vs. batch embedding workflows. Predictions over the fixed 100K-point gallery — for sub-kilometre accuracy, use `top_k_radius` mode (not exposed in v1) |
+
 ---
 
 ## Deprecated images
