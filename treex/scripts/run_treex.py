@@ -112,13 +112,20 @@ def main() -> int:
         flush=True,
     )
 
+    # TreeXPreset{TLS,ULS} contain `random_seed`, `num_workers`, and
+    # `visualization_folder` among their fields. Passing the CLI values
+    # explicitly *and* splatting **preset collides on those three keys
+    # (`TypeError: got multiple values for keyword argument`). Build a
+    # single kwargs dict instead, with CLI values overriding preset
+    # defaults.
     preset = PRESETS[args.preset]()
-    algorithm = TreeXAlgorithm(
-        random_seed=args.seed,
-        num_workers=args.workers,
-        visualization_folder=str(args.vis_dir) if args.vis_dir else None,
-        **preset,
+    preset_kwargs = {**preset}  # same splat protocol as the upstream API
+    preset_kwargs["random_seed"] = args.seed
+    preset_kwargs["num_workers"] = args.workers
+    preset_kwargs["visualization_folder"] = (
+        str(args.vis_dir) if args.vis_dir else None
     )
+    algorithm = TreeXAlgorithm(**preset_kwargs)
 
     stem = args.input.stem.replace(".laz", "").replace(".las", "")
     print(f"running TreeXAlgorithm (preset={args.preset}, seed={args.seed}) …", flush=True)
