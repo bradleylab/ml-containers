@@ -58,19 +58,31 @@ Outputs land at `${PATCH_OUT}.mat`, `${PATCH_OUT}_clusters.csv`,
 ## On Compute2 (pyxis/enroot)
 
 ```bash
-enroot import \
-    -o /storage1/fs1/<user>/Active/dbloops/bradleylab+dbloops+latest.sqsh \
-    'docker://ghcr.io#bradleylab/dbloops:latest'
+# Import. ENROOT_TEMP_PATH must NOT live under /storage1/fs1/<user>/Active --
+# its root-owned 0700 ACL inheritance silently strips exec bits during tar
+# extraction and bakes mode-600 perms (including on /usr/bin/dash) into the
+# squashfs, which then fails at "/bin/sh: Permission denied" under pyxis.
+# /tmp on the login node (1.8 TB local SSD) and /scratch2/fs1/<user> both
+# have clean ACLs.
+ENROOT_TEMP_PATH=/tmp/${USER}_enroot \
+ENROOT_CACHE_PATH=/tmp/${USER}_enroot \
+    enroot import \
+        -o /scratch2/fs1/<user>/dbloops_sqsh/bradleylab+dbloops+latest.sqsh \
+        'docker://ghcr.io#bradleylab/dbloops:latest'
+rm -rf /tmp/${USER}_enroot
 
+# Run.
 srun --account=compute2-<user> \
      --partition=general-preempt-cpu --time=01:00:00 --mem=16G \
-     --container-image=/storage1/fs1/<user>/Active/dbloops/bradleylab+dbloops+latest.sqsh \
+     --container-image=/scratch2/fs1/<user>/dbloops_sqsh/bradleylab+dbloops+latest.sqsh \
      --container-mounts=/scratch2/fs1/<user>/dbloops:/work \
      bash -lc 'PATCH_XYZ=/work/imogene_patch1.xyz \
                PATCH_OUT=/work/imogene_patch1_np18 \
                NP_VAL=18 \
                /opt/dbloops/entrypoint.sh'
 ```
+
+After import, `unsquashfs -ll /scratch2/.../bradleylab+dbloops+latest.sqsh /usr/bin/dash` should report `-rwxr-xr-x`. If it reports `-rw-------`, the import inherited a restrictive ACL — re-import with a clean `ENROOT_TEMP_PATH`.
 
 ## Files
 
