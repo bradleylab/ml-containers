@@ -15,8 +15,10 @@ architecture trained on FOR-Instance.
 
 ## H100 fixes
 
-Two issues blocked end-to-end inference on H100 (sm_90); both are
-fixed in this image:
+Five issues blocked end-to-end inference on H100 (sm_90); all are
+fixed in this image. Two were initial blockers (the model never ran);
+three more were latent bugs masked by the multiprocessing deadlock
+and only surfaced once the model could complete a forward pass.
 
 1. **`torch-points-kernels` build arch.** Upstream `setup.py`
    hardcodes `-arch=sm_35` in the nvcc flag list, which overrides the
@@ -36,14 +38,42 @@ fixed in this image:
    so the freeze hangs inference end-to-end. Fixed by patching
    `meanshift_cluster.py` to use `multiprocessing.get_context("spawn")`,
    which starts workers with a fresh interpreter.
+3. **Numpy 1.24+ deprecated aliases.** ForAINet predates the numpy
+   1.20 deprecation of `np.float`, `np.int`, `np.bool`, etc.; numpy
+   1.24+ raises `AttributeError` on these. The aliases appear in the
+   panoptic tracker, the `treeins_set1` dataset class, and the
+   panoptic metrics code. Fixed by walking every `.py` under
+   `torch_points3d/` and substituting the builtin (`int`, `float`,
+   `bool`, `complex`, `object`, `str`).
+4. **PointGroup3heads `_compute_score` device alignment.** The
+   `self.input.<attr>` tensors live on CPU, but cluster index tensors
+   come back from `cluster_single` on the device that PointGroup ran
+   on. Every `self.input.<attr>[cluster]` site needs a device align.
+   Fixed via regex covering all `self.input.<attr>[cluster]` forms.
+5. **Panoptic tracker device alignment.** Same family: tracker
+   buffers (`self._test_area[...].pos`, `originids`, etc.) are CPU
+   but cluster indices arrive from the model on GPU. Fixed by forcing
+   `cluster.cpu()` at every `[cluster]` indexing site in the tracker.
 
 ## Known caveats
 
-- **Density regime.** ForAINet was trained on FOR-Instance (TLS/MLS
-  /dense ULS, ~500–10,000 pts/m²). On low-density airborne UAV lidar
-  (≲100 pts/m²) the model runs end-to-end but its panoptic queries
-  may not fire above default confidence thresholds; this is a
+- **Density regime.** ForAINet was trained on FOR-Instance (TLS/MLS /
+  dense ULS, ~500–10,000 pts/m²). On low-density airborne UAV lidar
+  (~100 pts/m²) the model runs end-to-end and produces non-zero output,
+  but it can return mega-cluster instances that span multiple trees
+  rather than discrete crowns. On the Tyson UAV tile_-10_10 evaluation
+  (89 pts/m², closed-canopy oak-hickory) ForAINet returned 110
+  instances with median bbox area ~6,500 m² — roughly 80x the median
+  bbox area returned by classical methods on the same tile. This is a
   training-distribution issue, not a container bug.
+- **`merge_tiles.py` output path.** Upstream's `merge_tiles.py` assumes
+  per-tile predictions land under `<hydra_run_dir>/eval/<timestamp>/`,
+  but ForAINet's tracker actually writes them flat in `<hydra_run_dir>/`
+  as `Instance_Results_forEval_<i>.ply`. `merge_tiles.py` will fail to
+  find the inputs. Workaround: bypass `merge_tiles.py` and concatenate
+  the per-tile PLYs directly (an example helper is in
+  `tyson-forest-linkage/method_comparison/sbatch/recover_forainet_output.sbatch`).
+  We may patch this upstream-side later; for now it is a known caveat.
 
 ## Image tag
 

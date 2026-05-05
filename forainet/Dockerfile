@@ -17,15 +17,23 @@
 # CUDA 12 + PyTorch 2.x compatibility patches apply.
 #
 # ## Status
-# Working on H100 after two H100 fixes (2026-05-04, this commit):
+# Working end-to-end on H100 after the following latent-bug fixes
+# (2026-05-04, 2026-05-05):
 #   1. torch-points-kernels build-arch: strip hardcoded -arch=sm_35
 #      from upstream setup.py, let TORCH_CUDA_ARCH_LIST drive nvcc.
 #   2. PointGroup3heads multiprocessing-fork + CUDA deadlock: patch
 #      torch_points3d/utils/meanshift_cluster.py to use the spawn
 #      start method.
-# See README "H100 fixes" for detail. End-to-end inference verified;
-# OOD behavior on low-density airborne UAV lidar (≲100 pts/m²) is a
-# separate, real concern documented in README "Known caveats".
+#   3. numpy 1.24+ deprecated aliases (np.float, np.int, np.bool, ...)
+#      across all torch_points3d/*.py.
+#   4. PointGroup3heads._compute_score device alignment for every
+#      self.input.<attr>[cluster] indexing site.
+#   5. panoptic tracker [cluster] indexing forced to CPU to match
+#      tracker buffers (self._test_area, originids, etc).
+# See README "H100 fixes" for detail. End-to-end inference verified
+# on Tyson UAV tile_-10_10 (job 655737, 2026-05-05). OOD behavior on
+# low-density airborne UAV lidar (≲100 pts/m²) is a separate, real
+# concern documented in README "Known caveats".
 
 FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel
 
@@ -160,6 +168,58 @@ PYP
 # torch_points_kernels: device alignment in region_grow.
 RUN python3 -c "import pathlib; p = pathlib.Path('/opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py'); c = p.read_text(); c = c.replace('local_ind = ind[label_mask]', 'local_ind = ind.to(label_mask.device)[label_mask]'); c = c.replace('local_xyz = xyz[label_mask]', 'local_xyz = xyz.to(label_mask.device)[label_mask]'); p.write_text(c); print('Patched cluster.py')"
 
+# Numpy 1.20+ deprecated aliases (np.float, np.int, np.bool, ...) raise
+# AttributeError in numpy 1.24+. ForAINet predates the deprecation. Walk
+# every .py under torch_points3d and replace each alias with the builtin.
+# (Safer than a single-file targeted patch: the same bug appears in the
+# tracker, the dataset class, the metrics code, and others — found one
+# at a time during the cross-method comparison run.)
+RUN python3 - <<'PYP'
+import pathlib, re
+root = pathlib.Path('/opt/ForAINet/PointCloudSegmentation/torch_points3d')
+np_total = 0
+files_changed = 0
+for fp in root.rglob('*.py'):
+    src = fp.read_text()
+    orig = src
+    for ty in ('float', 'int', 'bool', 'complex', 'object', 'str'):
+        pat = re.compile(r'\bnp\.' + ty + r'\b')
+        src, n = pat.subn(ty, src)
+        np_total += n
+    if src != orig:
+        fp.write_text(src)
+        files_changed += 1
+print(f'numpy alias fix: {np_total} sub(s) across {files_changed} file(s)')
+PYP
+
+# Device alignment in PointGroup3heads._compute_score and the panoptic
+# tracker. self.input.<attr> tensors live on CPU but cluster index
+# tensors come from the model on GPU. The fork-mp deadlock previously
+# masked this by never reaching _compute_score / tracker — once spawn
+# context lets execution flow through, every `self.input.<attr>[cluster]`
+# and `<tensor>[cluster]` site needs a device-align fix.
+RUN python3 - <<'PYP'
+import pathlib, re
+root = pathlib.Path('/opt/ForAINet/PointCloudSegmentation/torch_points3d')
+
+pg_fp = root / 'models' / 'panoptic' / 'PointGroup3heads.py'
+src = pg_fp.read_text()
+pg_pat = re.compile(r'\bself\.input\.(\w+)\[cluster\]')
+src, n = pg_pat.subn(r'self.input.\1[cluster.to(self.input.\1.device)]', src)
+if n == 0:
+    raise SystemExit('PointGroup3heads device patch did NOT match')
+pg_fp.write_text(src)
+print(f'PointGroup3heads device fix: {n} sub(s)')
+
+tracker_fp = root / 'metrics' / 'panoptic_tracker_pointgroup_treeins_partseg.py'
+src = tracker_fp.read_text()
+src, n = re.subn(r'\[cluster\]', r'[cluster.cpu()]', src)
+if n == 0:
+    raise SystemExit('tracker [cluster].cpu() patch did NOT match')
+tracker_fp.write_text(src)
+print(f'tracker cluster.cpu fix: {n} sub(s)')
+PYP
+
 # ForAINet directories. eval_data + eval_out remain bind-mount
 # targets; model_file/ now ships with the checkpoint baked in below.
 RUN mkdir -p model_file eval_data eval_out
@@ -174,7 +234,7 @@ RUN wget -q -O model_file/PointGroup-PAPER.pt "${WEIGHTS_URL}" && \
     ls -la model_file/PointGroup-PAPER.pt
 
 LABEL org.opencontainers.image.title="forainet" \
-      org.opencontainers.image.description="ForAINet (Xiang et al. 2024) panoptic segmentation of airborne lidar — H100 sm_90 port from upstream torch-1.9/CUDA-11.1 stack, with multiprocessing-fork + CUDA deadlock and torch-points-kernels build-arch fixes" \
+      org.opencontainers.image.description="ForAINet (Xiang et al. 2024) panoptic segmentation of airborne lidar — H100 sm_90 port from upstream torch-1.9/CUDA-11.1 stack with full set of latent-bug fixes (multiprocessing-fork + CUDA deadlock, torch-points-kernels build-arch, numpy 1.24+ deprecated aliases, PointGroup3heads + tracker device alignment)" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/forainet/README.md" \
       org.opencontainers.image.version="v2" \
