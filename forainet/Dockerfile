@@ -17,10 +17,15 @@
 # CUDA 12 + PyTorch 2.x compatibility patches apply.
 #
 # ## Status
-# EXPERIMENTAL. First end-to-end run scheduled 2026-05-01. The
-# combination of (a) ForAINet code base targeting torch 1.9, (b)
-# this container running torch 2.2.2, and (c) MinkowskiEngine on
-# H100 means breakage at runtime is plausible. Iterate from there.
+# Working on H100 after two H100 fixes (2026-05-04, this commit):
+#   1. torch-points-kernels build-arch: strip hardcoded -arch=sm_35
+#      from upstream setup.py, let TORCH_CUDA_ARCH_LIST drive nvcc.
+#   2. PointGroup3heads multiprocessing-fork + CUDA deadlock: patch
+#      torch_points3d/utils/meanshift_cluster.py to use the spawn
+#      start method.
+# See README "H100 fixes" for detail. End-to-end inference verified;
+# OOD behavior on low-density airborne UAV lidar (≲100 pts/m²) is a
+# separate, real concern documented in README "Known caveats".
 
 FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel
 
@@ -67,12 +72,18 @@ RUN git clone --depth 1 --branch v1.4.0 https://github.com/mit-han-lab/torchspar
     pip install --no-cache-dir --no-build-isolation . && \
     rm -rf /tmp/torchsparse
 
-# torch-points-kernels with CUDA 12 + numpy<2 + sm_50 floor.
+# torch-points-kernels with CUDA 12 + numpy<2 + multi-arch (sm_70 .. sm_90).
+# Upstream setup.py hardcodes `-arch=sm_35` in nvcc_flags which overrides the
+# per-arch `-gencode` flags PyTorch's CUDAExtension builder injects from
+# TORCH_CUDA_ARCH_LIST. Strip the hardcoded flag entirely so the env list wins;
+# without this, the resulting kernels run only on sm_35 (or sm_50 with the old
+# patch) and stall/fail on H100 (sm_90).
 RUN pip install --no-cache-dir "numpy>=1.24,<2.0" "cython<3.0"
 RUN git clone https://github.com/torch-points3d/torch-points-kernels.git /tmp/tpk && \
     cd /tmp/tpk && \
     sed -i 's/"numpy<=1.21"/"numpy"/g' setup.py && \
-    sed -i 's/-arch=sm_35/-arch=sm_50/g' setup.py && \
+    sed -i 's/"-arch=sm_35", //g' setup.py && \
+    grep -q '"-arch=sm_' setup.py && { echo "ERROR: hardcoded arch flag still present in setup.py" >&2; exit 1; } || true && \
     sed -i 's/isIntegralType(/at::isIntegralType(/g' cuda/include/utils.h && \
     sed -i 's/isFloatingType(/at::isFloatingType(/g' cuda/include/utils.h && \
     pip install --no-cache-dir . && \
@@ -123,6 +134,29 @@ WORKDIR /opt/ForAINet/PointCloudSegmentation
 RUN find . -name "*.py" -exec sed -i 's/\bdata\.keys\b/data.keys()/g' {} + && \
     find . -name "*.py" -exec sed -i 's/data\.keys()()/data.keys()/g' {} +
 
+# Fix multiprocessing-fork + CUDA deadlock in PointGroup3heads clustering.
+# torch_points3d/utils/meanshift_cluster.py::cluster_single spawns a
+# multiprocessing.Pool with the default fork start method. Forked workers
+# inherit the parent's already-initialized CUDA context and deadlock on the
+# first sklearn-side numpy/threadpool touch. PointGroup3heads (cluster_type=7,
+# the active path for the PointGroup-PAPER checkpoint) calls cluster_single
+# inside model.forward(), so this freezes inference end-to-end on H100.
+# The 'spawn' context starts workers with a fresh interpreter and rebuilds the
+# CUDA context cleanly; sklearn's MeanShift target is module-level and
+# pickleable, so spawn works without further changes.
+# Reference: PyTorch+multiprocessing fork deadlock — well-documented class.
+RUN python3 - <<'PYP'
+import pathlib, re
+fp = pathlib.Path('/opt/ForAINet/PointCloudSegmentation/torch_points3d/utils/meanshift_cluster.py')
+src = fp.read_text()
+pat = re.compile(r'\bmultiprocessing\.Pool\(', re.MULTILINE)
+new, n = pat.subn('multiprocessing.get_context("spawn").Pool(', src)
+if n == 0:
+    raise SystemExit("ERROR: meanshift_cluster.py does not contain multiprocessing.Pool() — patch target moved")
+fp.write_text(new)
+print(f"patched {fp} ({n} substitution(s))")
+PYP
+
 # torch_points_kernels: device alignment in region_grow.
 RUN python3 -c "import pathlib; p = pathlib.Path('/opt/conda/lib/python3.10/site-packages/torch_points_kernels/cluster.py'); c = p.read_text(); c = c.replace('local_ind = ind[label_mask]', 'local_ind = ind.to(label_mask.device)[label_mask]'); c = c.replace('local_xyz = xyz[label_mask]', 'local_xyz = xyz.to(label_mask.device)[label_mask]'); p.write_text(c); print('Patched cluster.py')"
 
@@ -140,7 +174,7 @@ RUN wget -q -O model_file/PointGroup-PAPER.pt "${WEIGHTS_URL}" && \
     ls -la model_file/PointGroup-PAPER.pt
 
 LABEL org.opencontainers.image.title="forainet" \
-      org.opencontainers.image.description="ForAINet (Xiang et al. 2024) panoptic segmentation of airborne lidar — experimental H100 sm_90 port from upstream torch-1.9/CUDA-11.1 stack" \
+      org.opencontainers.image.description="ForAINet (Xiang et al. 2024) panoptic segmentation of airborne lidar — H100 sm_90 port from upstream torch-1.9/CUDA-11.1 stack, with multiprocessing-fork + CUDA deadlock and torch-points-kernels build-arch fixes" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/forainet/README.md" \
       org.opencontainers.image.version="v2" \
@@ -150,7 +184,7 @@ LABEL org.opencontainers.image.title="forainet" \
       bradleylab.model.paper="https://doi.org/10.1016/j.rse.2024.114078" \
       bradleylab.model.task="panoptic segmentation, point cloud" \
       bradleylab.model.sensor="lidar:airborne" \
-      bradleylab.model.status="experimental" \
+      bradleylab.model.status="working" \
       bradleylab.model.weights.source="github-release:forainet-weights-v1 (mirrored from upstream Dropbox)" \
       bradleylab.model.weights.sha256="97c03ce81621dc4193e55d2ca2294861b1f4421c94d192799e5fe031f9d35861" \
       bradleylab.model.notes="upstream has no LICENSE file; treat as research-use only"
