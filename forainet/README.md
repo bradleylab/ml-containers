@@ -4,13 +4,46 @@ ForAINet (Xiang et al., ETH PRS) — semantic + instance panoptic
 segmentation of airborne lidar point clouds. PointGroup-style
 architecture trained on FOR-Instance.
 
-> **EXPERIMENTAL.** Upstream ships PyTorch 1.9 / CUDA 11.1 (no sm_90
-> support). This container ports the stack to PyTorch 2.2.2 / CUDA
-> 12.1 by reusing the H100-proven recipe from
-> `segment-any-tree-h100`. The combination of (a) ForAINet code
-> targeting torch 1.9, (b) running it on torch 2.2.2, and (c)
-> MinkowskiEngine on H100 means runtime breakage is plausible. First
-> end-to-end run is the test.
+> **WORKING (with caveats).** Upstream ships PyTorch 1.9 / CUDA 11.1
+> (no sm_90 support). This container ports the stack to PyTorch
+> 2.2.2 / CUDA 12.1 by reusing the H100-proven recipe from
+> `segment-any-tree-h100`. End-to-end inference verified on H100
+> after two H100 fixes landed (see "H100 fixes" below). Out-of-
+> distribution behavior on closed-canopy airborne lidar at low
+> density (<100 pts/m²) is a separate, real concern — see "Known
+> caveats."
+
+## H100 fixes
+
+Two issues blocked end-to-end inference on H100 (sm_90); both are
+fixed in this image:
+
+1. **`torch-points-kernels` build arch.** Upstream `setup.py`
+   hardcodes `-arch=sm_35` in the nvcc flag list, which overrides the
+   per-arch `-gencode` flags PyTorch's CUDAExtension builder injects
+   from `TORCH_CUDA_ARCH_LIST`. Result: kernels run only on the
+   hardcoded arch and fail on H100. Fixed by stripping the hardcoded
+   flag at build time and letting `TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0
+   8.6 8.9 9.0"` drive the build.
+2. **PointGroup3heads clustering deadlock.**
+   `torch_points3d/utils/meanshift_cluster.py::cluster_single` spawns
+   a `multiprocessing.Pool` with the default `fork` start method.
+   Forked workers inherit the parent's already-initialized CUDA
+   context and deadlock on the first sklearn-side
+   numpy/threadpool touch (the classic PyTorch+fork CUDA hang).
+   `PointGroup3heads` (cluster_type=7, the active path for the
+   PointGroup-PAPER checkpoint) calls this inside `model.forward()`,
+   so the freeze hangs inference end-to-end. Fixed by patching
+   `meanshift_cluster.py` to use `multiprocessing.get_context("spawn")`,
+   which starts workers with a fresh interpreter.
+
+## Known caveats
+
+- **Density regime.** ForAINet was trained on FOR-Instance (TLS/MLS
+  /dense ULS, ~500–10,000 pts/m²). On low-density airborne UAV lidar
+  (≲100 pts/m²) the model runs end-to-end but its panoptic queries
+  may not fire above default confidence thresholds; this is a
+  training-distribution issue, not a container bug.
 
 ## Image tag
 
