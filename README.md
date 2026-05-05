@@ -73,6 +73,7 @@ locally.
 | `xrd-classifier` | `xrd-classifier/` | full recipe (CPU; autoXRD multi-phase ID; demo Li-Mn-Ti-O-F model baked in) |
 | `prithvi-eo` | `prithvi-eo/` | full recipe (GPU sm_90; IBM/NASA HLS foundation model via TerraTorch, runtime fetch from HF Hub) |
 | `treex` | `treex/` | full recipe (CPU; Burmeister et al. 2025 unsupervised tree-instance segmentation; classical, no weights) |
+| `raman-classifier` | `raman-classifier/` | full recipe (CPU; ramanspy + RRUFF excellent_unoriented baked at build time; classical NN matcher, no learned weights) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -442,3 +443,29 @@ would require a separate, much larger container variant. See
 `treex/README.md` for the wrapper script, Compute2 enroot/pyxis
 launch pattern, and known caveats (notably the modest ULS F1 in the
 upstream evaluation).
+
+### raman-classifier
+
+Path A of the long-deferred Raman mineral classifier slot. RRUFF
+nearest-neighbour matching via [ramanspy](https://doi.org/10.1021/acs.analchem.4c00383)
+(Georgiev et al. 2024, *Anal. Chem.*) — no learned weights,
+deterministic, defensible methodology. The `excellent_unoriented`
+RRUFF archive is pulled at build time, preprocessed (Whitaker-Hayes
+despike → SavGol denoise → ASLS baseline → vector L2-normalisation),
+resampled onto a 100-1500 cm⁻¹ fingerprint grid, and baked as a
+single ~30-50 MB numpy index at `/opt/rruff_index.npz` so runtime
+matching is sub-second cosine over a small npz.
+
+- Base: `python:3.11-slim`
+- Stack: `numpy + scipy + ramanspy>=0.2`
+- **CPU-only**, classical, no shipped weights.
+- Reference data citation: Lafuente B, Downs RT, Yang H, Stone N
+  (2015), *The power of databases: the RRUFF project*, in
+  *Highlights in Mineralogical Crystallography*, De Gruyter, 1-30.
+
+Pull: `ghcr.io/bradleylab/raman-classifier:v1`
+
+Path B (Liu-2017-style 1D-CNN trained on RRUFF, weights deposited at
+Zenodo + HF Hub under Apache-2) remains queued as a follow-up; this
+container's preprocessing + index format is the planned inference
+harness for those weights when they exist.
