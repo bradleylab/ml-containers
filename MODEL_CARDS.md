@@ -406,6 +406,25 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
 | Notes | Wavelength-conditioning hypernetwork: user must pass per-band wavelengths in micrometers at inference. Convenience flags `--sentinel2-{12,10}band`, `--sentinel1`, `--naip-rgb` cover common configurations; `--wavelengths` for arbitrary lists. Embedding-only — task heads are downstream user responsibility. **For the text-aligned variant** see `bradleylab/dofa-clip` (separate container, CC-BY-NC-4.0) |
 
+## dofa-clip
+
+| | |
+|--|--|
+| Task | Multispectral / RGB image-text retrieval and zero-shot scene scoring (CLIP architecture; SigLIP text encoder; DOFA wavelength-conditioned image trunk) |
+| Sensor | Image:multispectral (Sentinel-2 / Sentinel-1 / Gaofen / hyperspectral via wavelength conditioning), or RGB. Wavelengths supplied at runtime |
+| Upstream repo | [xiong-zhitong/DOFA-CLIP](https://github.com/xiong-zhitong/DOFA-CLIP) (vendored open_clip fork) |
+| Upstream license | Apache-2.0 (code, this repo + xiong-zhitong/DOFA-CLIP) |
+| Paper | Xiong et al. (2025) *DOFA-CLIP: Vision-Language Foundation Model for Earth Observation* — [arXiv:2503.06312](https://arxiv.org/abs/2503.06312) |
+| Weights source | Hugging Face Hub: [`earthflow/GeoLB-ViT-14-SigLIP-so400m-384-EO`](https://huggingface.co/earthflow/GeoLB-ViT-14-SigLIP-so400m-384-EO) (~1.7 GB safetensors) baked at build time via the vendored open_clip's `create_model_from_pretrained("hf-hub:...")` |
+| Weights license | **CC-BY-NC-4.0** per HF model card (non-commercial only). Commercial use requires explicit upstream permission (`xiongzhitong@gmail.com`). The only NC-licensed image in the catalog as of v1 |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 + torchvision 0.20.1 (CPU wheels) + vendored open_clip from `xiong-zhitong/DOFA-CLIP` (Apache-2.0) + `timm` + `einops` + `transformers>=4.40,<5` + `huggingface_hub<1.0` |
+| H100 status | N/A in v1 (CPU runtime; GPU variant deferred until a batch-screening workload lands) |
+| Lab status | **utility** — multispectral CLIP, sister to `remoteclip` (RGB-only Apache-2.0) and `dofa` (multispectral embedding-only CC-BY-4.0) |
+| Architecture | **Multi-arch** — `linux/amd64` + `linux/arm64`. All deps publish aarch64 wheels |
+| First-run / current behavior | Build smoke test passes at build time: model loads, text embeddings differentiate (asserts pairwise cosine < 0.95), image-text scoring on the upstream airplane.png correctly puts "a busy airport" above "a forest" / "a stadium". Catches the Path A failure mode that the BiliSakura HF mirrors collapse the text encoder |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+| Notes | **Path B build** — uses the upstream xiong-zhitong/DOFA-CLIP repo's vendored open_clip fork. **Path A** (HF transformers via `BiliSakura/DOFA-CLIP-{ViT-B-16,VIT-L-14}` mirrors) was evaluated and is broken: text encoder self-attention stored as `in_proj.{weight,bias}` is silently dropped by HF's `CLIPModel`, leaving every text attention layer randomly initialized; text embeddings collapse to ~identical vectors across prompts. See README for details. Output dim 1152, image res 384×384, text context length 64. SigLIP-style scoring (sigmoid not softmax) — per-prompt independent |
+
 ---
 
 ## Deprecated images
