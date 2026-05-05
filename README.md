@@ -76,6 +76,7 @@ locally.
 | `raman-classifier` | `raman-classifier/` | full recipe (CPU; ramanspy + RRUFF excellent_unoriented baked at build time; classical NN matcher, no learned weights) |
 | `geoclip` | `geoclip/` | full recipe (CPU; Vivanco Cepeda et al. 2023 worldwide image geolocalization; CLIP-L/14 weights baked at build time, offline runtime) |
 | `dofa` | `dofa/` | full recipe (CPU; Xiong et al. 2024 multispectral/SAR/optical foundation model; Base weights baked at build, Large lazy) |
+| `dofa-clip` | `dofa-clip/` | full recipe (CPU; Xiong et al. 2025 multispectral CLIP via vendored open_clip fork; so400m-384-EO baked at build; **CC-BY-NC-4.0 — non-commercial only**) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -516,3 +517,40 @@ Embedding-only — no task head. Downstream classification / change
 detection / retrieval requires a small head trained on top. For the
 text-aligned variant see `bradleylab/dofa-clip` (separate container,
 CC-BY-NC-4.0).
+
+### dofa-clip
+
+[DOFA-CLIP](https://arxiv.org/abs/2503.06312) (Xiong et al. 2025) —
+multispectral CLIP via DOFA's wavelength-conditioned image encoder
++ SigLIP-style text alignment. Pretrained on **GeoLangBind-2M**
+(~2M EO image-caption pairs). The headline differentiator from
+`bradleylab/remoteclip` is multispectral input — DOFA-CLIP accepts
+arbitrary band counts via per-band wavelength tensors.
+
+> **⚠ License: weights are CC-BY-NC-4.0.** The only NC-licensed
+> image in the catalog. Use is restricted to non-commercial purposes;
+> commercial users must obtain explicit permission from the upstream
+> authors (`xiongzhitong@gmail.com`). Container code is Apache-2.0;
+> only the trained checkpoint carries the NC restriction. See
+> `dofa-clip/README.md` for the full compliance discussion.
+
+- Base: `python:3.11-slim`
+- Stack: torch 2.5.1 CPU + vendored open_clip from `xiong-zhitong/DOFA-CLIP` + `timm` + `einops` + `transformers<5`
+- **CPU-only**, multispectral + RGB.
+- so400m-384-EO weights baked at build (~1.7 GB).
+- Output dim 1152, image resolution 384×384, SigLIP scoring
+  (sigmoid per-prompt, not softmax across panel).
+
+Pull: `ghcr.io/bradleylab/dofa-clip:v1`
+
+**Path B build.** The HF transformers Path A
+(`BiliSakura/DOFA-CLIP-{ViT-B-16,VIT-L-14}` mirrors) was evaluated
+and is broken — text encoder self-attention stored as `in_proj.*`
+is silently dropped by HF's `CLIPModel`, leaving every text
+attention layer randomly initialized and text embeddings collapsed.
+The vendored open_clip fork accepts the open_clip / SigLIP weight
+naming directly. See `dofa-clip/README.md` for details.
+
+For permissive multispectral embeddings (no text), use
+`bradleylab/dofa` (CC-BY-4.0). For permissive RGB CLIP, use
+`bradleylab/remoteclip` (Apache-2.0).
