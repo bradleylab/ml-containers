@@ -77,6 +77,7 @@ locally.
 | `geoclip` | `geoclip/` | full recipe (CPU; Vivanco Cepeda et al. 2023 worldwide image geolocalization; CLIP-L/14 weights baked at build time, offline runtime) |
 | `dofa` | `dofa/` | full recipe (CPU; Xiong et al. 2024 multispectral/SAR/optical foundation model; Base weights baked at build, Large lazy) |
 | `dofa-clip` | `dofa-clip/` | full recipe (CPU; Xiong et al. 2025 multispectral CLIP via vendored open_clip fork; so400m-384-EO baked at build; **CC-BY-NC-4.0 — non-commercial only**) |
+| `terramind` | `terramind/` | full recipe (GPU sm_90; Jakubik et al. 2025 IBM/ESA any-to-any generative EO foundation model — S1+S2+DEM+NDVI+LULC; tiny/small/base/large via TerraTorch + diffusers 0.30 pin; weights via HF Hub) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -554,3 +555,26 @@ naming directly. See `dofa-clip/README.md` for details.
 For permissive multispectral embeddings (no text), use
 `bradleylab/dofa` (CC-BY-4.0). For permissive RGB CLIP, use
 `bradleylab/remoteclip` (Apache-2.0).
+
+### terramind
+
+[TerraMind 1.0](https://huggingface.co/ibm-esa-geospatial/TerraMind-1.0-base)
+(IBM, ESA Φ-lab, FAST-EO; ICCV 2025) is the first any-to-any
+generative foundation model for Earth Observation. Pretrained on
+Sentinel-1 GRD, Sentinel-1 RTC, Sentinel-2 L2A, DEM, NDVI, and LULC.
+Embeddings + segmentation + cross-modality generation
+("Thinking-in-Modalities").
+
+- Base: `nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04`
+- Stack: torch 2.5.1 cu121 + `terratorch>=1.2.5` + `diffusers==0.30.0`
+- **GPU primary**, Apache-2.0 across code + weights.
+- Four scale variants on HF Hub: tiny / small / base / large
+  (`ibm-esa-geospatial/TerraMind-1.0-{...}`). Weights NOT baked —
+  TerraTorch fetches via HF Hub on first call.
+
+Pull: `ghcr.io/bradleylab/terramind:v1`
+
+Sister to `bradleylab/prithvi-eo` (also TerraTorch-fronted). Pick
+TerraMind when the workflow needs S1+S2 fusion or any-to-any
+modality translation; pick Prithvi-EO when it's HLS-only and the
+existing 100M / 300M / 600M weights are appropriate.

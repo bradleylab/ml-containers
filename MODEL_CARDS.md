@@ -425,6 +425,24 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
 | Notes | **Path B build** — uses the upstream xiong-zhitong/DOFA-CLIP repo's vendored open_clip fork. **Path A** (HF transformers via `BiliSakura/DOFA-CLIP-{ViT-B-16,VIT-L-14}` mirrors) was evaluated and is broken: text encoder self-attention stored as `in_proj.{weight,bias}` is silently dropped by HF's `CLIPModel`, leaving every text attention layer randomly initialized; text embeddings collapse to ~identical vectors across prompts. See README for details. Output dim 1152, image res 384×384, text context length 64. SigLIP-style scoring (sigmoid not softmax) — per-prompt independent |
 
+## terramind
+
+| | |
+|--|--|
+| Task | Any-to-any generative geospatial foundation model — embeddings, segmentation, cross-modality translation (e.g. S1 → NDVI when S2 cloud-blocked); supports Thinking-in-Modalities fine-tuning |
+| Sensor | image:multi (S1 GRD, S1 RTC, S2 L2A, DEM, NDVI, LULC). Six tokenizers under same HF org |
+| Upstream repo | [IBM/terramind](https://github.com/IBM/terramind) (config + notebooks); model code in [terrastackai/terratorch](https://github.com/terrastackai/terratorch) `BACKBONE_REGISTRY` |
+| Upstream license | Apache-2.0 (terramind config + terratorch toolkit) |
+| Paper | Jakubik et al. (2025), *ICCV 2025* — *TerraMind: Large-Scale Generative Multimodality for Earth Observation*, [arXiv:2504.11171](https://arxiv.org/abs/2504.11171) |
+| Weights source | HF Hub: [`ibm-esa-geospatial/TerraMind-1.0-tiny`](https://huggingface.co/ibm-esa-geospatial/TerraMind-1.0-tiny), [`-small`](https://huggingface.co/ibm-esa-geospatial/TerraMind-1.0-small), [`-base`](https://huggingface.co/ibm-esa-geospatial/TerraMind-1.0-base), [`-large`](https://huggingface.co/ibm-esa-geospatial/TerraMind-1.0-large). Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
+| Weights license | Apache-2.0 (per HF model cards) |
+| Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `terratorch>=1.2.5` + `diffusers==0.30.0` (TerraMind any-to-any pin) + `setuptools<81` |
+| H100 status | Native sm_90 |
+| Lab status | **utility** — pretrained backbone; downstream task heads + fine-tuning required for any actual prediction. Recommended tier: Compute2 H100 for the base/large variants |
+| First-run / current behavior | Build smoke test passes (terratorch + diffusers import; ≥1 `terramind_*` backbone registered in `BACKBONE_REGISTRY`); no production embedding output yet |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
+| Notes | Sister container to `prithvi-eo` (both TerraTorch-fronted). TerraMind covers the multimodal S1+S2+DEM+NDVI+LULC pretraining; Prithvi-EO is HLS-only. The `_tim` backbone variants enable Thinking-in-Modalities fine-tuning (the model first generates a missing modality before predicting the downstream task). For any-to-any modality generation, the `diffusers==0.30.0` pin is load-bearing — newer diffusers break the upstream generation pipeline |
+
 ---
 
 ## Deprecated images
