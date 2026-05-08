@@ -78,6 +78,7 @@ locally.
 | `dofa` | `dofa/` | full recipe (CPU; Xiong et al. 2024 multispectral/SAR/optical foundation model; Base weights baked at build, Large lazy) |
 | `dofa-clip` | `dofa-clip/` | full recipe (CPU; Xiong et al. 2025 multispectral CLIP via vendored open_clip fork; so400m-384-EO baked at build; **CC-BY-NC-4.0 — non-commercial only**) |
 | `terramind` | `terramind/` | full recipe (GPU sm_90; Jakubik et al. 2025 IBM/ESA any-to-any generative EO foundation model — S1+S2+DEM+NDVI+LULC; tiny/small/base/large via TerraTorch + diffusers 0.30 pin; weights via HF Hub) |
+| `timesfm` | `timesfm/` | full recipe (CPU multi-arch; Das et al. 2024 Google Research time-series foundation model — TimesFM 2.5 200M params, 16k context, continuous-quantile head; weights via HF Hub) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -578,3 +579,28 @@ Sister to `bradleylab/prithvi-eo` (also TerraTorch-fronted). Pick
 TerraMind when the workflow needs S1+S2 fusion or any-to-any
 modality translation; pick Prithvi-EO when it's HLS-only and the
 existing 100M / 300M / 600M weights are appropriate.
+
+### timesfm
+
+[TimesFM 2.5](https://huggingface.co/google/timesfm-2.5-200m-pytorch)
+(Das et al., ICML 2024) is Google Research's decoder-only time-series
+foundation model. The 2.5 release (Sept 2025) is 200M parameters,
+supports up to 16k context, and ships an optional 30M
+continuous-quantile head for probabilistic forecasts.
+
+- Base: `python:3.11-slim`
+- Stack: torch 2.5.1 CPU + `timesfm` from upstream GitHub (pinned SHA)
+- **CPU-primary**, multi-arch (`linux/amd64`, `linux/arm64`).
+- Apache-2.0 across code AND weights.
+- Weights baked: NO — pulled lazily from HF Hub on first call.
+
+Pull: `ghcr.io/bradleylab/timesfm:v1`
+
+Different modality from the rest of the catalog — operates on
+univariate time-series (any 1D regularly-sampled signal), not
+imagery. Lab use cases: streamflow / hydrology forecasting,
+climate-reanalysis pixel-time-series, eddy-covariance and
+soil-moisture gap-filling. Sister to
+`bradleylab/neuralhydrology` for time-series workflows; TimesFM is
+the zero-shot fallback when there isn't enough history to fine-tune
+a CAMELS-style LSTM.

@@ -443,6 +443,25 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 | Notes | Sister container to `prithvi-eo` (both TerraTorch-fronted). TerraMind covers the multimodal S1+S2+DEM+NDVI+LULC pretraining; Prithvi-EO is HLS-only. The `_tim` backbone variants enable Thinking-in-Modalities fine-tuning (the model first generates a missing modality before predicting the downstream task). For any-to-any modality generation, the `diffusers==0.30.0` pin is load-bearing — newer diffusers break the upstream generation pipeline |
 
+## timesfm
+
+| | |
+|--|--|
+| Task | Univariate time-series forecasting — zero-shot point + continuous-quantile predictions; LoRA fine-tuning via HF Transformers + PEFT |
+| Sensor | time_series:univariate (any 1D regularly-sampled signal — streamflow, soil moisture, climate-reanalysis pixel-time-series, eddy-covariance fluxes, met-station observations) |
+| Upstream repo | [google-research/timesfm](https://github.com/google-research/timesfm) |
+| Upstream license | Apache-2.0 |
+| Paper | Das, Kong, Sen, Zhou (2024), *ICML 2024* — *A decoder-only foundation model for time-series forecasting*, [arXiv:2310.10688](https://arxiv.org/abs/2310.10688) |
+| Weights source | HF Hub: [`google/timesfm-2.5-200m-pytorch`](https://huggingface.co/google/timesfm-2.5-200m-pytorch) (canonical, via `timesfm.TimesFM_2p5_200M_torch.from_pretrained(...)`) and [`google/timesfm-2.5-200m-transformers`](https://huggingface.co/google/timesfm-2.5-200m-transformers) (HF Transformers integration for LoRA fine-tuning). Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
+| Weights license | Apache-2.0 (per HF model cards) |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 (CPU wheels) + `timesfm` installed from `google-research/timesfm` at pinned commit `d720daa67865` (2026-04-15). PyPI's `timesfm 1.3.0` is the v1/v2 archive — TimesFM 2.5 is GitHub-only |
+| H100 status | N/A in v1 (CPU runtime by design; 200M-param model + Apache-2.0 weights mean short-horizon inference runs comfortably on a laptop). GPU variant deferred until a panel-of-thousands-of-series workload lands |
+| Lab status | **utility** — different modality from the rest of the catalog (time-series, not imagery); fits hydrology, soil moisture, climate reanalysis, eddy-covariance gap-filling. Sister to `neuralhydrology`: TimesFM is the zero-shot fallback when there isn't enough history to fine-tune a CAMELS-style LSTM |
+| Architecture | **Multi-arch** — `linux/amd64` + `linux/arm64`. All deps publish aarch64 wheels |
+| First-run / current behavior | Build smoke test passes (`timesfm` import, `TimesFM_2p5_200M_torch` + `ForecastConfig` resolve); no production forecast output yet |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+| Notes | Decoder-only architecture, 200M parameters, supports up to 16k context length, optional 30M continuous-quantile head for probabilistic forecasts (sigmoid-style not softmax). 2.5 release (Sept 2025) drops the v2.0 frequency indicator and bumps context from 2048 to 16k. Closes the highest-priority Tier 1 wishlist candidate from STATUS.md per the 2026-05-07 prior-art triage |
+
 ---
 
 ## Deprecated images
