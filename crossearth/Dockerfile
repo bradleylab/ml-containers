@@ -65,18 +65,23 @@ RUN pip install --upgrade pip wheel \
 
 RUN mkdir -p /opt/hf-cache
 
-# Smoke test — imports clean, registry side-effects fire, at least one
-# CrossEarth-named class lands in the mmseg MODELS registry. Per
-# `~/.claude/rules/ml-containers.md`, version printout uses
-# importlib.metadata, not __version__, for every package. No weight
-# fetch at build time (HF cache empty; first runtime call downloads).
+# Smoke test — imports clean, registry side-effects fire, the
+# CrossEarth-specific classes (Reins, LoRAReins, ReinMask2FormerHead,
+# PEFTEncoderDecoder, ReinsDinoVisionTransformer) land in mmseg's
+# MODELS / BACKBONES registries. Per `~/.claude/rules/ml-containers.md`,
+# version printout uses importlib.metadata, not __version__, for every
+# package. No weight fetch at build time (HF cache empty; first
+# runtime call downloads).
 RUN python -c "import torch; \
 import importlib.metadata as im; \
 import sys; sys.path.insert(0, '/opt/CrossEarth'); \
 import CrossEarth; \
 from mmseg.registry import MODELS; \
-crossearth_models = [n for n in MODELS.module_dict if 'crossearth' in n.lower()]; \
-assert crossearth_models, f'no CrossEarth models in mmseg registry; sample: {sorted(MODELS.module_dict)[:20]}'; \
+expected = ['Reins', 'LoRAReins', 'ReinMask2FormerHead', 'PEFTEncoderDecoder', 'ReinsDinoVisionTransformer']; \
+all_registered = set(MODELS.module_dict); \
+for child in MODELS.children.values(): all_registered.update(child.module_dict); \
+found = [n for n in expected if n in all_registered]; \
+assert len(found) >= 3, f'CrossEarth registry side-effects missing: found={found}, expected at least 3 of {expected}'; \
 print('mmcv', im.version('mmcv'), \
 '| mmsegmentation', im.version('mmsegmentation'), \
 '| mmengine', im.version('mmengine'), \
@@ -84,8 +89,7 @@ print('mmcv', im.version('mmcv'), \
 '| xformers', im.version('xformers'), \
 '| torch', torch.__version__, \
 '| cuda-build', torch.version.cuda); \
-print('CrossEarth registered models:', len(crossearth_models), \
-'(e.g.', crossearth_models[:3], ')')"
+print('CrossEarth-specific classes registered:', found)"
 
 LABEL org.opencontainers.image.title="crossearth" \
       org.opencontainers.image.description="CrossEarth (TPAMI 2025) — vision foundation model for cross-domain remote sensing semantic segmentation. Frozen DINOv2 backbone + Earth-Style Injection + multi-task training; targets Remote Sensing Domain Generalization (RSDG). Container vendors the upstream repo + mmcv/mmseg stack; weights via Hugging Face Hub at runtime." \

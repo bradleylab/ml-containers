@@ -439,7 +439,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `terratorch>=1.2.5` + `diffusers==0.30.0` (TerraMind any-to-any pin) + `setuptools<81` |
 | H100 status | Native sm_90 |
 | Lab status | **utility** — pretrained backbone; downstream task heads + fine-tuning required for any actual prediction. Recommended tier: Compute2 H100 for the base/large variants |
-| First-run / current behavior | Build smoke test passes (terratorch + diffusers import; ≥1 `terramind_*` backbone registered in `BACKBONE_REGISTRY`); no production embedding output yet |
+| First-run / current behavior | **Real-input validated on Compute2** (job 712196, A100 80GB PCIe, 1m33s): 12-band S2L2A-shaped cube from real RGB → 87.3M-param `terramind_v1_base` from HF Hub → 12-layer ViT output (1, 196, 768), real vs synth distance 704.27. Backbone resolves under unprefixed `terramind_v1_base` (no prefix needed). See `geospatial-containers/terramind_test/` |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 | Notes | Sister container to `prithvi-eo` (both TerraTorch-fronted). TerraMind covers the multimodal S1+S2+DEM+NDVI+LULC pretraining; Prithvi-EO is HLS-only. The `_tim` backbone variants enable Thinking-in-Modalities fine-tuning (the model first generates a missing modality before predicting the downstream task). For any-to-any modality generation, the `diffusers==0.30.0` pin is load-bearing — newer diffusers break the upstream generation pipeline |
 
@@ -497,6 +497,24 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Build smoke test passes (`timesfm` import, `TimesFM_2p5_200M_torch` + `ForecastConfig` resolve); no production forecast output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
 | Notes | Decoder-only architecture, 200M parameters, supports up to 16k context length, optional 30M continuous-quantile head for probabilistic forecasts (sigmoid-style not softmax). 2.5 release (Sept 2025) drops the v2.0 frequency indicator and bumps context from 2048 to 16k. Closes the highest-priority Tier 1 wishlist candidate from STATUS.md per the 2026-05-07 prior-art triage |
+
+## crossearth
+
+| | |
+|--|--|
+| Task | Cross-domain semantic segmentation — domain-generalizable RSDG; trains on source domains and runs zero-shot on unseen target domains differing in region, resolution, spectral bands, or climate. Frozen DINOv2 backbone + Mask2Former head |
+| Sensor | image:multi (optical RS, region/resolution/spectral domain transfer) |
+| Upstream repo | [VisionXLab/CrossEarth](https://github.com/VisionXLab/CrossEarth) (vendored at SHA `644a5a1b3c01b2e5531820b5291d4397597f75de`, HEAD as of 2026-04-02) |
+| Upstream license | MIT |
+| Paper | Gong et al. (2025), *TPAMI 2025* — *CrossEarth: Geospatial Vision Foundation Model for Domain Generalizable Remote Sensing Semantic Segmentation*, [arXiv:2410.22629](https://arxiv.org/abs/2410.22629) |
+| Weights source | HF Hub: [`Cusyoung/CrossEarth`](https://huggingface.co/Cusyoung/CrossEarth) (`dinov2_converted.pth`, `dinov2_converted_1024x1024.pth`). Note typo: HF org is `Cusyoung`, not author handle `Cuzyoung`. Cache at `$HF_HOME=/opt/hf-cache` |
+| Weights license | Per HF model card — verify before redistribution |
+| Container stack | `pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime` (amd64-only) + Python 3.10 + `mmengine` + `mmcv>=2.0.0,<2.2` + `mmsegmentation>=1.0.0,<1.3` + `mmdet>=3.0.0,<3.4` + `xformers==0.0.20` (exact pin per upstream — newer breaks DINOv2 attention) |
+| H100 status | Native sm_90 (TORCH_CUDA_ARCH_LIST covers 7.0–9.0); CUDA 11.7 stack |
+| Lab status | **utility** — pretrained backbone + segmentation head; out-of-the-box inference on supported RSDG benchmarks. Recommended tier: any GPU with ≥8 GB VRAM for inference |
+| First-run / current behavior | Build smoke test passes (`import CrossEarth` + ≥1 CrossEarth-named class registered in `mmseg.registry.MODELS`). Real-input forward pass on Compute2 deferred to a follow-up |
+| Tags | `:v1` (= `:latest`, `:torch2.0-cu117`) |
+| Notes | Sister to `dofa`/`dofa-clip`/`terramind` in the RS foundation-model cluster, but addresses the domain-generalization problem differently: instead of spectral conditioning (DOFA) or multimodal pretraining (TerraMind), CrossEarth uses Earth-Style Injection (data-level augmentation) + multi-task training over a 32-scenario RSDG benchmark. Only RS FM in the catalog built on a generalist self-supervised vision backbone (DINOv2). Closes the second remaining Tier 2 wishlist candidate per 2026-05-07 prior-art triage. Upstream is a research codebase (not pip-installable) — vendored at HEAD. mmcv 2.x + mmseg 1.x + xformers 0.0.20 + torch 2.0 stack mirrors upstream conda recipe; newer torch likely works but isn't validated |
 
 ---
 
