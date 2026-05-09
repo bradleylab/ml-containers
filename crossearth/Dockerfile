@@ -52,6 +52,14 @@ RUN git clone https://github.com/VisionXLab/CrossEarth.git /opt/CrossEarth \
 #   - mmdet >=3.0.0,<3.4
 #   - xformers ==0.0.20 (exact pin per upstream — newer breaks DINOv2 path)
 # requirements.txt: numpy ftfy scipy prettytable matplotlib regex timm einops
+#
+# numpy<2 pin is load-bearing: torch 2.0.1 + torchvision 0.15.2 (pulled
+# in by the pytorch base image) were compiled against numpy 1.x ABI.
+# CrossEarth's requirements.txt has unpinned `numpy` which resolves to
+# numpy 2.x; that surfaces as `RuntimeError: Numpy is not available`
+# the first time torchvision touches a tensor. Pinning here keeps the
+# entire stack on numpy 1.x without forcing CrossEarth's own deps off
+# their happy path.
 RUN pip install --upgrade pip wheel \
     && pip install -U openmim \
     && mim install mmengine \
@@ -60,8 +68,9 @@ RUN pip install --upgrade pip wheel \
         "mmsegmentation>=1.0.0,<1.3" \
         "mmdet>=3.0.0,<3.4" \
         "xformers==0.0.20" \
+        "numpy<2" \
     && pip install -r /opt/CrossEarth/requirements.txt \
-    && pip install future tensorboard "huggingface_hub>=0.20.0"
+    && pip install future tensorboard "huggingface_hub>=0.20.0" "numpy<2"
 
 RUN mkdir -p /opt/hf-cache
 
@@ -73,6 +82,10 @@ RUN mkdir -p /opt/hf-cache
 # package. No weight fetch at build time (HF cache empty; first
 # runtime call downloads).
 RUN python -c "import torch; \
+import torchvision; \
+import torchvision.transforms.functional as TF; \
+import numpy as np; \
+TF.to_tensor(np.zeros((4, 4, 3), dtype=np.uint8)); \
 import importlib.metadata as im; \
 import sys; sys.path.insert(0, '/opt/CrossEarth'); \
 import CrossEarth; \
@@ -81,12 +94,15 @@ expected = ['Reins', 'LoRAReins', 'ReinMask2FormerHead', 'PEFTEncoderDecoder', '
 all_registered = set(MODELS.module_dict).union(*(set(c.module_dict) for c in MODELS.children.values())); \
 found = [n for n in expected if n in all_registered]; \
 assert len(found) >= 3, f'CrossEarth registry side-effects missing: found={found}, expected at least 3 of {expected}'; \
+assert int(np.__version__.split('.')[0]) < 2, f'numpy must be <2 for torch 2.0 ABI; got {np.__version__}'; \
 print('mmcv', im.version('mmcv'), \
 '| mmsegmentation', im.version('mmsegmentation'), \
 '| mmengine', im.version('mmengine'), \
 '| mmdet', im.version('mmdet'), \
 '| xformers', im.version('xformers'), \
 '| torch', torch.__version__, \
+'| torchvision', torchvision.__version__, \
+'| numpy', np.__version__, \
 '| cuda-build', torch.version.cuda); \
 print('CrossEarth-specific classes registered:', found)"
 
