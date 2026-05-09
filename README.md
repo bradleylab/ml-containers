@@ -79,6 +79,7 @@ locally.
 | `dofa-clip` | `dofa-clip/` | full recipe (CPU; Xiong et al. 2025 multispectral CLIP via vendored open_clip fork; so400m-384-EO baked at build; **CC-BY-NC-4.0 — non-commercial only**) |
 | `terramind` | `terramind/` | full recipe (GPU sm_90; Jakubik et al. 2025 IBM/ESA any-to-any generative EO foundation model — S1+S2+DEM+NDVI+LULC; tiny/small/base/large via TerraTorch + diffusers 0.30 pin; weights via HF Hub) |
 | `timesfm` | `timesfm/` | full recipe (CPU multi-arch; Das et al. 2024 Google Research time-series foundation model — TimesFM 2.5 200M params, 16k context, continuous-quantile head; weights via HF Hub) |
+| `crossearth` | `crossearth/` | full recipe (GPU; Gong et al. 2025 TPAMI vision FM for cross-domain RS semantic segmentation — frozen DINOv2 + Earth-Style Injection + Mask2Former head; mmcv 2.x + mmseg 1.x + xformers 0.0.20; vendored upstream at SHA `644a5a1b`; weights via HF Hub) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -604,3 +605,30 @@ soil-moisture gap-filling. Sister to
 `bradleylab/neuralhydrology` for time-series workflows; TimesFM is
 the zero-shot fallback when there isn't enough history to fine-tune
 a CAMELS-style LSTM.
+
+### crossearth
+
+[CrossEarth](https://github.com/VisionXLab/CrossEarth) (Gong et al.,
+TPAMI 2025) is a vision foundation model for Remote Sensing Domain
+Generalization (RSDG): trained on a set of source domains and used
+zero-shot on unseen target domains differing in region, resolution,
+spectral bands, or climate. Pairs a frozen DINOv2 ViT backbone with
+an Earth-Style Injection augmentation pipeline + multi-task training
+over a 32-scenario RSDG benchmark.
+
+- Base: `pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime` (amd64-only)
+- Stack: torch 2.0.1 + cuda 11.7 + mmengine + mmcv 2.x + mmsegmentation 1.x + mmdet 3.x + xformers 0.0.20 (exact pin per upstream)
+- **GPU-primary**, amd64-only.
+- MIT (code); per HF model card (weights).
+- Weights baked: NO — pulled from HF Hub `Cusyoung/CrossEarth` on first call.
+- Vendored upstream at SHA `644a5a1b3c01b2e5531820b5291d4397597f75de`.
+
+Pull: `ghcr.io/bradleylab/crossearth:v1`
+
+Sister to `dofa`/`dofa-clip`/`terramind` in the RS foundation-model
+cluster, but bets differently on the domain-generalization problem:
+instead of spectral conditioning (DOFA) or multimodal pretraining
+(TerraMind), CrossEarth uses data-level Earth-Style Injection +
+multi-task training. Only RS FM in the catalog built on a generalist
+self-supervised vision backbone (DINOv2). Ships encoder + Mask2Former
+segmentation head, ready for inference without head fine-tuning.
