@@ -78,8 +78,7 @@ import sys; sys.path.insert(0, '/opt/CrossEarth'); \
 import CrossEarth; \
 from mmseg.registry import MODELS; \
 expected = ['Reins', 'LoRAReins', 'ReinMask2FormerHead', 'PEFTEncoderDecoder', 'ReinsDinoVisionTransformer']; \
-all_registered = set(MODELS.module_dict); \
-for child in MODELS.children.values(): all_registered.update(child.module_dict); \
+all_registered = set(MODELS.module_dict).union(*(set(c.module_dict) for c in MODELS.children.values())); \
 found = [n for n in expected if n in all_registered]; \
 assert len(found) >= 3, f'CrossEarth registry side-effects missing: found={found}, expected at least 3 of {expected}'; \
 print('mmcv', im.version('mmcv'), \
