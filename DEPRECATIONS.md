@@ -55,3 +55,43 @@ the analysis repo — not here, since there is no model to ship.
    venv or mount a stock GDAL+xgboost env image.
 3. Delete the `bradleylab+multispec-species+v1.sqsh` cache from
    Compute2.
+
+## `bradleylab/sar-amplitude-rtc` (deprecated 2026-05-09)
+
+A SNAP-based ICEYE GRD → calibrated speckle-filtered terrain-flattened
+γ⁰_T-in-dB pipeline (Calibration → Refined Lee 5×5 →
+Range-Doppler Terrain-Correction → LinearToFromdB), built on top of
+`mundialis/esa-snap:latest`. Source lived in
+`bradleylab/stl-tornado:containers/sar-amplitude-rtc/` and was never
+moved to this repo or published to GHCR; deleted from that repo in
+the same change.
+
+**Why retired:** two upstream SNAP s1tbx bugs make the container
+unusable for absolute radiometry until upstream patches:
+
+1. `IceyeCalibrator` double-applies the per-scene calibration factor K
+   when the graph runs `Calibration → Terrain-Correction` with
+   `applyRadiometricNormalization=true`. The output raster is
+   `K²·DN²·sin(θ_loc)` instead of `K·DN²/cos(θ_loc)`, a constant offset
+   of ~46–50 dB from γ⁰_T (verified empirically at +49.2 dB on ICEYE
+   X30 frame 950694619).
+2. `RangeDopplerGeocodingOp` silently writes an all-zero raster for
+   off-broadside SpotlightHigh acquisitions because the zero-Doppler
+   intercept search has no solution outside the acquisition window.
+
+Both are documented in the combined STEP forum draft at
+`bradleylab/stl-tornado:scratch/s1tbx-patch/STEP_FORUM_POST_combined.md`.
+
+**Replaced by:** the Tier 1 RPC-based Python geocoder at
+`bradleylab/stl-tornado:scripts/grd_to_gamma0_python.py` (uses ICEYE's
+own RPC block + GDAL + a DEM, bypassing s1tbx entirely). Sub-pixel
+agreement with ICEYE QUICKORTHO across all four STL tornado frames.
+
+**Action items:**
+
+1. None for GHCR — image was never published.
+2. None for Compute2 caches — image was never imported.
+3. If upstream s1tbx merges the `IceyeCalibrator` fix and someone
+   wants the SNAP-based path back, the recipe is recoverable from
+   `bradleylab/stl-tornado` git history (commit prior to the deletion
+   on 2026-05-09).
