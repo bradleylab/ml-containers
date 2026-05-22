@@ -35,9 +35,10 @@
 # torch_points_kernels (stratified) are used only inside methods, so
 # their guards (try/except → None) hold and they are skipped. The
 # exceptions that must be installed:
-#   - ocnn: octformer guards `import ocnn` but still does
-#     `class OctreeT(Octree)` at module level, so Octree must be real —
-#     ocnn (pure Python) is required for the import to succeed.
+#   - ocnn==2.2.1: required — pointcept.models.utils.structure imports it
+#     UNGUARDED, and octformer subclasses ocnn.Octree at module level.
+#     Pinned to the v1.5.1-era release (see the late-layer note below for
+#     the Triton-version reason); installed after the libs.
 #   - pointops / pointops2 / pointgroup_ops: hard module-level imports in
 #     point_transformer / v2 / point_group; built from libs/ with
 #     --no-build-isolation (their setup.py imports torch at build time,
@@ -110,7 +111,7 @@ RUN python -m pip install torch-scatter torch-cluster torch-sparse \
 # at runtime; addict/einops/timm are import-time deps of the models.
 RUN python -m pip install \
         "numpy<2" \
-        addict einops timm termcolor ocnn \
+        addict einops timm termcolor \
         h5py pyyaml scipy scikit-learn plyfile open3d \
         SharedArray tensorboard tensorboardx yapf tqdm
 
@@ -128,6 +129,14 @@ RUN git clone https://github.com/Pointcept/Pointcept.git /opt/Pointcept && \
 RUN cd /opt/Pointcept && \
     python -m pip install --no-build-isolation \
         ./libs/pointops ./libs/pointops2 ./libs/pointgroup_ops
+
+# ocnn — required by pointcept.models.utils.structure (imported there
+# UNGUARDED) and octformer. Pinned to 2.2.1, the v1.5.1-era release:
+# ocnn 2.2.2+ ships Triton implicit-gemm kernels that need a Triton newer
+# than torch 2.2.2 bundles ("Autotuner.__init__() got an unexpected
+# keyword argument 'pre_hook'"). Late layer so the pin doesn't invalidate
+# the cached lib compile above.
+RUN python -m pip install ocnn==2.2.1
 
 # Bake the v1.5.1 S3DIS semantic checkpoint (semseg-pt-v3m1-0-rpe, the
 # flash-free Area-5 model, ~529 MB) from the HF zoo. Renamed to a flat
