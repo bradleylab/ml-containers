@@ -25,11 +25,32 @@ forbid redistribution). So they are neither baked into the image nor
 re-hostable. Download them **interactively** from the upstream README's
 OneDrive links, stage to NAS / Compute2 scratch, and mount at runtime.
 
-Upstream links (interactive browser only):
-- ScanNet (21-class): the `scannet` OneDrive link in the OctFormer README
-- ScanNet200: the `scannet200` OneDrive link there
+Upstream OneDrive links (interactive browser only — these 403 to any
+scripted fetch):
+- ScanNet (21-class): https://1drv.ms/u/c/be1d39f48ac43e0a/EQo-xIr0OR0ggL6aAAAAAAAB92-O6xWX3DlAb8yxaZOyeA
+- ScanNet200: https://1drv.ms/u/c/be1d39f48ac43e0a/EQo-xIr0OR0ggL6cAAAAAAAB7KLyYJOcTe5VMIOi4npxSw
 
 Each bundle contains the training log + `best_model.pth`.
+
+### Lab note — private NAS home (read before reusing these weights)
+
+The lab keeps its own copy at **`/mnt/nas/dev/ml-container-weights/octformer/`**
+— downloaded interactively, for our own non-commercial research/teaching
+use. That is *use*, not *redistribution*. Keep it **private**: do not push
+these weights to a public bucket, a public HF repo, or a public image, and
+do not hand the files to course attendees — point attendees at the
+official ScanNet access process so each agrees to the terms and downloads
+their own copy. Fetch + NAS→Compute2 staging steps and the validation
+sbatch live in `geospatial-containers/octformer_test/`
+(`FETCH_AND_STAGE.md`, `validate_octformer.sbatch`).
+
+**Why ScanNet works this way:** ScanNet is real RGB-D scans of private
+indoor spaces (homes, offices), so its Terms of Use gate access behind a
+signed, non-commercial, no-redistribution agreement for privacy/consent
+reasons. Models trained on it inherit those constraints — hence the
+weights are mounted from our private copy rather than baked into a public
+image (CC-BY-NC weights like Sonata/Concerto *can* be baked because that
+license permits non-commercial redistribution; ScanNet's terms do not).
 
 ## Contents
 
