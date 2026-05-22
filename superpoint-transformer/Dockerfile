@@ -111,8 +111,10 @@ RUN python -m pip install pyg_lib torch_scatter torch_cluster \
         -f https://data.pyg.org/whl/torch-2.2.0+cu121.html && \
     python -m pip install torch_geometric==2.3.0 torchmetrics==0.11.4
 
-# SPT Python deps, mirroring install.sh minus the Jupyter stack (this is
-# an inference image, not a notebook env). Explicit pins follow upstream:
+# SPT Python deps, mirroring install.sh minus the heavy notebook stack
+# (jupyterlab / notebook / jupyter-dash). ipywidgets + ipyfilechooser,
+# which `src` imports at package load, are added in a later layer below.
+# Explicit pins follow upstream:
 # plotly==5.9.0, rich<=14.0, torchmetrics==0.11.4 (above). hydra-core and
 # pytorch-lightning are unpinned upstream; we constrain them to the
 # README-tested lines (Hydra 1.3, Lightning 2.2+) for reproducibility.
@@ -171,6 +173,13 @@ RUN git clone https://github.com/lxxue/FRNN.git /opt/superpoint_transformer/src/
     cd external/prefix_sum && python -m pip install --no-build-isolation . && \
     cd /opt/superpoint_transformer/src/dependencies/FRNN && python -m pip install --no-build-isolation . && \
     rm -rf /opt/superpoint_transformer/src/dependencies/FRNN/.git
+
+# SPT's `src` package imports ipywidgets + ipyfilechooser at load time
+# (src/utils/widgets.py), so they are required even for headless
+# inference — not the optional notebook extras they look like. Kept in a
+# late layer (after the FRNN compile) so adding a dep never invalidates
+# the expensive cached FRNN build.
+RUN python -m pip install ipyfilechooser ipywidgets
 
 # Bake the four (here five) checkpoints matching our demo goals — indoor
 # (S3DIS Area 5 = fold5) and outdoor (DALES), for both SPT-semantic and
