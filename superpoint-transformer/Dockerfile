@@ -145,29 +145,32 @@ RUN python -m pip install \
         torch-graph-components \
         "pytorch-lightning>=2.2,<2.3"
 
-# FRNN — fixed-radius nearest-neighbour CUDA extension (lone source
-# compile). Pinned to a specific commit. prefix_sum (a git submodule)
-# builds first, then FRNN. `python -m pip` (not bare pip) avoids the
-# wrong-interpreter trap from FRNN issue #24. --no-build-isolation is
-# required: both setup.py files import torch at build time, and PEP 517
-# build isolation would hide the image's torch (ModuleNotFoundError on
-# the first CI build). TORCH_CUDA_ARCH_LIST + FORCE_CUDA (set in ENV
-# above) force sm_90 cubins despite no GPU at build time.
-RUN git clone https://github.com/lxxue/FRNN.git /opt/FRNN && \
-    cd /opt/FRNN && \
-    git checkout efc6b378d45000c5de6234098b5092464eb92a24 && \
-    git submodule update --init --recursive && \
-    cd external/prefix_sum && python -m pip install --no-build-isolation . && \
-    cd /opt/FRNN && python -m pip install --no-build-isolation . && \
-    rm -rf /opt/FRNN/.git
-
-# SPT source — pinned to the master commit whose install.sh this
+# SPT source first — pinned to the master commit whose install.sh this
 # Dockerfile was written against. Run from src/ (no pip-install; the repo
-# is a Hydra project, exposed via PYTHONPATH set above).
+# is a Hydra project, exposed via PYTHONPATH set above). FRNN is vendored
+# INTO this tree below, since SPT imports it as `src.dependencies.FRNN`.
 RUN git clone https://github.com/drprojects/superpoint_transformer.git /opt/superpoint_transformer && \
     cd /opt/superpoint_transformer && \
     git checkout eb959b61226f60e0c037cc105c56d51318650e8a && \
     rm -rf .git
+
+# FRNN — fixed-radius nearest-neighbour CUDA extension (lone source
+# compile). Cloned INTO src/dependencies/FRNN, the exact path SPT's code
+# imports as `src.dependencies.FRNN` (matching upstream install.sh) — a
+# site-packages-only install is not enough; the source tree must live at
+# that path. prefix_sum (a git submodule) builds first, then FRNN.
+# `python -m pip` (not bare pip) avoids the wrong-interpreter trap from
+# FRNN issue #24. --no-build-isolation is required: both setup.py files
+# import torch at build time, and PEP 517 isolation would hide the
+# image's torch. TORCH_CUDA_ARCH_LIST + FORCE_CUDA (set in ENV above)
+# force sm_90 cubins despite no GPU at build time.
+RUN git clone https://github.com/lxxue/FRNN.git /opt/superpoint_transformer/src/dependencies/FRNN && \
+    cd /opt/superpoint_transformer/src/dependencies/FRNN && \
+    git checkout efc6b378d45000c5de6234098b5092464eb92a24 && \
+    git submodule update --init --recursive && \
+    cd external/prefix_sum && python -m pip install --no-build-isolation . && \
+    cd /opt/superpoint_transformer/src/dependencies/FRNN && python -m pip install --no-build-isolation . && \
+    rm -rf /opt/superpoint_transformer/src/dependencies/FRNN/.git
 
 # Bake the four (here five) checkpoints matching our demo goals — indoor
 # (S3DIS Area 5 = fold5) and outdoor (DALES), for both SPT-semantic and
