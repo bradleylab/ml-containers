@@ -29,15 +29,21 @@
 #
 # ## Compiled-op surface (kept lean)
 #
-# `import pointcept.models` pulls in every model family at load. Auditing
-# v1.5.1: torchsparse (spvcnn), ocnn + dwconv (octformer), clip (PPT),
-# torch_points_kernels (stratified) are ALL guarded (try/except or lazy)
-# and skipped. The only hard, module-level op deps are Pointcept's three
-# in-tree libs — pointops (point_transformer), pointops2 (v2),
-# pointgroup_ops (point_group) — built from libs/ with
-# --no-build-isolation (their setup.py imports torch at build time, which
-# PEP 517 isolation would hide). TORCH_CUDA_ARCH_LIST incl. 9.0 +
-# FORCE_CUDA force sm_90 cubins with no GPU at build time.
+# `import pointcept.models` pulls in EVERY model family at load (the
+# registry pattern), so PTv3 alone drags in the others' import-time deps.
+# Auditing v1.5.1: torchsparse (spvcnn), dwconv (octformer), clip (PPT),
+# torch_points_kernels (stratified) are used only inside methods, so
+# their guards (try/except → None) hold and they are skipped. The
+# exceptions that must be installed:
+#   - ocnn: octformer guards `import ocnn` but still does
+#     `class OctreeT(Octree)` at module level, so Octree must be real —
+#     ocnn (pure Python) is required for the import to succeed.
+#   - pointops / pointops2 / pointgroup_ops: hard module-level imports in
+#     point_transformer / v2 / point_group; built from libs/ with
+#     --no-build-isolation (their setup.py imports torch at build time,
+#     which PEP 517 isolation would hide).
+# TORCH_CUDA_ARCH_LIST incl. 9.0 + FORCE_CUDA force sm_90 cubins for the
+# compiled libs with no GPU at build time.
 #
 # ## FlashAttention — off
 #
@@ -104,7 +110,7 @@ RUN python -m pip install torch-scatter torch-cluster torch-sparse \
 # at runtime; addict/einops/timm are import-time deps of the models.
 RUN python -m pip install \
         "numpy<2" \
-        addict einops timm termcolor \
+        addict einops timm termcolor ocnn \
         h5py pyyaml scipy scikit-learn plyfile open3d \
         SharedArray tensorboard tensorboardx yapf tqdm
 
