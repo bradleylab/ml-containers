@@ -148,15 +148,17 @@ RUN python -m pip install \
 # FRNN — fixed-radius nearest-neighbour CUDA extension (lone source
 # compile). Pinned to a specific commit. prefix_sum (a git submodule)
 # builds first, then FRNN. `python -m pip` (not bare pip) avoids the
-# wrong-interpreter trap from FRNN issue #24. TORCH_CUDA_ARCH_LIST +
-# FORCE_CUDA (set in ENV above) force sm_90 cubins despite no GPU at
-# build time.
+# wrong-interpreter trap from FRNN issue #24. --no-build-isolation is
+# required: both setup.py files import torch at build time, and PEP 517
+# build isolation would hide the image's torch (ModuleNotFoundError on
+# the first CI build). TORCH_CUDA_ARCH_LIST + FORCE_CUDA (set in ENV
+# above) force sm_90 cubins despite no GPU at build time.
 RUN git clone https://github.com/lxxue/FRNN.git /opt/FRNN && \
     cd /opt/FRNN && \
     git checkout efc6b378d45000c5de6234098b5092464eb92a24 && \
     git submodule update --init --recursive && \
-    cd external/prefix_sum && python -m pip install . && \
-    cd /opt/FRNN && python -m pip install . && \
+    cd external/prefix_sum && python -m pip install --no-build-isolation . && \
+    cd /opt/FRNN && python -m pip install --no-build-isolation . && \
     rm -rf /opt/FRNN/.git
 
 # SPT source — pinned to the master commit whose install.sh this
