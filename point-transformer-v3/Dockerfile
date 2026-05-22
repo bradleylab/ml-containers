@@ -73,9 +73,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git wget ca-certificates \
         build-essential cmake ninja-build \
-        libopenblas-dev \
+        libopenblas-dev libsparsehash-dev \
         libgl1 libglib2.0-0 libgomp1 libx11-6 libxext6 libxrender1 \
     && rm -rf /var/lib/apt/lists/*
+# libsparsehash-dev provides <google/dense_hash_map>, which
+# pointgroup_ops/src/bfs_cluster.cpp includes — without it that lib's
+# CUDA extension fails to compile.
 
 # Patch std::to_address collision with CUDA 12 + g++11 (NVIDIA #596).
 RUN sed -i 's/\bauto __raw = __to_address(__r.get());/auto __raw = std::__to_address(__r.get());/' \
