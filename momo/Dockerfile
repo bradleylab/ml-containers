@@ -4,13 +4,14 @@
 # samples (~4M each) from three Mars orbital sensors: HiRISE
 # (0.25 m/px), CTX (5 m/px), and THEMIS (100 m/px). Ships as a single
 # multi-sensor checkpoint plus three sensor-specific checkpoints, in
-# ViT-Small / ViT-Base / ViT-Large variants. The model is evaluated on
-# the separate Mars-Bench benchmark (paper arXiv 2510.24010; task
-# datasets at Mirali33/mars-bench-* on HF) over 9 downstream tasks
-# (4 classification + 5 segmentation): crater segmentation, boulder
+# ViT-Small / ViT-Base / ViT-Large variants. Mars-Bench (paper arXiv
+# 2510.24010, NeurIPS 2025; task datasets at Mirali33/mars-bench-* on
+# HF) is a separate benchmark of 20 datasets spanning classification,
+# segmentation, and object detection (e.g. crater segmentation, boulder
 # detection, dust devils, S5Mars rover surface, DoMars16k landmark
-# classification, and others. This container ships the MOMO backbone +
-# fine-tuning engine, NOT the Mars-Bench datasets/task heads.
+# classification). MOMO is evaluated on 9 of these tasks. This container
+# ships the MOMO backbone + fine-tuning engine, NOT the Mars-Bench
+# datasets/task heads.
 #
 # Tier: Compute2 H100 sm_90. ViT-Base is small enough to run on a
 # laptop GPU in principle, but the canonical use is batch processing
