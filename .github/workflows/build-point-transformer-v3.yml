@@ -1,0 +1,55 @@
+name: Build point-transformer-v3
+
+on:
+  push:
+    paths:
+      - 'point-transformer-v3/**'
+      - '!point-transformer-v3/**/*.md'
+      - '.github/workflows/build-point-transformer-v3.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: bradleylab/point-transformer-v3
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space on runner
+        # spconv + PyG + open3d + the three compiled Pointcept libs +
+        # a ~529 MB checkpoint push the image past the ~14 GB default
+        # free disk on ubuntu-latest. Same dance as build-superpoint-transformer.yml.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker image prune -af || true
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: point-transformer-v3
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.2-cu121
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
