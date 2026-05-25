@@ -9,14 +9,14 @@ Face Hub. Ships as a single multi-sensor checkpoint plus three
 sensor-specific checkpoints, in ViT-Small / ViT-Base / ViT-Large
 variants.
 
-**Mars-Bench** is the separate benchmark MOMO is evaluated on (paper
-arXiv 2510.24010; task datasets under
-[`Mirali33/mars-bench-*`](https://huggingface.co/Mirali33) on HF) —
-9 downstream tasks (4 classification + 5 segmentation): crater
-segmentation, boulder detection, dust devils, S5Mars rover surface,
-DoMars16k landmark classification, etc. The `kerner-lab/MOMO` repo (and
-this container) ships the fine-tuning engine + data loaders to run
-those tasks, not the benchmark datasets themselves.
+**Mars-Bench** (paper arXiv 2510.24010, NeurIPS 2025; task datasets
+under [`Mirali33/mars-bench-*`](https://huggingface.co/Mirali33) on HF)
+is a separate benchmark of 20 datasets spanning classification,
+segmentation, and object detection — e.g. crater segmentation, boulder
+detection, dust devils, S5Mars rover surface, DoMars16k landmark
+classification. MOMO is evaluated on 9 of these tasks. The
+`kerner-lab/MOMO` repo (and this container) ships the fine-tuning engine
++ data loaders to run them, not the benchmark datasets themselves.
 
 GPU-primary (H100 sm_90 via cu121 wheels). ViT-Base is small enough
 to run on a laptop GPU for single-image demos, but the canonical use

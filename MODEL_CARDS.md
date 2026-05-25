@@ -447,7 +447,7 @@ update its card *in the same PR*. Top-level `README.md` and
 
 | | |
 |--|--|
-| Task | Multi-task Mars surface analysis — ViT pretrained on HiRISE / CTX / THEMIS. Evaluated on the separate Mars-Bench benchmark (paper arXiv 2510.24010; task datasets at `Mirali33/mars-bench-*` on HF) covering crater segmentation, boulder detection, dust-devil tracking, S5Mars rover surface, DoMars16k landmark classification (9 downstream tasks: 4 classification + 5 segmentation). This container ships the MOMO backbone + fine-tuning engine, not the benchmark datasets |
+| Task | Multi-task Mars surface analysis — ViT pretrained on HiRISE / CTX / THEMIS. Evaluated on 9 downstream tasks from the separate Mars-Bench benchmark (arXiv 2510.24010, NeurIPS 2025; 20 datasets spanning classification, segmentation, and object detection; task data at `Mirali33/mars-bench-*` on HF) — e.g. crater segmentation, boulder detection, dust-devil tracking, S5Mars rover surface, DoMars16k landmark classification. This container ships the MOMO backbone + fine-tuning engine, not the benchmark datasets |
 | Sensor | image:multi-resolution (Mars orbital — HiRISE 0.25 m/px, CTX 5 m/px, THEMIS 100 m/px) |
 | Upstream repo | [kerner-lab/MOMO](https://github.com/kerner-lab/MOMO) |
 | Upstream license | MIT (per upstream LICENSE) |
