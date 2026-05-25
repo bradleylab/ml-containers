@@ -1,4 +1,4 @@
-# mars-bench
+# momo
 
 [kerner-lab MOMO](https://github.com/kerner-lab/MOMO) — Mars Orbital
 foundation model. Vision Transformer pre-trained on ~12M samples
@@ -9,10 +9,14 @@ Face Hub. Ships as a single multi-sensor checkpoint plus three
 sensor-specific checkpoints, in ViT-Small / ViT-Base / ViT-Large
 variants.
 
-The MOMO repo also bundles **Mars-Bench** — 9 downstream evaluation
-tasks (4 classification + 5 segmentation): crater segmentation,
-boulder detection, dust devils, S5Mars rover surface, DoMars16k
-landmark classification, etc.
+**Mars-Bench** is the separate benchmark MOMO is evaluated on (paper
+arXiv 2510.24010; task datasets under
+[`Mirali33/mars-bench-*`](https://huggingface.co/Mirali33) on HF) —
+9 downstream tasks (4 classification + 5 segmentation): crater
+segmentation, boulder detection, dust devils, S5Mars rover surface,
+DoMars16k landmark classification, etc. The `kerner-lab/MOMO` repo (and
+this container) ships the fine-tuning engine + data loaders to run
+those tasks, not the benchmark datasets themselves.
 
 GPU-primary (H100 sm_90 via cu121 wheels). ViT-Base is small enough
 to run on a laptop GPU for single-image demos, but the canonical use
@@ -21,7 +25,7 @@ H100 throughput matters.
 
 ## Image tag
 
-`ghcr.io/bradleylab/mars-bench:v1` (also `:latest`, `:torch2.5-cu121`)
+`ghcr.io/bradleylab/momo:v1` (also `:latest`, `:torch2.5-cu121`)
 
 ## Stack
 
@@ -62,7 +66,7 @@ variant only downloads once per host:
 docker run --rm -it --gpus all \
   -v "$PWD/hf-cache:/opt/hf-cache" \
   -v "$PWD/data:/data" \
-  ghcr.io/bradleylab/mars-bench:v1
+  ghcr.io/bradleylab/momo:v1
 ```
 
 Code license: MIT (per upstream `pyproject.toml`). Weights license:
@@ -121,7 +125,7 @@ sbatch -A compute2-alexander.s.bradley \
        --mem=32G \
        --time=02:00:00 \
        --wrap='srun \
-         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+mars-bench+v1.sqsh \
+         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+momo+v1.sqsh \
          --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/opt/hf-cache,/scratch2/fs1/alexander.s.bradley/mars-tiles:/data \
          bash -lc "export PYTHONNOUSERSITE=1; python /scratch2/fs1/alexander.s.bradley/scripts/momo_embed.py"'
 ```

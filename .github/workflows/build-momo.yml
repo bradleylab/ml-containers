@@ -1,16 +1,16 @@
-name: Build mars-bench
+name: Build momo
 
 on:
   push:
     paths:
-      - 'mars-bench/**'
-      - '!mars-bench/**/*.md'
-      - '.github/workflows/build-mars-bench.yml'
+      - 'momo/**'
+      - '!momo/**/*.md'
+      - '.github/workflows/build-momo.yml'
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: bradleylab/mars-bench
+  IMAGE_NAME: bradleylab/momo
 
 jobs:
   build-and-push:
@@ -42,7 +42,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: mars-bench
+          context: momo
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest

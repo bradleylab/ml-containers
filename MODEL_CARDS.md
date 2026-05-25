@@ -443,11 +443,11 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 | Notes | Sister container to `prithvi-eo` (both TerraTorch-fronted). TerraMind covers the multimodal S1+S2+DEM+NDVI+LULC pretraining; Prithvi-EO is HLS-only. The `_tim` backbone variants enable Thinking-in-Modalities fine-tuning (the model first generates a missing modality before predicting the downstream task). For any-to-any modality generation, the `diffusers==0.30.0` pin is load-bearing — newer diffusers break the upstream generation pipeline |
 
-## mars-bench
+## momo
 
 | | |
 |--|--|
-| Task | Multi-task Mars surface analysis — ViT pretrained on HiRISE / CTX / THEMIS; bundled Mars-Bench evaluation suite covers crater segmentation, boulder detection, dust-devil tracking, S5Mars rover surface, DoMars16k landmark classification (9 downstream tasks: 4 classification + 5 segmentation) |
+| Task | Multi-task Mars surface analysis — ViT pretrained on HiRISE / CTX / THEMIS. Evaluated on the separate Mars-Bench benchmark (paper arXiv 2510.24010; task datasets at `Mirali33/mars-bench-*` on HF) covering crater segmentation, boulder detection, dust-devil tracking, S5Mars rover surface, DoMars16k landmark classification (9 downstream tasks: 4 classification + 5 segmentation). This container ships the MOMO backbone + fine-tuning engine, not the benchmark datasets |
 | Sensor | image:multi-resolution (Mars orbital — HiRISE 0.25 m/px, CTX 5 m/px, THEMIS 100 m/px) |
 | Upstream repo | [kerner-lab/MOMO](https://github.com/kerner-lab/MOMO) |
 | Upstream license | MIT (per upstream LICENSE) |
@@ -459,7 +459,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Lab status | **utility / experimental** — pretrained backbone for Mars surface tasks; downstream task heads + fine-tuning required for production prediction. Recommended tier: Compute2 H100 |
 | First-run / current behavior | Compute2 A100 validated 2026-05-03 (PR #31): real HiRISE Mars surface (DoMars16k sample), ViT-B 86.6M loads from multi-sensor checkpoint, `forward_features` produces (1, 768) CLS embedding. 2 missing keys (`head.weight`, `head.bias` — encoder-only build) and 104 unexpected keys (`mask_token`, `decoder_*` — MAE-specific decoder) are both expected for a downstream-feature-extraction setup. ‖real-synth‖=44 |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
-| Notes | Different domain from rest of catalog (planetary, not Earth-observation). Useful as a teaching example of how foundation models from Earth-orbital pretraining transfer (or don't) to off-Earth surface imagery. Future variants could build pre-fine-tuned heads against the bundled Mars-Bench tasks |
+| Notes | Different domain from rest of catalog (planetary, not Earth-observation). Useful as a teaching example of how foundation models from Earth-orbital pretraining transfer (or don't) to off-Earth surface imagery. Future variants could build pre-fine-tuned heads against the external Mars-Bench tasks |
 
 ## dbloops
 
