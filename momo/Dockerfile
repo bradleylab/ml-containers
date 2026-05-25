@@ -1,13 +1,16 @@
-# mars-bench (kerner-lab MOMO) — Mars Orbital foundation model.
+# momo (kerner-lab MOMO) — Mars Orbital foundation model.
 #
 # MOMO is a Vision-Transformer foundation model pre-trained on ~12M
 # samples (~4M each) from three Mars orbital sensors: HiRISE
 # (0.25 m/px), CTX (5 m/px), and THEMIS (100 m/px). Ships as a single
 # multi-sensor checkpoint plus three sensor-specific checkpoints, in
-# ViT-Small / ViT-Base / ViT-Large variants. Mars-Bench wraps it with
-# 9 downstream evaluation tasks (4 classification + 5 segmentation):
-# crater segmentation, boulder detection, dust devils, S5Mars rover
-# surface, DoMars16k landmark classification, and others.
+# ViT-Small / ViT-Base / ViT-Large variants. The model is evaluated on
+# the separate Mars-Bench benchmark (paper arXiv 2510.24010; task
+# datasets at Mirali33/mars-bench-* on HF) over 9 downstream tasks
+# (4 classification + 5 segmentation): crater segmentation, boulder
+# detection, dust devils, S5Mars rover surface, DoMars16k landmark
+# classification, and others. This container ships the MOMO backbone +
+# fine-tuning engine, NOT the Mars-Bench datasets/task heads.
 #
 # Tier: Compute2 H100 sm_90. ViT-Base is small enough to run on a
 # laptop GPU in principle, but the canonical use is batch processing
@@ -115,10 +118,10 @@ print('huggingface_hub', im.version('huggingface_hub')); \
 print('timm', im.version('timm')); \
 assert models_vit is not None"
 
-LABEL org.opencontainers.image.title="mars-bench" \
-      org.opencontainers.image.description="kerner-lab MOMO — Mars Orbital foundation model (ViT) pre-trained on HiRISE / CTX / THEMIS imagery; weights via Hugging Face Hub at Mirali33/MOMO; Mars-Bench downstream task heads via the same upstream repo." \
+LABEL org.opencontainers.image.title="momo" \
+      org.opencontainers.image.description="kerner-lab MOMO — Mars Orbital foundation model (ViT) pre-trained on HiRISE / CTX / THEMIS imagery; weights via Hugging Face Hub at Mirali33/MOMO. Fine-tuning engine for the separate Mars-Bench benchmark ships in the same upstream repo; benchmark datasets/task heads are not baked." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
-      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/mars-bench/README.md" \
+      org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/momo/README.md" \
       org.opencontainers.image.version="v1" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="MIT AND CC-BY-4.0" \

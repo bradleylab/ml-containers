@@ -443,23 +443,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
 | Notes | Sister container to `prithvi-eo` (both TerraTorch-fronted). TerraMind covers the multimodal S1+S2+DEM+NDVI+LULC pretraining; Prithvi-EO is HLS-only. The `_tim` backbone variants enable Thinking-in-Modalities fine-tuning (the model first generates a missing modality before predicting the downstream task). For any-to-any modality generation, the `diffusers==0.30.0` pin is load-bearing — newer diffusers break the upstream generation pipeline |
 
-## mars-bench
+## momo
 
 | | |
 |--|--|
-| Task | Multi-task Mars surface analysis — ViT pretrained on HiRISE / CTX / THEMIS; bundled Mars-Bench evaluation suite covers crater segmentation, boulder detection, dust-devil tracking, S5Mars rover surface, DoMars16k landmark classification (9 downstream tasks: 4 classification + 5 segmentation) |
+| Task | Multi-task Mars surface analysis — ViT pretrained on HiRISE / CTX / THEMIS. Evaluated on the separate Mars-Bench benchmark (paper arXiv 2510.24010; task datasets at `Mirali33/mars-bench-*` on HF) covering crater segmentation, boulder detection, dust-devil tracking, S5Mars rover surface, DoMars16k landmark classification (9 downstream tasks: 4 classification + 5 segmentation). This container ships the MOMO backbone + fine-tuning engine, not the benchmark datasets |
 | Sensor | image:multi-resolution (Mars orbital — HiRISE 0.25 m/px, CTX 5 m/px, THEMIS 100 m/px) |
 | Upstream repo | [kerner-lab/MOMO](https://github.com/kerner-lab/MOMO) |
 | Upstream license | MIT (per upstream LICENSE) |
-| Paper | Mirali, Mirjalili, Khorram, Goharian et al. — *MOMO: Mars Orbital Multimodal foundation model + Mars-Bench downstream evaluation suite* (preprint linked from upstream README; arXiv ID TBD per upstream) |
+| Paper | Model: *MOMO: Mars Orbital Model Foundation Model for Mars Orbital Applications* ([arXiv:2604.02719](https://arxiv.org/abs/2604.02719)). Benchmark: *Mars-Bench: A Benchmark for Evaluating Foundation Models for Mars Science Tasks* ([arXiv:2510.24010](https://arxiv.org/abs/2510.24010), NeurIPS 2025) |
 | Weights source | HF Hub: [`Mirali33/MOMO`](https://huggingface.co/Mirali33/MOMO) — single multi-sensor checkpoint + three sensor-specific (HiRISE / CTX / THEMIS), in ViT-Small / ViT-Base / ViT-Large variants. Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
-| Weights license | MIT (per upstream repo) |
+| Weights license | CC-BY-4.0 (per HF model card [`Mirali33/MOMO`](https://huggingface.co/Mirali33/MOMO)) |
 | Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `kerner-lab/MOMO` at pinned commit `a837ab5` (full upstream `requirement.txt`: pytorch-lightning, hydra-core, segmentation-models-pytorch, albumentations, rasterio, shapely, scikit-image, scikit-learn, imbalanced-learn, timm 0.6.12, einops, lpips, lxml). MOMO installed with `--no-deps` to work around upstream's unsatisfiable `timm==0.6.12 + smp>=0.5.0` pin (smp 0.5.0+ requires `timm>=0.9`); verified safe by reading MOMO's only timm imports (`PatchEmbed`, `Block`, stable across timm 0.6.x → 1.x) |
 | H100 status | Native sm_90 |
 | Lab status | **utility / experimental** — pretrained backbone for Mars surface tasks; downstream task heads + fine-tuning required for production prediction. Recommended tier: Compute2 H100 |
 | First-run / current behavior | Compute2 A100 validated 2026-05-03 (PR #31): real HiRISE Mars surface (DoMars16k sample), ViT-B 86.6M loads from multi-sensor checkpoint, `forward_features` produces (1, 768) CLS embedding. 2 missing keys (`head.weight`, `head.bias` — encoder-only build) and 104 unexpected keys (`mask_token`, `decoder_*` — MAE-specific decoder) are both expected for a downstream-feature-extraction setup. ‖real-synth‖=44 |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cu121`) |
-| Notes | Different domain from rest of catalog (planetary, not Earth-observation). Useful as a teaching example of how foundation models from Earth-orbital pretraining transfer (or don't) to off-Earth surface imagery. Future variants could build pre-fine-tuned heads against the bundled Mars-Bench tasks |
+| Notes | Different domain from rest of catalog (planetary, not Earth-observation). Useful as a teaching example of how foundation models from Earth-orbital pretraining transfer (or don't) to off-Earth surface imagery. Future variants could build pre-fine-tuned heads against the external Mars-Bench tasks |
 
 ## dbloops
 
