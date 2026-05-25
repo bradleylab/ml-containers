@@ -131,6 +131,7 @@ LABEL org.opencontainers.image.title="momo" \
       bradleylab.model.task="Mars orbital imagery foundation model — pretrained ViT for downstream crater segmentation / boulder detection / dust devils / rover surface / landmark classification" \
       bradleylab.model.sensor="image:multi (HiRISE 0.25 m/px, CTX 5 m/px, THEMIS 100 m/px)" \
       bradleylab.model.status="utility" \
+      bradleylab.model.domain="planetary-mars" \
       bradleylab.model.weights.source="huggingface-hub:Mirali33/MOMO (vit-{s,b,l}-16/{momo,hirise,ctx,themis}.pth; runtime fetch into HF_HOME=/opt/hf-cache)" \
       bradleylab.upstream.git_sha="${MOMO_GIT_SHA}"
 
