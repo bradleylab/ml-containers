@@ -451,9 +451,9 @@ update its card *in the same PR*. Top-level `README.md` and
 | Sensor | image:multi-resolution (Mars orbital — HiRISE 0.25 m/px, CTX 5 m/px, THEMIS 100 m/px) |
 | Upstream repo | [kerner-lab/MOMO](https://github.com/kerner-lab/MOMO) |
 | Upstream license | MIT (per upstream LICENSE) |
-| Paper | Mirali, Mirjalili, Khorram, Goharian et al. — *MOMO: Mars Orbital Multimodal foundation model + Mars-Bench downstream evaluation suite* (preprint linked from upstream README; arXiv ID TBD per upstream) |
+| Paper | Model: *MOMO: Mars Orbital Model Foundation Model for Mars Orbital Applications* ([arXiv:2604.02719](https://arxiv.org/abs/2604.02719)). Benchmark: *Mars-Bench: A Benchmark for Evaluating Foundation Models for Mars Science Tasks* ([arXiv:2510.24010](https://arxiv.org/abs/2510.24010), NeurIPS 2025) |
 | Weights source | HF Hub: [`Mirali33/MOMO`](https://huggingface.co/Mirali33/MOMO) — single multi-sensor checkpoint + three sensor-specific (HiRISE / CTX / THEMIS), in ViT-Small / ViT-Base / ViT-Large variants. Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
-| Weights license | MIT (per upstream repo) |
+| Weights license | CC-BY-4.0 (per HF model card [`Mirali33/MOMO`](https://huggingface.co/Mirali33/MOMO)) |
 | Container stack | nvidia/cuda:12.1.0-cudnn8 + python 3.11 + PyTorch 2.5.1 + torchvision 0.20.1 (cu121) + `kerner-lab/MOMO` at pinned commit `a837ab5` (full upstream `requirement.txt`: pytorch-lightning, hydra-core, segmentation-models-pytorch, albumentations, rasterio, shapely, scikit-image, scikit-learn, imbalanced-learn, timm 0.6.12, einops, lpips, lxml). MOMO installed with `--no-deps` to work around upstream's unsatisfiable `timm==0.6.12 + smp>=0.5.0` pin (smp 0.5.0+ requires `timm>=0.9`); verified safe by reading MOMO's only timm imports (`PatchEmbed`, `Block`, stable across timm 0.6.x → 1.x) |
 | H100 status | Native sm_90 |
 | Lab status | **utility / experimental** — pretrained backbone for Mars surface tasks; downstream task heads + fine-tuning required for production prediction. Recommended tier: Compute2 H100 |
