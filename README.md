@@ -80,6 +80,7 @@ locally.
 | `terramind` | `terramind/` | full recipe (GPU sm_90; Jakubik et al. 2025 IBM/ESA any-to-any generative EO foundation model — S1+S2+DEM+NDVI+LULC; tiny/small/base/large via TerraTorch + diffusers 0.30 pin; weights via HF Hub) |
 | `timesfm` | `timesfm/` | full recipe (CPU multi-arch; Das et al. 2024 Google Research time-series foundation model — TimesFM 2.5 200M params, 16k context, continuous-quantile head; weights via HF Hub) |
 | `crossearth` | `crossearth/` | full recipe (GPU; Gong et al. 2025 TPAMI vision FM for cross-domain RS semantic segmentation — frozen DINOv2 + Earth-Style Injection + Mask2Former head; mmcv 2.x + mmseg 1.x + xformers 0.0.20; vendored upstream at SHA `644a5a1b`; weights via HF Hub) |
+| `croma` | `croma/` | full recipe (CPU multi-arch; Fuller et al. 2023 NeurIPS Sentinel-1/Sentinel-2-native radar-optical foundation model; SAR + optical + joint embeddings; upstream `use_croma.py` pinned; Base baked at build, Large lazy; MIT) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -557,6 +558,27 @@ naming directly. See `dofa-clip/README.md` for details.
 For permissive multispectral embeddings (no text), use
 `bradleylab/dofa` (CC-BY-4.0). For permissive RGB CLIP, use
 `bradleylab/remoteclip` (Apache-2.0).
+
+### croma
+
+[CROMA](https://arxiv.org/abs/2311.00566) (Contrastive Radar-Optical
+Masked Autoencoders; Fuller, Millard & Green, NeurIPS 2023) — a
+Sentinel-1/Sentinel-2-native foundation model with a SAR encoder, an
+optical encoder, and a cross-modal joint encoder. Pretrained with
+combined contrastive + masked-autoencoding objectives.
+
+- Base: `python:3.11-slim`
+- Stack: torch 2.5.1 CPU + `einops` (no torchvision); upstream
+  `use_croma.py` pinned at commit `59505a6`
+- **CPU multi-arch** (amd64 + arm64), MIT code + weights.
+- Base weights baked at build (ViT-B, 768-D embeddings). Large
+  (ViT-L, 1024-D) is fetched lazily via `--variant large`.
+
+Pull: `ghcr.io/bradleylab/croma:v1`
+
+Sentinel-1 (2-ch VV/VH) + Sentinel-2 (12-band, cirrus removed) only —
+fixed channel layout, no wavelength conditioning (cf. `bradleylab/dofa`).
+Embedding-only; train a downstream head (the `nc-helene-sar` Stage-3 use).
 
 ### terramind
 

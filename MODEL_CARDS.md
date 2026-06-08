@@ -517,6 +517,25 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:torch2.0-cu117`) |
 | Notes | Sister to `dofa`/`dofa-clip`/`terramind` in the RS foundation-model cluster, but addresses the domain-generalization problem differently: instead of spectral conditioning (DOFA) or multimodal pretraining (TerraMind), CrossEarth uses Earth-Style Injection (data-level augmentation) + multi-task training over a 32-scenario RSDG benchmark. Only RS FM in the catalog built on a generalist self-supervised vision backbone (DINOv2). Closes the second remaining Tier 2 wishlist candidate per 2026-05-07 prior-art triage. Upstream is a research codebase (not pip-installable) — vendored at HEAD. mmcv 2.x + mmseg 1.x + xformers 0.0.20 + torch 2.0 stack mirrors upstream conda recipe; newer torch likely works but isn't validated |
 
+## croma
+
+| | |
+|--|--|
+| Task | Sentinel-1/Sentinel-2 radar-optical foundation model — embedding extraction (no shipped task head) |
+| Sensor | Image:SAR (Sentinel-1, 2-ch VV/VH) + multispectral (Sentinel-2, 12-band, cirrus removed). Fixed channel layout |
+| Upstream repo | [antofuller/CROMA](https://github.com/antofuller/CROMA) (`use_croma.py` pinned at commit `59505a6`) |
+| Upstream license | MIT |
+| Paper | Fuller, A., Millard, K. & Green, J. R. (2023) *CROMA: Remote Sensing Representations with Contrastive Radar-Optical Masked Autoencoders*, NeurIPS 2023 — [arXiv:2311.00566](https://arxiv.org/abs/2311.00566) |
+| Weights source | Hugging Face Hub: [`antofuller/CROMA`](https://huggingface.co/antofuller/CROMA). Base (ViT-B, 768-D) baked at build time; Large (ViT-L, 1024-D) fetched lazily on `--variant large`. Cache at `$HF_HOME=/opt/hf-cache` |
+| Weights license | MIT (per HF repo) |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 (CPU wheels) + `einops>=0.7` + `huggingface_hub>=0.25` (no torchvision) |
+| H100 status | N/A in v1 (CPU runtime; GPU variant deferred until a batch-embedding workload lands) |
+| Lab status | **utility** — embeddings only, no task head; intended for `nc-helene-sar` Stage-3 fusion (CROMA frozen embeddings → disturbance head vs LiDAR DoD) |
+| Architecture | **Multi-arch** — `linux/amd64` + `linux/arm64`. CROMA needs only torch + einops; both publish aarch64 wheels |
+| First-run / current behavior | Build smoke test passes (Base instantiates from baked weights; synthetic S1 2-ch + S2 12-ch 120×120 → SAR_GAP / optical_GAP / joint_GAP (1, 768), joint_encodings (1, 225, 768) verified) |
+| Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
+| Notes | Sentinel-1/Sentinel-2-native with a fixed channel layout (no wavelength conditioning — cf. `bradleylab/dofa`). `--modality both\|SAR\|optical`; optical must drop B10/cirrus (12 bands). Embedding-only — task heads are downstream user responsibility |
+
 ---
 
 ## Deprecated images
