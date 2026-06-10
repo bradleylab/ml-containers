@@ -146,7 +146,7 @@ sbatch -A compute2-alexander.s.bradley \
        --mem=64G \
        --time=04:00:00 \
        --wrap='srun \
-         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+prithvi-eo+v1.sqsh \
+         --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+prithvi-eo+v1.sqsh \
          --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/opt/hf-cache,/scratch2/fs1/alexander.s.bradley/hls-stacks:/data,/scratch2/fs1/alexander.s.bradley/prithvi-out:/outputs \
          bash -lc "export PYTHONNOUSERSITE=1; python /scratch2/fs1/alexander.s.bradley/scripts/prithvi_embed.py"'
 ```
