@@ -50,6 +50,7 @@ Not baked. Pull from HF Hub on first call:
 | 2.0 300M-TL | [`ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL) | ~1.2 GB |
 | 2.0 600M | [`ibm-nasa-geospatial/Prithvi-EO-2.0-600M`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M) | ~2.5 GB |
 | 2.0 600M-TL | [`ibm-nasa-geospatial/Prithvi-EO-2.0-600M-TL`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M-TL) | ~2.5 GB |
+| 2.0 300M-TL Sen1Floods11 (flood fine-tune) | [`ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL-Sen1Floods11`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL-Sen1Floods11) | ~1.2 GB |
 
 Bind-mount a persistent host directory at `/opt/hf-cache` so each
 variant only downloads once per host.
@@ -93,6 +94,33 @@ configs/...`. See the upstream
 [TerraTorch tutorials](https://ibm.github.io/terratorch/) for the
 canonical fine-tuning recipes (burn-scar, flood, multi-temporal crop).
 
+### Pre-fine-tuned flood head (Sen1Floods11)
+
+The flood fine-tune ships its own `config.yaml` + checkpoint and loads
+through TerraTorch's `LightningInferenceModel`, not `BACKBONE_REGISTRY`.
+Its `requirements.txt` pins `terratorch==0.99.8`; this image ships
+terratorch >= 1.2.5, against which the load path below was verified
+(pinned revision, CPU, 224x224 chip, 2026-06-10):
+
+```python
+from huggingface_hub import hf_hub_download
+from terratorch.cli_tools import LightningInferenceModel
+
+REPO = "ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL-Sen1Floods11"
+REV = "918b9f140bb1783716664a2421ea3253d806017d"
+
+config = hf_hub_download(REPO, "config.yaml", revision=REV)
+ckpt = hf_hub_download(
+    REPO, "Prithvi-EO-V2-300M-TL-Sen1Floods11.pt", revision=REV
+)
+model = LightningInferenceModel.from_config(config, ckpt)
+```
+
+Inputs, from the fine-tune's `config.yaml`: six S2 bands
+BLUE/GREEN/RED/NIR_NARROW/SWIR_1/SWIR_2 (B02 B03 B04 B8A B11 B12),
+224x224 chips, `constant_scale: 0.0001` (DN -> reflectance). Output is
+two classes (water / not-water).
+
 ## Inputs
 
 - 6-band HLS (Harmonized Landsat-Sentinel-2) imagery: B2 (Blue),
@@ -118,7 +146,7 @@ sbatch -A compute2-alexander.s.bradley \
        --mem=64G \
        --time=04:00:00 \
        --wrap='srun \
-         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+prithvi-eo+v1.sqsh \
+         --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+prithvi-eo+v1.sqsh \
          --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/opt/hf-cache,/scratch2/fs1/alexander.s.bradley/hls-stacks:/data,/scratch2/fs1/alexander.s.bradley/prithvi-out:/outputs \
          bash -lc "export PYTHONNOUSERSITE=1; python /scratch2/fs1/alexander.s.bradley/scripts/prithvi_embed.py"'
 ```
