@@ -54,6 +54,7 @@ locally.
 
 | GHCR image | Source dir | Status |
 |------------|-----------|--------|
+| `alphafold3` | `alphafold3/` | software-only recipe; private parameters and databases mounted at runtime; experimental until Compute2 H100 smoke passes |
 | `segment-any-tree-h100` | `segment-any-tree-h100/` | full recipe + 2 Dockerfiles (v2 + v2-defaults) |
 | `ams3d-crownseg` | `ams3d-crownseg/` | full recipe |
 | `fsct` | `fsct/` | full recipe |

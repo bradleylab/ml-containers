@@ -1,0 +1,178 @@
+{
+  "batches": [
+    {
+      "acceptance": [
+        {
+          "criterion": "Database job `2715132` completes with exit code 0 and `databases/current` resolves to release `af3-db-v3.0-2026-08-10`.",
+          "evidence": "",
+          "id": "B1-A1",
+          "met": false
+        },
+        {
+          "criterion": "A deterministic database content manifest and its SHA-256 are recorded, and every installer-required database artifact is non-empty.",
+          "evidence": "",
+          "id": "B1-A2",
+          "met": false
+        },
+        {
+          "criterion": "The model release resolves through `models/current`, matches the recorded SHA-256, and retains the restricted directory and file modes.",
+          "evidence": "",
+          "id": "B1-A3",
+          "met": false
+        }
+      ],
+      "id": "B1",
+      "status": "pending"
+    },
+    {
+      "acceptance": [
+        {
+          "criterion": "Static validation passes for the Dockerfile, Python smoke test, YAML workflow, ShellCheck-relevant scripts, and repository diff.",
+          "evidence": "",
+          "id": "B2-A1",
+          "met": false
+        },
+        {
+          "criterion": "GitHub Actions publishes a `linux/amd64` SHA-tagged candidate that Compute2 enroot can import as a plain single-architecture image manifest.",
+          "evidence": "",
+          "id": "B2-A2",
+          "met": false
+        },
+        {
+          "criterion": "The GHCR digest is recorded and inspection confirms the pinned AlphaFold 3 source identity and absence of model parameters, databases, inputs, and outputs.",
+          "evidence": "",
+          "id": "B2-A3",
+          "met": false
+        }
+      ],
+      "id": "B2",
+      "status": "pending"
+    },
+    {
+      "acceptance": [
+        {
+          "criterion": "The immutable GHCR digest imports successfully into a named `.sqsh` cache on Compute2.",
+          "evidence": "",
+          "id": "B3-A1",
+          "met": false
+        },
+        {
+          "criterion": "A `general-gpu` job identifies an H100, initializes exactly one JAX GPU, and loads a non-empty AlphaFold model parameter tree.",
+          "evidence": "",
+          "id": "B3-A2",
+          "met": false
+        },
+        {
+          "criterion": "The smoke record binds the Slurm job ID, node, GPU identity, image digest, model release/hash, and successful exit code.",
+          "evidence": "",
+          "id": "B3-A3",
+          "met": false
+        }
+      ],
+      "id": "B3",
+      "status": "pending"
+    },
+    {
+      "acceptance": [
+        {
+          "criterion": "The exact smoke input validates without scientific-field mutation and its SHA-256 is recorded.",
+          "evidence": "",
+          "id": "B4-A1",
+          "met": false
+        },
+        {
+          "criterion": "The CPU data-pipeline job and dependent H100 inference job submitted through the controlled bootstrap acceptance path both complete with exit code 0.",
+          "evidence": "",
+          "id": "B4-A2",
+          "met": false
+        },
+        {
+          "criterion": "The run produces non-empty AlphaFold structure and confidence artifacts with a deterministic output manifest.",
+          "evidence": "",
+          "id": "B4-A3",
+          "met": false
+        },
+        {
+          "criterion": "The run manifest binds input, image, model, database, GPU, and Slurm identities without exposing restricted bytes.",
+          "evidence": "",
+          "id": "B4-A4",
+          "met": false
+        }
+      ],
+      "id": "B4",
+      "status": "pending"
+    },
+    {
+      "acceptance": [
+        {
+          "criterion": "`af3 capabilities` reports Compute2 `READY` with immutable image, model, and database identities; Modal and EC2 remain `UNCONFIGURED`.",
+          "evidence": "",
+          "id": "B5-A1",
+          "met": false
+        },
+        {
+          "criterion": "The registered local MCP exposes the seven bounded AlphaFold tools and a read-only capability call succeeds.",
+          "evidence": "",
+          "id": "B5-A2",
+          "met": false
+        },
+        {
+          "criterion": "Project status, agent contract, methods/provenance, and canonical vault documentation describe the verified route and residual restrictions accurately.",
+          "evidence": "",
+          "id": "B5-A3",
+          "met": false
+        },
+        {
+          "criterion": "Focused tests, terminal cumulative review, and the Elves acceptance/landing checks pass at the final evidence tip.",
+          "evidence": "",
+          "id": "B5-A4",
+          "met": false
+        }
+      ],
+      "id": "B5",
+      "status": "pending"
+    }
+  ],
+  "branch": "feat/alphafold3-container",
+  "cobbler": {
+    "default_for_session": true
+  },
+  "continuation_guard": {
+    "checkpoint_is_stop": false,
+    "next_required_action": "Close B1 Storage3 installation evidence while preparing the B2 branch-build candidate.",
+    "remaining_batches": 5,
+    "stop_allowed": false
+  },
+  "master_acceptance": [
+    {
+      "criterion": "One small AlphaFold 3 prediction completes successfully on a Compute2 H100 and produces verified non-empty structure and confidence outputs.",
+      "evidence": "",
+      "id": "M-A1",
+      "met": false
+    },
+    {
+      "criterion": "The run records immutable input, software image, model, database, GPU, scheduler, and output identities without redistributing restricted assets.",
+      "evidence": "",
+      "id": "M-A2",
+      "met": false
+    },
+    {
+      "criterion": "Trusted agents can discover and call the bounded `af3` interface, while unverified or unconfigured backends remain unavailable.",
+      "evidence": "",
+      "id": "M-A3",
+      "met": false
+    },
+    {
+      "criterion": "All local gates and terminal review pass, documentation is current, and no billable or long-running compute is left idle.",
+      "evidence": "",
+      "id": "M-A4",
+      "met": false
+    }
+  ],
+  "plan_path": "docs/plans/alphafold3-compute2-ready.md",
+  "run_id": "alphafold3-compute2-ready-2026-08-10",
+  "run_mode": "finite",
+  "start_head": "9dc06133025b4c712b6864f016b8e0a6dd49d4f3",
+  "work_driver": "host-native",
+  "worktree_path": "/Users/abradley/Documents/AI_projects/AlphaFold/.worktrees/ml-containers-alphafold3"
+}
