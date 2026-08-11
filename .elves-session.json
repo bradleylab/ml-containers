@@ -4,133 +4,133 @@
       "acceptance": [
         {
           "criterion": "Database job `2715132` completes with exit code 0 and `databases/current` resolves to release `af3-db-v3.0-2026-08-10`.",
-          "evidence": "",
+          "evidence": "Install 2715132 COMPLETED 0:0; current resolves to releases/af3-db-v3.0-2026-08-10; finalizer 2719624 and scheduled verification 2719625 COMPLETED 0:0.",
           "id": "B1-A1",
-          "met": false
+          "met": true
         },
         {
           "criterion": "A deterministic database content manifest and its SHA-256 are recorded, and every installer-required database artifact is non-empty.",
-          "evidence": "",
+          "evidence": "Full manifest check passed over 195867 files and 672535314929 bytes; content manifest SHA-256 50da8ff704c606f9dd2dd5600e3bdd3de10b130213073a41cd5a5d0f6277c77c; data modes 0440/0550.",
           "id": "B1-A2",
-          "met": false
+          "met": true
         },
         {
           "criterion": "The model release resolves through `models/current`, matches the recorded SHA-256, and retains the restricted directory and file modes.",
-          "evidence": "",
+          "evidence": "Scheduled job 2719625 verified models/current and af3.bin SHA-256 df8bbf2621f17dd3ee21c2a921e84a50bc2b80cdc0c7971cb915c2826fee1f9b; modes remain 0700/0600.",
           "id": "B1-A3",
-          "met": false
+          "met": true
         }
       ],
       "id": "B1",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "acceptance": [
         {
           "criterion": "Static validation passes for the Dockerfile, Python smoke test, YAML workflow, ShellCheck-relevant scripts, and repository diff.",
-          "evidence": "",
+          "evidence": "Ruff, Python compile, YAML parse, ShellCheck-relevant checks, pinned-action policy, secret/restricted-asset scan, and git diff checks passed at 9b9c210410b64abbc0497e29252d1eaccaa34cb4.",
           "id": "B2-A1",
-          "met": false
+          "met": true
         },
         {
           "criterion": "GitHub Actions publishes a `linux/amd64` SHA-tagged candidate that Compute2 enroot can import as a plain single-architecture image manifest.",
-          "evidence": "",
+          "evidence": "GitHub Actions run 31454889316 COMPLETED success and published the linux/amd64 SHA candidate; Compute2 enroot 4.1.2 imported the exact digest successfully.",
           "id": "B2-A2",
-          "met": false
+          "met": true
         },
         {
           "criterion": "The GHCR digest is recorded and inspection confirms the pinned AlphaFold 3 source identity and absence of model parameters, databases, inputs, and outputs.",
-          "evidence": "",
+          "evidence": "GHCR digest sha256:6c6d8a36f5a9bd204a446b5e62cbd46780fcbf8ee4767763f7fa16d28a02f881; build log confirms AF3 3.0.4, offline smoke, native notices, and context/Dockerfile audit shows no private assets.",
           "id": "B2-A3",
-          "met": false
+          "met": true
         }
       ],
       "id": "B2",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "acceptance": [
         {
           "criterion": "The immutable GHCR digest imports successfully into a named `.sqsh` cache on Compute2.",
-          "evidence": "",
+          "evidence": "Exact GHCR digest imported to bradleylab+alphafold3+sha256-6c6d8a36f5a9bd20.sqsh; scheduled hash job 2720238 recorded SHA-256 619644486715f8a6389ecb8ed14fad2664f55cd39b209f1211c93d37d3301d24 and mode 0440.",
           "id": "B3-A1",
-          "met": false
+          "met": true
         },
         {
           "criterion": "A `general-gpu` job identifies an H100, initializes exactly one JAX GPU, and loads a non-empty AlphaFold model parameter tree.",
-          "evidence": "",
+          "evidence": "general-gpu job 2720279 COMPLETED 0:0 on c2-gpu-015; GPU is NVIDIA H100 80GB HBM3; JAX reports gpu/cuda:0; model_load=ok with 405 parameter leaves.",
           "id": "B3-A2",
-          "met": false
+          "met": true
         },
         {
           "criterion": "The smoke record binds the Slurm job ID, node, GPU identity, image digest, model release/hash, and successful exit code.",
-          "evidence": "",
+          "evidence": "smoke.manifest binds job 2720279, c2-gpu-015, GPU record SHA-256 8c7aba20cdbf85461876d85585c7777c6b6ad635461ee1b705354ad04c099039, GHCR digest, sqsh hash, runner, and model identities; stderr is empty.",
           "id": "B3-A3",
-          "met": false
+          "met": true
         }
       ],
       "id": "B3",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "acceptance": [
         {
           "criterion": "The exact smoke input validates without scientific-field mutation and its SHA-256 is recorded.",
-          "evidence": "",
+          "evidence": "Pinned official v3.0.4 ubiquitin_monomer.json validates without mutation; local and staged SHA-256 1880c15e12df1a331e0ee464705639ee80c6b036a3273b5cf5dcd8875e8c7749.",
           "id": "B4-A1",
-          "met": false
+          "met": true
         },
         {
           "criterion": "The CPU data-pipeline job and dependent H100 inference job submitted through the controlled bootstrap acceptance path both complete with exit code 0.",
-          "evidence": "",
+          "evidence": "CPU job 2720553 COMPLETED 0:0 on c2-node-100; H100 inference 2720745 COMPLETED 0:0 on c2-gpu-001 using controlled-bootstrap retry af3-20260811T034719Z-b6e64107.",
           "id": "B4-A2",
-          "met": false
+          "met": true
         },
         {
           "criterion": "The run produces non-empty AlphaFold structure and confidence artifacts with a deterministic output manifest.",
-          "evidence": "",
+          "evidence": "The run produced 21 non-empty output files, including six model CIFs and confidence/ranking artifacts; every output.sha256 entry verified; manifest SHA-256 92dd68e6748f1e4cdd54aedae6d5fc39f6cb6e77c8c28a4b9b92b14c78cee9c9.",
           "id": "B4-A3",
-          "met": false
+          "met": true
         },
         {
           "criterion": "The run manifest binds input, image, model, database, GPU, and Slurm identities without exposing restricted bytes.",
-          "evidence": "",
+          "evidence": "Provenance SHA-256 fe5d09064146e4a4399dc07cb7c5748c6e32c6f0f8cbe780f548d9e77c9f36c4 binds request, CPU stage, H100 GPU, inference, and output manifests; the request binds immutable image/model/database/input identities.",
           "id": "B4-A4",
-          "met": false
+          "met": true
         }
       ],
       "id": "B4",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "acceptance": [
         {
           "criterion": "`af3 capabilities` reports Compute2 `READY` with immutable image, model, and database identities; Modal and EC2 remain `UNCONFIGURED`.",
-          "evidence": "",
+          "evidence": "The owner-only production config reports Compute2 READY on general-gpu with runner-1bf9acfffb09817c, immutable GHCR/sqsh/model/database identities, and an explicit per-submit billable gate; Modal and EC2 report UNCONFIGURED.",
           "id": "B5-A1",
-          "met": false
+          "met": true
         },
         {
           "criterion": "The registered local MCP exposes the seven bounded AlphaFold tools and a read-only capability call succeeds.",
-          "evidence": "",
+          "evidence": "Global Codex MCP af3 is enabled from final wheel SHA-256 5d154f90bca23346b65b9525ea3f716a0800d7aeff1e0ff65ef8ee5ce94976d5; the installed stdio smoke listed exactly seven bounded tools, returned READY, reported the acceptance job SUCCEEDED, and preserved the sanitized-diagnostics marker.",
           "id": "B5-A2",
-          "met": false
+          "met": true
         },
         {
           "criterion": "Project status, agent contract, methods/provenance, and canonical vault documentation describe the verified route and residual restrictions accurately.",
-          "evidence": "",
+          "evidence": "Project STATUS, README, METHODS, agent interface, historical-plan warnings, container README/model card, and canonical vault computing/containers.md document the READY installed route, immutable acceptance, safe diagnostics/fetch, and restrictions; QMD exact search retrieves qmd://vault/computing/containers.md with the READY callout.",
           "id": "B5-A3",
-          "met": false
+          "met": true
         },
         {
           "criterion": "Focused tests, terminal cumulative review, and the Elves acceptance/landing checks pass at the final evidence tip.",
-          "evidence": "",
+          "evidence": "At the final evidence tip, 30 focused tests and Ruff pass; Bash syntax, ShellCheck, YAML, installed/source byte parity, and diff checks pass; Compute2 jobs 2721167/2721168 are COMPLETED 0:0 with no active allocation; independent cumulative review reports no P0/P1 blocker; Elves acceptance, survival, and strict landing validators pass.",
           "id": "B5-A4",
-          "met": false
+          "met": true
         }
       ],
       "id": "B5",
-      "status": "pending"
+      "status": "complete"
     }
   ],
   "branch": "feat/alphafold3-container",
@@ -139,34 +139,34 @@
   },
   "continuation_guard": {
     "checkpoint_is_stop": false,
-    "next_required_action": "Close B1 Storage3 installation evidence while preparing the B2 branch-build candidate.",
-    "remaining_batches": 5,
-    "stop_allowed": false
+    "next_required_action": "Commit and push the completed B5 evidence, re-read the Survival Guide, and run the strict landing check; do not merge.",
+    "remaining_batches": 0,
+    "stop_allowed": true
   },
   "master_acceptance": [
     {
       "criterion": "One small AlphaFold 3 prediction completes successfully on a Compute2 H100 and produces verified non-empty structure and confidence outputs.",
-      "evidence": "",
+      "evidence": "Installed-CLI ubiquitin job af3-20260811T043457Z-feab9ac0 completed CPU 2721167 and H100 2721168 with 21 fetched, hash-verified, non-empty outputs.",
       "id": "M-A1",
-      "met": false
+      "met": true
     },
     {
       "criterion": "The run records immutable input, software image, model, database, GPU, scheduler, and output identities without redistributing restricted assets.",
-      "evidence": "",
+      "evidence": "The final provenance chain binds the immutable request, image, model, database, H100, CPU/GPU scheduler stages, and output manifest; every fetched component/output hash verified without copying restricted bytes into source control or agent logs.",
       "id": "M-A2",
-      "met": false
+      "met": true
     },
     {
       "criterion": "Trusted agents can discover and call the bounded `af3` interface, while unverified or unconfigured backends remain unavailable.",
-      "evidence": "",
+      "evidence": "The immutable-wheel CLI and registered seven-tool MCP report Compute2 READY after the exact agent lifecycle succeeded; Modal and EC2 remain UNCONFIGURED and ordinary VERIFYING submission was proven blocked.",
       "id": "M-A3",
-      "met": false
+      "met": true
     },
     {
       "criterion": "All local gates and terminal review pass, documentation is current, and no billable or long-running compute is left idle.",
-      "evidence": "",
+      "evidence": "All 30 focused tests plus Ruff/Bash/ShellCheck/YAML/package-parity gates pass; independent terminal review found no P0/P1 blocker; canonical QMD retrieval is current; installed CLI/MCP smoke is READY/SUCCEEDED; Slurm jobs 2721167/2721168 are COMPLETED 0:0 and no AlphaFold allocation remains active; Elves acceptance, survival, and strict landing validators pass.",
       "id": "M-A4",
-      "met": false
+      "met": true
     }
   ],
   "plan_path": "docs/plans/alphafold3-compute2-ready.md",

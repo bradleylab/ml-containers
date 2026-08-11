@@ -549,8 +549,8 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights source | Not in the image. Authorized users obtain parameters directly from Google and mount a restricted private model directory at runtime |
 | Weights license | [AlphaFold 3 Model Parameters Terms of Use](https://github.com/google-deepmind/alphafold3/blob/v3.0.4/WEIGHTS_TERMS_OF_USE.md); non-commercial restrictions apply |
 | Container stack | NVIDIA CUDA 12.6.3 base + Python 3.12 + AlphaFold 3 v3.0.4 locked environment + JAX 0.10.2 + patched HMMER 3.4; bundled native notices retained in-image |
-| H100 status | Official upstream support; lab Compute2 smoke pending |
-| Lab status | **experimental** — recipe and offline build checks prepared; no lab end-to-end prediction yet |
+| H100 status | **verified** — Compute2 `general-gpu` model-load smoke passed; official ubiquitin end-to-end acceptance passed on an H100 80GB HBM3 |
+| Lab status | **production-capable** — immutable image digest imported through Enroot; the installed agent CLI completed CPU pipeline and H100 inference and fetched a hash-verified 21-file acceptance result |
 | Private assets | Model parameters, genetic databases, inputs, and outputs are excluded from GHCR and mounted at runtime |
 | Tags | Candidate `:sha-<recipe-commit>` only; no mutable or stable aliases are published by this workflow |
 

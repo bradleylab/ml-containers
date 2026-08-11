@@ -54,6 +54,19 @@ executables, generated CCD pickles, and `run_alphafold.py --help`. GPU/JAX
 device initialization and model loading require a scheduled GPU job and are
 separate deployment gates.
 
+## Runtime acceptance
+
+The candidate built by GitHub Actions run `31454889316` has immutable digest
+`sha256:6c6d8a36f5a9bd204a446b5e62cbd46780fcbf8ee4767763f7fa16d28a02f881`.
+Compute2 `general-gpu` job `2720279` verified an H100 80GB HBM3, one JAX GPU,
+and successful model-parameter loading. End-to-end ubiquitin acceptance used
+the installed agent CLI: job `af3-20260811T043457Z-feab9ac0`, CPU pipeline
+`2721167`, and H100 inference `2721168`. Every file in the 21-file fetched
+output manifest verified against SHA-256
+`5204e688c4a8c7dc0bcb7983a2230417f7e62b326f3420c0c6cecabd5fc71eca`.
+Private model, database, input, and output bytes remain outside this repository
+and GHCR.
+
 ## Upstream support boundary
 
 AlphaFold 3 officially supports and tests numerical accuracy on one NVIDIA

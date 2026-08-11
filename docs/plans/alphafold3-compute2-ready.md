@@ -36,9 +36,9 @@ small successful prediction on a scheduled Compute2 H100. The runner is marked
 
 **Acceptance criteria:**
 
-- [ ] [B1-A1] Database job `2715132` completes with exit code 0 and `databases/current` resolves to release `af3-db-v3.0-2026-08-10`.
-- [ ] [B1-A2] A deterministic database content manifest and its SHA-256 are recorded, and every installer-required database artifact is non-empty.
-- [ ] [B1-A3] The model release resolves through `models/current`, matches the recorded SHA-256, and retains the restricted directory and file modes.
+- [x] [B1-A1] Database job `2715132` completes with exit code 0 and `databases/current` resolves to release `af3-db-v3.0-2026-08-10`.
+- [x] [B1-A2] A deterministic database content manifest and its SHA-256 are recorded, and every installer-required database artifact is non-empty.
+- [x] [B1-A3] The model release resolves through `models/current`, matches the recorded SHA-256, and retains the restricted directory and file modes.
 
 **Risk:** standard — the long download/extraction can fail late or expose an incomplete release.
 **Caution:** never advance `databases/current` before all checks pass.
@@ -58,14 +58,14 @@ small successful prediction on a scheduled Compute2 H100. The runner is marked
 
 **Acceptance criteria:**
 
-- [ ] [B2-A1] Static validation passes for the Dockerfile, Python smoke test, YAML workflow, ShellCheck-relevant scripts, and repository diff.
-- [ ] [B2-A2] GitHub Actions publishes a `linux/amd64` SHA-tagged candidate that Compute2 enroot can import as a plain single-architecture image manifest.
-- [ ] [B2-A3] The GHCR digest is recorded and inspection confirms the pinned AlphaFold 3 source identity and absence of model parameters, databases, inputs, and outputs.
+- [x] [B2-A1] Static validation passes for the Dockerfile, Python smoke test, YAML workflow, ShellCheck-relevant scripts, and repository diff.
+- [x] [B2-A2] GitHub Actions publishes a `linux/amd64` SHA-tagged candidate that Compute2 enroot can import as a plain single-architecture image manifest.
+- [x] [B2-A3] The GHCR digest is recorded and inspection confirms the pinned AlphaFold 3 source identity and absence of model parameters, databases, inputs, and outputs.
 
 **Risk:** high — GitHub build resources and enroot manifest compatibility are external gates.
-**Caution:** buildx provenance/SBOM attestations create an OCI index that enroot 3.4.1 cannot import.
+**Caution:** keep the runtime candidate a plain single-architecture manifest for portable enroot compatibility; live Compute2 reports enroot 4.1.2.
 **Affected surfaces:** `alphafold3/`, its workflow, catalog README, and model cards.
-**Constitution impacts:** software-only public artifact boundary.
+**Constitution impacts:** software-only artifact boundary.
 **Review focus:** deterministic pins, licenses, image manifest, and restricted-asset exclusion.
 **Focused tests:** Ruff/Python compile, YAML parse, Dockerfile checks, Actions build, GHCR inspection.
 **Depends on:** none.
@@ -80,9 +80,9 @@ small successful prediction on a scheduled Compute2 H100. The runner is marked
 
 **Acceptance criteria:**
 
-- [ ] [B3-A1] The immutable GHCR digest imports successfully into a named `.sqsh` cache on Compute2.
-- [ ] [B3-A2] A `general-gpu` job identifies an H100, initializes exactly one JAX GPU, and loads a non-empty AlphaFold model parameter tree.
-- [ ] [B3-A3] The smoke record binds the Slurm job ID, node, GPU identity, image digest, model release/hash, and successful exit code.
+- [x] [B3-A1] The immutable GHCR digest imports successfully into a named `.sqsh` cache on Compute2.
+- [x] [B3-A2] A `general-gpu` job identifies an H100, initializes exactly one JAX GPU, and loads a non-empty AlphaFold model parameter tree.
+- [x] [B3-A3] The smoke record binds the Slurm job ID, node, GPU identity, image digest, model release/hash, and successful exit code.
 
 **Risk:** high — this is the first billable accelerator and runtime compatibility gate.
 **Caution:** production acceptance must run on `general-gpu`, not the heterogeneous free pool.
@@ -102,10 +102,10 @@ small successful prediction on a scheduled Compute2 H100. The runner is marked
 
 **Acceptance criteria:**
 
-- [ ] [B4-A1] The exact smoke input validates without scientific-field mutation and its SHA-256 is recorded.
-- [ ] [B4-A2] The CPU data-pipeline job and dependent H100 inference job submitted through the controlled bootstrap acceptance path both complete with exit code 0.
-- [ ] [B4-A3] The run produces non-empty AlphaFold structure and confidence artifacts with a deterministic output manifest.
-- [ ] [B4-A4] The run manifest binds input, image, model, database, GPU, and Slurm identities without exposing restricted bytes.
+- [x] [B4-A1] The exact smoke input validates without scientific-field mutation and its SHA-256 is recorded.
+- [x] [B4-A2] The CPU data-pipeline job and dependent H100 inference job submitted through the controlled bootstrap acceptance path both complete with exit code 0.
+- [x] [B4-A3] The run produces non-empty AlphaFold structure and confidence artifacts with a deterministic output manifest.
+- [x] [B4-A4] The run manifest binds input, image, model, database, GPU, and Slurm identities without exposing restricted bytes.
 
 **Risk:** high — end-to-end database search, compilation, and inference can expose integration failures.
 **Caution:** this is a technical smoke only; do not interpret it scientifically.
@@ -125,10 +125,10 @@ small successful prediction on a scheduled Compute2 H100. The runner is marked
 
 **Acceptance criteria:**
 
-- [ ] [B5-A1] `af3 capabilities` reports Compute2 `READY` with immutable image, model, and database identities; Modal and EC2 remain `UNCONFIGURED`.
-- [ ] [B5-A2] The registered local MCP exposes the seven bounded AlphaFold tools and a read-only capability call succeeds.
-- [ ] [B5-A3] Project status, agent contract, methods/provenance, and canonical vault documentation describe the verified route and residual restrictions accurately.
-- [ ] [B5-A4] Focused tests, terminal cumulative review, and the Elves acceptance/landing checks pass at the final evidence tip.
+- [x] [B5-A1] `af3 capabilities` reports Compute2 `READY` with immutable image, model, and database identities; Modal and EC2 remain `UNCONFIGURED`.
+- [x] [B5-A2] The registered local MCP exposes the seven bounded AlphaFold tools and a read-only capability call succeeds.
+- [x] [B5-A3] Project status, agent contract, methods/provenance, and canonical vault documentation describe the verified route and residual restrictions accurately.
+- [x] [B5-A4] Focused tests, terminal cumulative review, and the Elves acceptance/landing checks pass at the final evidence tip.
 
 **Risk:** standard — configuration drift could make agents report readiness unsupported by live evidence.
 **Caution:** never encode credentials or restricted assets in MCP configuration or logs.
@@ -140,10 +140,10 @@ small successful prediction on a scheduled Compute2 H100. The runner is marked
 
 ## Master Acceptance
 
-- [ ] [M-A1] One small AlphaFold 3 prediction completes successfully on a Compute2 H100 and produces verified non-empty structure and confidence outputs.
-- [ ] [M-A2] The run records immutable input, software image, model, database, GPU, scheduler, and output identities without redistributing restricted assets.
-- [ ] [M-A3] Trusted agents can discover and call the bounded `af3` interface, while unverified or unconfigured backends remain unavailable.
-- [ ] [M-A4] All local gates and terminal review pass, documentation is current, and no billable or long-running compute is left idle.
+- [x] [M-A1] One small AlphaFold 3 prediction completes successfully on a Compute2 H100 and produces verified non-empty structure and confidence outputs.
+- [x] [M-A2] The run records immutable input, software image, model, database, GPU, scheduler, and output identities without redistributing restricted assets.
+- [x] [M-A3] Trusted agents can discover and call the bounded `af3` interface, while unverified or unconfigured backends remain unavailable.
+- [x] [M-A4] All local gates and terminal review pass, documentation is current, and no billable or long-running compute is left idle.
 
 ## Non-negotiables
 
