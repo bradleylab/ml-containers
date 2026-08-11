@@ -52,6 +52,7 @@
 - Selected the pinned official v3.0.4 ubiquitin monomer example as the technical smoke input. The local and upstream bytes both hash to `1880c15e12df1a331e0ee464705639ee80c6b036a3273b5cf5dcd8875e8c7749`; local structural validation passed without mutation.
 - Independent B2 review found mutable release aliases, missing native license notices, deleted Git version provenance, and mutable package-write actions. The candidate now publishes only `sha-<commit>`, retains HMMER/Easel/libdivsufsort notices, preserves Git metadata through installation and asserts package version 3.0.4, and pins every package-write action to a full commit SHA.
 - Candidate visibility is intentionally unresolved until the package exists. Compute2 import will use the observed package visibility or a non-persistent authenticated pull; no secret will be copied into source, Storage3, or logs.
+- CI run `31454207671` built and installed `alphafold3==3.0.4`, then failed at the local version assertion because double quotes were escaped inside a single-quoted Python expression. The correction invokes the installed virtual-environment Python directly and removes every post-install `uv run` resync so deleting `.git` cannot trigger the upstream 3.0.2 fallback version.
 
 **Continuation guard:** stop_allowed=false; remaining_batches=5;
 next action is B1 evidence plus B2 candidate preparation.

@@ -68,13 +68,13 @@ WORKDIR /app/alphafold
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     UV_LINK_MODE=copy uv sync --frozen --all-groups --no-editable \
-    && test "$(uv run python -c 'import importlib.metadata; print(importlib.metadata.version(\"alphafold3\"))')" = "3.0.4" \
+    && test "$(/alphafold3_venv/bin/python -c 'import importlib.metadata; print(importlib.metadata.version("alphafold3"))')" = "3.0.4" \
     && rm -rf .git
 
-RUN uv run build_data
+RUN /alphafold3_venv/bin/build_data
 
 COPY scripts/smoke_test.py /usr/local/bin/alphafold3_smoke_test.py
-RUN uv run python /usr/local/bin/alphafold3_smoke_test.py
+RUN /alphafold3_venv/bin/python /usr/local/bin/alphafold3_smoke_test.py
 
 ENV XLA_FLAGS="--xla_gpu_enable_triton_gemm=false" \
     XLA_PYTHON_CLIENT_PREALLOCATE=true \
@@ -87,11 +87,11 @@ LABEL org.opencontainers.image.title="AlphaFold 3" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/alphafold3/README.md" \
       org.opencontainers.image.version="3.0.4" \
       org.opencontainers.image.vendor="bradleylab" \
-      org.opencontainers.image.licenses="Apache-2.0 AND BSD-3-Clause AND BSD-2-Clause" \
+      org.opencontainers.image.licenses="Apache-2.0 AND BSD-3-Clause AND BSD-2-Clause AND MIT" \
       bradleylab.model.upstream="https://github.com/google-deepmind/alphafold3" \
       bradleylab.model.commit="85c4d20505fd5cef05eac22b534d4e793971ae69" \
       bradleylab.model.task="biomolecular structure prediction" \
       bradleylab.model.status="experimental" \
       bradleylab.model.private_assets="model parameters, reference databases"
 
-CMD ["uv", "run", "python3", "run_alphafold.py"]
+CMD ["/alphafold3_venv/bin/python3", "run_alphafold.py"]

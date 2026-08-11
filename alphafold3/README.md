@@ -15,7 +15,7 @@ credentials, or site configuration.
 
 The image retains the upstream HMMER, Easel, and libdivsufsort license notices
 under `/usr/share/licenses/hmmer`. AlphaFold code is Apache-2.0; those bundled
-native components use their documented BSD-style terms.
+native components use their documented BSD- and MIT-style terms.
 
 Model parameters must be obtained directly from Google and used under the
 [AlphaFold 3 Model Parameters Terms of Use](https://github.com/google-deepmind/alphafold3/blob/v3.0.4/WEIGHTS_TERMS_OF_USE.md).
