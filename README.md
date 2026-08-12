@@ -70,6 +70,7 @@ locally.
 | `remoteclip` | `remoteclip/` | full recipe (CPU; OpenCLIP arch + HF Hub weights at runtime) |
 | `satlas` | `satlas/` | full recipe (GPU sm_90; SatlasPretrain backbones, runtime fetch from HF Hub) |
 | `clay` | `clay/` | full recipe (GPU sm_90; ViT-MAE foundation model, runtime fetch from HF Hub) |
+| `dinov3-sat` | `dinov3-sat/` | full recipe (GPU sm_90; DINOv3 SAT-493M ViT-L/16 frozen dense-feature encoder for RGB aerial/satellite ortho; weights baked; DINOv3 License — not OSS) |
 | `xrd-classifier` | `xrd-classifier/` | full recipe (CPU; autoXRD multi-phase ID; demo Li-Mn-Ti-O-F model baked in) |
 | `prithvi-eo` | `prithvi-eo/` | full recipe (GPU sm_90; IBM/NASA HLS foundation model via TerraTorch, runtime fetch from HF Hub) |
 | `treex` | `treex/` | full recipe (CPU; Burmeister et al. 2025 unsupervised tree-instance segmentation; classical, no weights) |
@@ -558,6 +559,36 @@ naming directly. See `dofa-clip/README.md` for details.
 For permissive multispectral embeddings (no text), use
 `bradleylab/dofa` (CC-BY-4.0). For permissive RGB CLIP, use
 `bradleylab/remoteclip` (Apache-2.0).
+
+### dinov3-sat
+
+[DINOv3](https://github.com/facebookresearch/dinov3) (Simeoni, Vo, Oquab et
+al., 2025) in its **SAT-493M** variant — pretrained on 493 million 512x512
+Maxar RGB ortho tiles at 0.6 m GSD, so it is an aerial/satellite prior rather
+than a web-image one. Frozen encoder only; emits dense patch tokens for a
+downstream head.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` (matches `sam2`)
+- Stack: `timm==1.0.28`; ViT-L/16, 1024-D
+- amd64 only (the CUDA base has no arm64 build)
+- Weights baked at build from the **ungated** `timm/` mirror, so enroot
+  images are self-contained on offline compute nodes
+  (`facebook/dinov3-*` is manually gated; same weights, same licence)
+
+Pull: `ghcr.io/bradleylab/dinov3-sat:v1`
+
+Three traps, all documented in `dinov3-sat/README.md`: the SAT weights use
+their **own** normalization (not ImageNet) and wrong stats degrade features
+silently; there are **5 prefix tokens** (CLS + 4 registers), so a 512 px input
+returns 1029 tokens and a naive reshape scrambles the spatial grid; and the
+0.6 m pretraining GSD may be far from yours, with no input size satisfying both
+a fine patch grid and the pretraining scale.
+
+**Licence: DINOv3 License, not open source.** Redistribution is permitted only
+with a copy of the Agreement — shipped at `/opt/licenses/LICENSE.dinov3.md`,
+inherited by anything built `FROM` this image; do not delete it. Publications
+reporting results from this model **must acknowledge DINO Materials**.
+Different from `remoteclip` (Apache-2.0) and `croma` (MIT).
 
 ### croma
 

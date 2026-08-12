@@ -91,6 +91,23 @@ update its card *in the same PR*. Top-level `README.md` and
 | First-run / current behavior | Generic; deployed but no specific evaluation on lab data |
 | Tags | `:latest` |
 
+## dinov3-sat
+
+| | |
+|--|--|
+| Task | Dense feature extraction — frozen backbone for downstream segmentation / classification heads |
+| Sensor | RGB aerial or satellite orthoimagery (pretrained at 0.6 m GSD; runs at any GSD) |
+| Upstream repo | [facebookresearch/dinov3](https://github.com/facebookresearch/dinov3) |
+| Upstream license | **DINOv3 License — not open source.** Redistribution permitted only with a copy of the Agreement (shipped at `/opt/licenses/LICENSE.dinov3.md`); publications must acknowledge DINO Materials; trade-control + no-military/ITAR terms |
+| Paper | Simeoni, Vo, Oquab et al. (2025), *DINOv3* |
+| Weights source | `timm/vit_large_patch16_dinov3.sat493m`, **baked at build**. The `facebook/` repo of the same weights is manually gated; the timm mirror is not |
+| Weights license | DINOv3 License (as above) |
+| Container stack | PyTorch 2.5.1 + CUDA 12.1; `timm==1.0.28`; ViT-L/16, 1024-D |
+| H100 status | Native sm_90; amd64 only (CUDA base has no arm64 build) |
+| Lab status | **utility** — general RGB-ortho encoder; first consumer is the nc-helene gravel-bar head |
+| First-run / current behavior | Loading, token geometry and feature grid verified against real 0.152 m aerial chips (2026-08-11): 512 px -> (32, 32, 1024). Note 5 prefix tokens (CLS + 4 registers) and SAT-specific normalization — both handled by `extract_features.py`, both asserted in the build smoke test |
+| Tags | `:latest`, `:v1`, `:torch2.5-cu121` |
+
 ## treelearn
 
 | | |
