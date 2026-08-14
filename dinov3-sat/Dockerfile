@@ -48,6 +48,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
+# scipy: connected-component labelling, needed to turn a dense probability
+# map into discrete objects — the shape of every downstream task here.
 # timm 1.0.28 is the version the DINOv3-SAT architecture + weights were
 # verified against (2026-08-11); pinned because the model entrypoint name
 # is a timm registry detail, not a stable upstream API.
@@ -56,7 +58,8 @@ RUN pip install --upgrade pip wheel \
         "timm==1.0.28" \
         "safetensors>=0.4" \
         "Pillow>=10.0" \
-        "numpy>=1.26"
+        "numpy>=1.26" \
+        "scipy>=1.11"
 
 COPY LICENSE.dinov3.md /opt/licenses/LICENSE.dinov3.md
 COPY extract_features.py /opt/dinov3-sat/extract_features.py
@@ -71,8 +74,8 @@ RUN python -c "import timm; timm.create_model('hf-hub:timm/vit_large_patch16_din
 # geometry the downstream head depends on.
 RUN HF_HUB_OFFLINE=1 python -c "\
 import importlib.metadata as im; \
-import timm, torch; \
-print('timm', im.version('timm'), '| torch', im.version('torch')); \
+import timm, torch, scipy; \
+print('timm', im.version('timm'), '| torch', im.version('torch'), '| scipy', im.version('scipy')); \
 m = timm.create_model('hf-hub:timm/vit_large_patch16_dinov3.sat493m', pretrained=True, num_classes=0).eval(); \
 cfg = timm.data.resolve_model_data_config(m); \
 print('mean', cfg['mean'], '| std', cfg['std'], '| input', cfg['input_size']); \
