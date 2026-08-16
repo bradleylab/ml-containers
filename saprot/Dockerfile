@@ -97,7 +97,10 @@ ENV HF_HOME=/root/.cache/huggingface
 # Build-time smoke test, offline and CPU-only. Versions come from package
 # metadata per the ml-containers rule. Beyond the version printout it checks
 # the three things that would otherwise fail at first inference:
-#   1. the foldseek binary runs and reports the pinned version;
+#   1. the foldseek binary runs and reports the pinned build. `foldseek
+#      version` prints the bare commit hash (941cd33ff077...), not the
+#      release tag (10-941cd33), so the check compares against the hash
+#      half of the tag — matching the whole tag never succeeds;
 #   2. EsmTokenizer's trie splits SaProt's two-character tokens (the probe
 #      vocab holds real tokens from the 1.3B vocab.txt — "Ap"/"Md" carry a
 #      3Di state, "A#" is the sequence-only form), so "MdApA#" must come
@@ -111,7 +114,7 @@ from transformers import EsmConfig, EsmForMaskedLM, EsmTokenizer; \
 from saprot_utils.foldseek_util import get_struc_seq; \
 fs = subprocess.run([os.environ['FOLDSEEK_BIN'], 'version'], capture_output=True, text=True); \
 ver = (fs.stdout + fs.stderr).strip(); \
-assert os.environ['FOLDSEEK_VERSION'] in ver, ver; \
+assert os.environ['FOLDSEEK_VERSION'].split('-')[-1] in ver, ver; \
 tok = EsmTokenizer(vocab_file='/tmp/saprot_vocab_probe.txt'); \
 ids = tok('MdApA#')['input_ids']; \
 assert len(ids) == 5 and tok.unk_token_id not in ids, ids; \
