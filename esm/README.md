@@ -182,3 +182,17 @@ The `esm.sdk` module in this image targets the hosted Biohub Platform API
 - **Upstream version string is ahead of the tags.** The pinned commit
   reports `esm 3.3.0` in package metadata while the newest GitHub tag is
   `v3.2.2.post2`. That is upstream's state, not a packaging error here.
+
+### Fused attention kernels
+
+The first H100 run of this image warned that neither xformers nor flash-attn
+was present and that ESMC was falling back to
+`F.scaled_dot_product_attention`. The model runs correctly either way, and
+upstream notes the differences shrink to a few ULP after the final LayerNorm
+— but the fallback is both slower and numerically distinct from the reference
+path, and embeddings are a scientific artifact. `xformers`, which upstream
+names as the preferred fix, is now installed.
+
+The NGC base this image originally used shipped these kernels; moving off it
+to resolve the numpy conflict removed them, which is why they are installed
+explicitly rather than inherited.

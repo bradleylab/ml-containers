@@ -45,6 +45,19 @@ RUN apt-get update \
 RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cu128 \
         torch torchvision
 
+# xformers supplies the fused attention kernel ESMC asks for. Without it the
+# model runs, but warns at load that it is falling back to
+# F.scaled_dot_product_attention, whose bf16 reduction order differs from the
+# fused kernel by ~1 ULP per attention block — which upstream reports
+# compounding to ~O(100) max-diff on the unnormalized residual stream of the
+# deep stacks. Differences wash out after the final LayerNorm, but embeddings
+# are a scientific artifact and there is no reason to ship the fallback when
+# upstream names xformers as the preferred fix. (The NGC base this image
+# started on supplied these kernels; moving off it for the numpy conflict
+# lost them, so they are reinstated explicitly.)
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cu128 \
+        xformers
+
 # Reproducibility pin. esm's pyproject declares two dependencies that float
 # at `@main` — esm itself and Biohub's transformers fork — so an unpinned
 # build is not reproducible. Both are resolved to commit SHAs here, recorded
