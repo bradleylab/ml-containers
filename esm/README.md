@@ -20,7 +20,10 @@ reachable from this image.
 
 ## Image tag
 
-`ghcr.io/bradleylab/esm:latest` (also `:v1`, `:torch2.7-cu129`)
+`ghcr.io/bradleylab/esm:latest` (also `:v1`, `:cu128-py312`)
+
+> The `:torch2.7-cu129` tag from the first published build is stale — it was
+> named for the NGC base this image no longer uses. Do not pull it.
 
 ## Contents
 

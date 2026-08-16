@@ -54,6 +54,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.7-cu129
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:cu128-py312
           cache-from: type=gha
           cache-to: type=gha,mode=max
