@@ -60,8 +60,16 @@ RUN curl -fsSL \
 # Inference-time Python. transformers ships the Esm model and tokenizer
 # classes the checkpoints declare; biopython backs foldseek_util's pLDDT
 # extraction (Bio.PDB); accelerate backs `device_map=`.
+#
+# transformers is held at the last 4.x rather than 5.x for two reasons. The
+# hard one: this base image carries a global pip constraint file pinning
+# regex==2024.11.6, and transformers 5.x requires regex>=2025.10.22, so 5.x
+# cannot resolve here at all. The soft one: these are 2023-era
+# ESM-architecture checkpoints, and pinning them to the newest major version
+# of the library that loads them is a risk with no upside. 4.57.x asks only
+# for regex!=2019.12.17 and numpy>=1.17, both satisfied by the base.
 RUN pip install --no-cache-dir \
-        "transformers==5.15.0" \
+        "transformers==4.57.6" \
         "biopython==1.88" \
         "accelerate==1.14.0"
 

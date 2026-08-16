@@ -28,7 +28,7 @@ checkpoint takes sequence-only input.
 
 - NGC PyTorch 25.04: torch 2.7.0a0, CUDA 12.9, Python 3.12
   (`TORCH_CUDA_ARCH_LIST` includes 9.0 → H100).
-- Stock `transformers` 5.15.0 — the checkpoints are ordinary ESM-architecture
+- Stock `transformers` 4.57.6 — the checkpoints are ordinary ESM-architecture
   HF repos, so `EsmTokenizer` / `EsmForMaskedLM` load them directly. Plus
   `biopython` 1.88 (pLDDT parsing) and `accelerate` 1.14.0 (`device_map=`).
 - `foldseek` `10-941cd33` at `/opt/foldseek/bin/foldseek`, symlinked to
@@ -220,7 +220,7 @@ so it suits experimental structures only.
   checkpoints as what they are: `config.json` declares `model_type: "esm"`
   and `architectures: ["EsmForMaskedLM"]`, and every field it sets
   (`position_embedding_type: "rotary"`, `token_dropout`, `vocab_size: 446`,
-  `emb_layer_norm_before`) is still supported by `transformers` 5.15.0. So
+  `emb_layer_norm_before`) is still supported by `transformers` 4.57.6. So
   the model loads with stock transformers on modern torch, and none of
   SaProt's training code is installed. Consequence: the repo's YAML-driven
   fine-tuning and evaluation scripts are **not** available here. This image
@@ -271,3 +271,15 @@ so it suits experimental structures only.
   behaves; and builds a toy `EsmForMaskedLM` with SaProt's architecture
   settings and runs a forward pass. It does not download weights, so a real
   end-to-end load still has to happen on Compute2.
+
+### Why transformers is held at 4.x
+
+The first CI build of this image pinned `transformers==5.15.0` and failed to
+resolve: the NGC base ships a global pip constraint file pinning
+`regex==2024.11.6`, and transformers 5.x requires `regex>=2025.10.22`. The
+pin moved to the last 4.x release (4.57.6), which asks only for
+`regex!=2019.12.17` and `numpy>=1.17`.
+
+That is also the better choice on its own merits. These are 2023-era
+ESM-architecture checkpoints; pinning them to the newest major version of the
+library that loads them adds risk without adding capability.

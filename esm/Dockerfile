@@ -12,12 +12,38 @@
 # Stack:     NGC PyTorch 25.04 (torch 2.7.0a0, CUDA 12.9, Python 3.12) +
 #            the esm git package + Biohub's transformers fork.
 #
-# Base-image constraint: esm declares `requires-python = ">=3.12,<3.13"`,
-# so pip refuses to install on anything but Python 3.12. NGC PyTorch 25.04
-# ships Python 3.12 (same base as the evo2 image), which is why it is used
-# here rather than a `pytorch/pytorch:*-runtime` tag.
+# Base-image constraints, both hard:
+#
+#   1. esm declares `requires-python = ">=3.12,<3.13"`, so pip refuses to
+#      install on anything but Python 3.12. Ubuntu 24.04 ships 3.12 as its
+#      system python, which is why this is a CUDA-on-24.04 base rather than
+#      a `pytorch/pytorch:*` tag (those ship 3.11).
+#   2. esm requires `numpy>=2.0.0,<2.4` at runtime. This rules out the NGC
+#      PyTorch images that evo2 and ntv3 use: NGC ships a global pip
+#      constraint file (`PIP_CONSTRAINT=/etc/pip/constraint.txt`) pinning
+#      numpy==1.26.4, which makes the esm install unresolvable there. That
+#      was the first CI failure of this image — the fix is a base without
+#      the constraint file, not fighting the constraint.
+#
+# torch therefore comes from the PyPI cu128 wheels rather than being baked
+# into the base.
 
-FROM nvcr.io/nvidia/pytorch:25.04-py3
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_BREAK_SYSTEM_PACKAGES=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        python3 python3-pip python3-dev git build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/local/bin/python \
+    && python -c "import sys; assert sys.version_info[:2] == (3, 12), sys.version"
+
+# torch first, so the esm install resolves against it rather than pulling a
+# different build as a transitive dependency.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cu128 \
+        torch torchvision
 
 # Reproducibility pin. esm's pyproject declares two dependencies that float
 # at `@main` — esm itself and Biohub's transformers fork — so an unpinned

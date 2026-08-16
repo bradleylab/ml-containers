@@ -24,8 +24,8 @@ reachable from this image.
 
 ## Contents
 
-- NGC PyTorch 25.04: torch 2.7.0a0, CUDA 12.9, **Python 3.12**
-  (`TORCH_CUDA_ARCH_LIST` includes 9.0 → H100).
+- `nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04` (**Python 3.12** as the
+  system interpreter) plus torch from the PyPI cu128 wheels.
 - `esm` installed from GitHub at a pinned commit SHA (there is no PyPI
   release), plus its dependency tree — including Biohub's `transformers`
   fork, separately pinned.
@@ -126,11 +126,22 @@ The `esm.sdk` module in this image targets the hosted Biohub Platform API
 
 - **Python 3.12 only, and this is a hard pin.** esm declares
   `requires-python = ">=3.12,<3.13"`, so pip refuses to install on 3.11 or
-  3.13 — the build fails outright rather than degrading. NGC PyTorch 25.04
-  ships Python 3.12, which is the reason it is the base here. The
-  `pytorch/pytorch:*-runtime` images have historically shipped Python 3.11;
-  check `python --version` in any tag before switching bases, because the
-  failure mode is a hard pip error at the first install layer.
+  3.13 — the build fails outright rather than degrading. Ubuntu 24.04 ships
+  3.12 as its system interpreter, which is why the base is CUDA-on-24.04.
+  The `pytorch/pytorch:*-runtime` images ship Python 3.11; check
+  `python --version` in any tag before switching bases, because the failure
+  mode is a hard pip error at the first install layer. The Dockerfile
+  asserts the version rather than trusting the tag.
+- **Not an NGC base, and deliberately so.** esm requires
+  `numpy>=2.0.0,<2.4` at runtime, while the NGC PyTorch images used by
+  `evo2` and `ntv3` ship a global pip constraint file
+  (`PIP_CONSTRAINT=/etc/pip/constraint.txt`) pinning `numpy==1.26.4`. That
+  makes the esm install unresolvable on NGC — it was this image's first CI
+  failure, with pip reporting `Cannot install numpy>=2.0 ... The user
+  requested (constraint) numpy==1.26.4`. Do not "fix" a future recurrence by
+  clearing the constraint on an NGC base; that would leave the NVIDIA-built
+  stack resolving against a numpy it was not built for. Use a base without
+  the constraint file, as here.
 - **Two `@main` git dependencies, both pinned to SHAs.** Upstream ships no
   PyPI release, and esm's pyproject pulls `transformers` from a Biohub fork
   tracked at `@main`. Left alone, two identical builds a week apart would
