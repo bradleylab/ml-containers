@@ -82,6 +82,14 @@ locally.
 | `timesfm` | `timesfm/` | full recipe (CPU multi-arch; Das et al. 2024 Google Research time-series foundation model — TimesFM 2.5 200M params, 16k context, continuous-quantile head; weights via HF Hub) |
 | `crossearth` | `crossearth/` | full recipe (GPU; Gong et al. 2025 TPAMI vision FM for cross-domain RS semantic segmentation — frozen DINOv2 + Earth-Style Injection + Mask2Former head; mmcv 2.x + mmseg 1.x + xformers 0.0.20; vendored upstream at SHA `644a5a1b`; weights via HF Hub) |
 | `croma` | `croma/` | full recipe (CPU multi-arch; Fuller et al. 2023 NeurIPS Sentinel-1/Sentinel-2-native radar-optical foundation model; SAR + optical + joint embeddings; upstream `use_croma.py` pinned; Base baked at build, Large lazy; MIT) |
+| `evo2` | `evo2/` | full recipe — **experimental**, backfilled from the published image (GPU sm_90; Arc Institute DNA language model; NGC PyTorch 25.04; weights via HF Hub) |
+| `esm` | `esm/` | full recipe — **experimental** (GPU sm_90; Chan Zuckerberg Biohub ESMC protein language model; NGC PyTorch 25.04; both git deps SHA-pinned; weights via HF Hub, MIT + ungated) |
+| `clean` | `clean/` | full recipe — **experimental** (**CPU-only**; CLEAN enzyme EC-number prediction over ESM-1b embeddings; weights mounted at runtime, not baked; **research-use-only licence, not MIT**) |
+| `saprot` | `saprot/` | full recipe — **experimental** (GPU sm_90; SaProt structure-aware protein language model; bundles the foldseek binary, so the image is **MIT AND GPL-3.0**; weights via HF Hub, MIT + ungated) |
+| `boltz` | `boltz/` | full recipe — **experimental** (GPU sm_90; Boltz-2 biomolecular complex structure + binding affinity; MIT code *and* weights; weights via HF Hub / `model-gateway.boltz.bio`) |
+| `chai-1` | `chai-1/` | full recipe — **experimental** (GPU sm_90, A100/H100 80 GB; Chai-1 co-folding, MSA-free by default; Apache-2.0 code *and* weights since Nov 2024; weights via `chaiassets.com`) |
+| `dnabert-s` | `dnabert-s/` | full recipe — **experimental** (GPU sm_90; species-aware DNA embeddings for metagenomic binning; `transformers==4.27` pin dictates the whole stack; Apache-2.0 weights) |
+| `ntv3` | `ntv3/` | full recipe — **experimental** (GPU sm_90; Nucleotide Transformer v3 — 1 Mb context, ~16k functional tracks; NGC PyTorch 25.04; **HF-gated, non-commercial weights**) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -685,3 +693,354 @@ instead of spectral conditioning (DOFA) or multimodal pretraining
 multi-task training. Only RS FM in the catalog built on a generalist
 self-supervised vision backbone (DINOv2). Ships encoder + Mask2Former
 segmentation head, ready for inference without head fine-tuning.
+
+### evo2
+
+[Evo 2](https://github.com/ArcInstitute/evo2) (Arc Institute) — DNA
+language model (StripedHyena 2) for variant-effect prediction, sequence
+scoring (log-likelihoods), and genome generation across all domains of
+life. Different modality from the imagery and point-cloud images: the
+input is a nucleotide sequence, not a sensor product.
+
+> **EXPERIMENTAL / backfilled recipe.** Reproduces a previously ad-hoc
+> `ghcr.io/bradleylab/evo2` image that had no committed recipe,
+> reconstructed from the published image's build history (NGC PyTorch
+> 25.04 + `pip install evo2 biopython`). Not yet benchmarked on lab data.
+
+- Base: `nvcr.io/nvidia/pytorch:25.04-py3` — torch 2.7.0a0, CUDA 12.9,
+  Transformer Engine 2.2, flash-attn, Python 3.12
+- Stack: `evo2` + `biopython` pip packages
+- **GPU-only**, native sm_90 (base `TORCH_CUDA_ARCH_LIST` includes 9.0)
+- Apache-2.0 code; weight license is per HF model card
+- Large image (~12 GB) — the build workflow frees runner disk first
+
+Pull: `ghcr.io/bradleylab/evo2:v1`
+
+Weights are NOT baked — fetched from the `arcinstitute` HF org into
+`$HF_HOME=/root/.cache/huggingface` on the first `Evo2('evo2_7b')` call;
+bind-mount a scratch dir so the multi-GB checkpoint is fetched once. The
+7B / 1B / `*_base` models run bf16 on the single H100 that C2
+`general-gpu` allocates; `evo2_20b` / `evo2_40b` need FP8 via Transformer
+Engine, and 40B needs multiple H100s — out of scope for a single-GPU job.
+
+No CLI — upstream ships a Python API only, so inference goes through a
+script under scratch. See `evo2/README.md` for the scoring / generation
+snippets and the Transformer Engine version caveat (this image carries
+NGC 25.04's TE 2.2; upstream suggests TE 2.3.0 for the FP8 path).
+
+### esm
+
+[ESM](https://github.com/Biohub/esm) (Chan Zuckerberg Biohub, formerly
+EvolutionaryScale) — protein language model producing sequence embeddings
+and per-residue logits from amino-acid sequence alone, no structure
+required. ESMC is the current generation of Evolutionary Scale Modeling;
+the open ESM3 checkpoint is reachable from the same image.
+
+> **EXPERIMENTAL.** Not yet benchmarked on lab data. The default target
+> is batch embedding with ESMC-600M.
+
+- Base: `nvcr.io/nvidia/pytorch:25.04-py3` — torch 2.7.0a0, CUDA 12.9,
+  **Python 3.12**. The Python version is a hard pin, not a preference:
+  esm declares `requires-python = ">=3.12,<3.13"` and pip refuses to
+  install on 3.11 or 3.13.
+- Stack: `esm` from GitHub at a pinned commit SHA (upstream ships no
+  PyPI release) plus Biohub's `transformers` fork, separately SHA-pinned.
+  Both SHAs are recorded in the image labels and asserted by the build
+  smoke test.
+- **GPU-primary**, native sm_90
+- MIT across code and weights
+
+Pull: `ghcr.io/bradleylab/esm:v1`
+
+Weights are NOT baked. The `biohub` checkpoints are MIT and **ungated**,
+so an anonymous pull works and a Compute2 job needs no HF token.
+`biohub/ESMC-600M` (575M params, 2.30 GB F32) is the workhorse for batch
+embedding; `biohub/ESMC-300M`, `biohub/ESMC-6B` (6.35B, 25.41 GB F32 —
+fits one H100 80 GB, bf16 halves it), and `biohub/esm3-sm-open-v1` (1.4B)
+are also selectable. The large ESM3 checkpoints (7B, 98B) are API-only
+and have never been downloadable, so they are out of scope here.
+
+Local inference goes through the Biohub `transformers` fork, not an
+`esm.*` model class — `esm.sdk` targets the hosted Biohub Platform API
+and needs an API key. Do not add a pinned upstream `transformers` to this
+image or merge it with an environment that has stock transformers: the
+fork is what provides the ESMC model class. See `esm/README.md`.
+
+### clean
+
+[CLEAN](https://github.com/tttianhao/CLEAN) (Yu et al. 2023, *Science*
+379:1358, [doi:10.1126/science.adf2465](https://doi.org/10.1126/science.adf2465))
+— Contrastive Learning–Enabled Enzyme Annotation. Assigns Enzyme
+Commission (EC) numbers to an amino-acid sequence: embed with ESM-1b,
+project through a contrastively-trained network, assign by distance to
+pre-computed EC cluster centres. One sequence can receive several EC
+numbers.
+
+> **EXPERIMENTAL.** Not yet benchmarked on lab data.
+
+> **⚠ Licence: research use only, and not MIT.** GitHub's repository
+> metadata advertises MIT, but the tree contains **no LICENSE file** —
+> the only licence artifact upstream ships is a
+> `NON-EXCLUSIVE RESEARCH USE LICENSE FOR CLEAN SOFTWARE.pdf`.
+> Research-use-only and MIT cannot both be true, so the image is built
+> and labelled under the research-use reading
+> (`LicenseRef-CLEAN-Non-Exclusive-Research-Use`), deliberately **not**
+> as MIT. Terms for the pretrained weights are stated nowhere at all;
+> treat them as research-use-only by the same reading. University
+> research is accepted as within terms; a commercial pipeline, a
+> third-party service, or redistribution under a permissive licence is
+> not established.
+
+- Base: `python:3.10-slim` (upstream's manuscript environment was 3.10.4)
+- Stack: torch 2.5.1+cpu, `fair-esm 1.0.2`, upstream's own
+  `requirements.txt` pins (numpy 1.22.3, pandas 1.4.2, scipy 1.7.3,
+  scikit-learn 1.2.0)
+- **CPU-only** — run on Compute2 `general-cpu`. The documented resource
+  floor is **>12 GB of system RAM**, not VRAM; the "7.3 GB" in upstream's
+  README is the ESM-1b download size, not a memory requirement. CLEAN
+  calls `torch.cuda.is_available()` and will happily occupy an H100 it
+  does not need, so this image ships a CPU-only torch build and asserts
+  that at build time.
+- Both upstream repos SHA-pinned (`tttianhao/CLEAN` at `f2bf2a4f`,
+  `facebookresearch/esm` at the `v1.0.2` tag); the smoke test fails the
+  build if a pin has drifted.
+
+Pull: `ghcr.io/bradleylab/clean:v1`
+
+Weights are NOT baked, and staging them is the awkward part: two
+independent downloads from two places, neither a package registry — the
+CLEAN bundle (~141 MB, **Google Drive only**, and upstream cites two
+conflicting Drive file IDs with no checksum for either) and ESM-1b
+(~7.3 GB from `dl.fbaipublicfiles.com`). Mirror both to Storage3 with
+`sha256` manifests before any analysis depends on them. `fair-esm 1.0.2`
+is chosen over upstream's own `2.0.0` pin for manuscript fidelity —
+predictions depend on the ESM-1b version, and the tradeoff is documented.
+torch is pinned below 2.6 because 2.6's `weights_only=True` default
+refuses the ESM-1b checkpoint. See `clean/README.md`.
+
+### saprot
+
+[SaProt](https://github.com/westlake-repl/SaProt) (Westlake University;
+preprint [doi:10.1101/2023.10.01.560349](https://doi.org/10.1101/2023.10.01.560349),
+journal version in *Nature Biotechnology*, 2025-10-24) — structure-aware
+protein language model. Where ESM tokenizes one amino acid at a time,
+SaProt tokenizes one *residue-state* at a time: each token pairs the amino
+acid with that residue's foldseek 3Di structural state (`Aq`, `Md`, `Gp`).
+The structural half can be masked (`A#`), which is how the 1.3B checkpoint
+takes sequence-only input.
+
+> **EXPERIMENTAL.** Not yet benchmarked on lab data. Default target is
+> embedding structures with `SaProt_1.3B_AFDB_OMG_NCBI`.
+
+- Base: `nvcr.io/nvidia/pytorch:25.04-py3` — torch 2.7.0a0, CUDA 12.9,
+  Python 3.12 (same base as `esm` / `evo2` / `ntv3`)
+- Stack: stock `transformers` 5.15.0 (the checkpoints are ordinary
+  ESM-architecture HF repos, so `EsmTokenizer` / `EsmForMaskedLM` load
+  them directly) + `biopython` + `accelerate`
+- **GPU-primary**, native sm_90
+- **Licence: `MIT AND GPL-3.0`.** SaProt's code and weights are MIT, but
+  this image bundles the **foldseek** binary (release `10-941cd33`), which
+  is **GPL-3.0**. The binary is an unmodified upstream release invoked as
+  a subprocess — the arrangement foldseek itself documents — but the
+  licence mix matters before this image is redistributed outside the lab.
+
+Pull: `ghcr.io/bradleylab/saprot:v1`
+
+**Bundling foldseek is the documented exception to one-model-per-container**,
+and about as clear-cut as that exception gets: SaProt's input
+representation does not exist until foldseek has produced it.
+`get_struc_seq` shells out to `foldseek structureto3didescriptor` inside a
+single function call and reads back the temp file it wrote, so there is no
+intermediate artifact a separate container could hand over. foldseek is
+also not pip-installable.
+
+Weights are NOT baked — fetched from the `westlake-repl` HF org (MIT,
+ungated) on first `from_pretrained`. Use `SaProt_1.3B_AFDB_OMG_NCBI`: the
+35M and 650M checkpoints only produce usable frozen embeddings from
+structure tokens, while the 1.3B ones also accept AA-only input, which
+keeps embeddings comparable across a pipeline where some proteins have no
+structure. **The bottleneck is foldseek on CPU, not the GPU** — size the
+job by CPU count. Upstream's `torch==1.13.1` environment is deliberately
+not used (it predates Hopper), so the repo's YAML-driven fine-tuning and
+evaluation scripts are not available here; this image covers embedding and
+scoring. Pass `plddt_mask=True` explicitly for any predicted structure —
+the `"auto"` default only detects AFDB downloads. See `saprot/README.md`.
+
+### boltz
+
+[Boltz-2](https://github.com/jwohlwend/boltz) (Barzilay / Jaakkola group,
+MIT), tag **v2.2.1** — biomolecular co-folding. Predicts the structure of
+complexes containing proteins, RNA, DNA, and small molecules from sequence
+and chemical-component identity, and — from a block in the same input
+file — predicts binding affinity for a nominated ligand chain. Successor
+to Boltz-1.
+
+> **EXPERIMENTAL.** Not yet benchmarked on lab data. Read the silent
+> out-of-memory note below before running anything unattended.
+
+- Base: `pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime` — torch 2.8.0,
+  CUDA 12.9, Python 3.11
+- Stack: `boltz[cuda]==2.2.1` from PyPI, with cuEquivariance pinned to
+  0.6.1 (unpinned, 0.11.1 promotes `torch>=2.11` to a hard runtime
+  dependency and silently replaces the base image's torch and CUDA stack)
+- **GPU-primary**, sm_90; upstream CLI `boltz predict`
+- **Licence: MIT for the code *and* the weights** — academic and
+  commercial use both permitted, no acceptance step, no gated download.
+
+Pull: `ghcr.io/bradleylab/boltz:v1`
+
+**`boltz predict` catches CUDA OOM per batch, warns, and still exits 0**
+([upstream issue #167](https://github.com/jwohlwend/boltz/issues/167)), so
+a Slurm job that produced no structures at all reports success. **Every
+job must gate on output files existing, not on the exit status** — the
+one-line gate is in `boltz/README.md`'s sbatch example. Reported VRAM is
+~11 GB for structure and ~7–8 GB for affinity while NVIDIA's NIM support
+matrix asks for ≥48 GB; the gap is headroom for large multimers, and a
+single H100 80 GB is comfortable for ordinary work.
+
+Weights are NOT baked — ~6.2 GB across three assets (`boltz2_conf.ckpt`,
+`boltz2_aff.ckpt`, `mols.tar`) fetched into `$BOLTZ_CACHE=/opt/boltz-cache`,
+which must be overridden with an **absolute** path. MSAs are required and
+are not fetched for you (`--use_msa_server` defaults to False); the lab
+default is precomputed `.a3m` files from our own mmseqs2, so the image
+makes no MSA network calls. See `boltz/README.md`.
+
+### chai-1
+
+[Chai-1](https://github.com/chaidiscovery/chai-lab) (Chai Discovery,
+release **v0.6.1**; bioRxiv 2024,
+[doi:10.1101/2024.10.10.615955](https://doi.org/10.1101/2024.10.10.615955))
+— co-folding model for complexes of proteins, RNA, DNA, and small
+molecules. Unlike Boltz-2 and AlphaFold3 it reaches most of its accuracy
+**without MSAs**, using a traced ESM-2 3B embedder in their place; local
+MSAs still help and are supported.
+
+> **EXPERIMENTAL.** Not yet benchmarked on lab data.
+
+- Base: `pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime` — torch 2.6.0,
+  CUDA 12.6, Python 3.11
+- Stack: `chai_lab==0.6.1` from PyPI, pinned to the release tag
+- **GPU-primary**, sm_90; upstream recommends A100/H100 80 GB or an
+  L40S 48 GB. CLI: `chai-lab fold`
+- **Licence: Apache-2.0 for the code *and* the weights.** Chai Discovery
+  relicensed in **November 2024**; the original September-2024
+  research-only terms no longer apply, and academic and commercial use are
+  both permitted. Any older lab note describing Chai-1 as restrictively
+  licensed is obsolete.
+
+Pull: `ghcr.io/bradleylab/chai-1:v1`
+
+**Request ≥64 GB of host `--mem`.** A measured PoseBench benchmark (A100
+80 GB, 5 diffusion samples, `low_memory=True`) peaks at 56.2 GB VRAM and
+**58.5 GB host RAM** — the second figure is the one people miss, and a
+GPU-sized job with a default host allocation is the usual way this model
+dies, with the OOM message pointing at the host rather than the GPU.
+
+Weights are NOT baked — ~7.0 GB across 8 assets into
+`$CHAI_DOWNLOADS_DIR=/opt/chai-downloads`, which is read at **import**
+time and so must be set before Python starts. **The Hugging Face mirror is
+incomplete**: it carries only the six `.pt` model components (~1.18 GB);
+the 5.68 GB traced ESM-2 embedder and the 125 MB conformer pickle come
+from `chaiassets.com` only, so pre-staging from HF alone leaves an
+air-gapped job to fail at the ESM-embedding step. `--no-use-esm-embeddings`
+avoids that download but changes what the model is given as input — a
+methodological change, not a deployment convenience. This image and
+`boltz` sit on deliberately different bases (2.6.0-cu126 vs 2.8.0-cu129);
+the two dependency ceilings are incompatible, so do not harmonise them.
+Chai-2 has no public weights or inference code and is not what this image
+runs. See `chai-1/README.md`.
+
+### dnabert-s
+
+[DNABERT-S](https://github.com/MAGICS-LAB/DNABERT_S) (MAGICS-LAB) —
+species-aware DNA language model built for metagenomic binning. Embeds a
+nucleotide sequence into a 768-dimensional vector in which contigs from
+the same species sit close together, so embeddings can be clustered into
+bins without alignment or reference genomes. Architecture is DNABERT-2's
+(MosaicBERT-style encoder, ALiBi position biases, 4096-token BPE
+vocabulary, ~117M parameters) contrastively fine-tuned for species
+separation.
+
+> **EXPERIMENTAL.** Not yet benchmarked on lab data. Intended first
+> target is batch embedding of assembled contigs.
+
+- Base: `nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04` + Python 3.11 +
+  PyTorch 2.5.1 cu121 (the stack shared with `prithvi-eo`, `satlas`,
+  `clay`, `terramind`)
+- Stack: `transformers==4.27.*` — upstream's own pin — with
+  `huggingface_hub<0.26`, `einops`, `numpy<2` held around it
+- **GPU-primary**, native sm_90. The model is small enough that a GPU buys
+  throughput, not capability
+- **Triton is deliberately uninstalled**, on upstream's advice for
+  non-A100 GPUs; `torch.compile` / TorchInductor are therefore unavailable
+  in this image
+
+Pull: `ghcr.io/bradleylab/dnabert-s:v1`
+
+Weights are NOT baked — the single `zhihan1996/DNABERT-S` checkpoint
+(468 MB fp32) downloads on first `from_pretrained`, which requires
+`trust_remote_code=True` because the architecture ships as Python inside
+the HF repo. **Weights are Apache-2.0 and ungated, but the upstream GitHub
+repo has no LICENSE file** (formally all rights reserved); this image
+vendors nothing from that repo, so it stays Apache-2.0 clean — the gap
+only matters if someone later copies training or evaluation scripts out of
+it. **Mean pooling over the attention mask is the documented embedding
+method** for this model, not `[CLS]`.
+
+**This model cannot share a container with `ntv3`** — DNABERT-S requires
+`transformers==4.27`, NTv3 requires `>=4.55`, and no version satisfies
+both. The two DNA images are separate by necessity, not only by the
+one-model-per-container convention. See `dnabert-s/README.md`.
+
+### ntv3
+
+[Nucleotide Transformer v3](https://github.com/instadeepai/nucleotide-transformer)
+(InstaDeep, released December 2025) — genomic language model that reads up
+to **1 Mb of sequence at nucleotide resolution**. Beyond embeddings, the
+post-trained checkpoints predict roughly 16,000 functional genomic tracks
+across 24 species — the signal set you would otherwise get from BigWig
+files — plus base-resolution annotation suitable for writing out as BED.
+
+> **EXPERIMENTAL.** Not yet benchmarked on lab data. Intended first
+> target is embeddings and track prediction at 131 kb windows.
+
+> **⚠ Licence: non-commercial, and the weights are HF-gated.** The weights
+> carry the **InstaDeep NTv3 non-commercial licence** (no commercial use;
+> no training a competing model on this model's outputs) and upstream code
+> is **CC BY-NC-SA 4.0**. An HF account must accept the terms on the model
+> page before any download works. University research at WashU is in
+> scope; commercial work is not. The second non-commercial image in the
+> catalog, after `dofa-clip`.
+
+- Base: `nvcr.io/nvidia/pytorch:25.04-py3` — torch 2.7.0a0, CUDA 12.9,
+  flash-attn, Python 3.12 (same base as `esm`, `evo2`, `saprot`)
+- Stack: `transformers>=4.55,<5` — upstream's floor for the custom
+  `ntv3_posttrained` architecture, reached via `trust_remote_code=True`
+- **GPU-primary**, native sm_90; bf16 recommended on H100
+- **The HF token is never baked.** It is supplied from the environment
+  only while weights are staged on a login node, and jobs then run offline
+  (`HF_HUB_OFFLINE=1`). The build-time smoke test fails the build if
+  `HF_TOKEN` or `HUGGING_FACE_HUB_TOKEN` is set during the build, so a
+  token cannot be published to GHCR by accident.
+
+Pull: `ghcr.io/bradleylab/ntv3:v1`
+
+Weights are NOT baked. `InstaDeepAI/NTv3_650M_post` (650M params, 2.72 GB
+fp32, embedding dim 1536) is the recommended checkpoint; 100M, `*_131kb`,
+pre-trained-only, and generative variants also exist. **There is no
+official VRAM figure and none is invented here** — the weights are the
+easy part, and activation memory is what scales with context length. Start
+at 131 kb windows, measure with `torch.cuda.max_memory_allocated()`, and
+scale up empirically.
+
+Two input rules produce wrong output rather than an error: **input length
+must be a multiple of 128 bp**, and **padding is the character `N`, not
+the tokenizer's `[PAD]`** — appended to the string before tokenization.
+For the post-trained track heads, outputs are cropped to the **middle
+62.5%** of the window, so tiling a chromosome steps by 81,920 bp of a
+131,072 bp window, not by the full window.
+
+**This model cannot share a container with `dnabert-s`** (see above).
+Note also that the GitHub repo is a JAX codebase; this image uses the
+PyTorch checkpoints on the Hub instead, so upstream's JAX install
+instructions do not apply. See `ntv3/README.md`.
