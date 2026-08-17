@@ -1,0 +1,58 @@
+name: Build dnabert-s
+
+on:
+  push:
+    paths:
+      - 'dnabert-s/**'
+      - '!dnabert-s/**/*.md'
+      - '.github/workflows/build-dnabert-s.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: bradleylab/dnabert-s
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space on runner
+        # CUDA 12.1 cudnn8 runtime base plus the cu121 torch wheels (which
+        # bundle their own CUDA/cuDNN/cuBLAS libraries) crowd the ~14 GB
+        # default free disk on ubuntu-latest.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker image prune -af || true
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # No build-args: every pin (transformers 4.27, torch 2.5.1,
+      # huggingface_hub <0.26) is a literal in dnabert-s/Dockerfile, so a
+      # re-run of this workflow reproduces the committed build.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: dnabert-s
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.5-cu121
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
