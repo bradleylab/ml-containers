@@ -40,6 +40,11 @@ C2 `general-gpu` allocates a single H100, so the **7B / 1B / base** models
 are the practical targets here. The 40B model needs multi-GPU and is out of
 scope for a single-GPU job.
 
+**Confirmed 2026-08-06/07:** `evo2_20b` loads and runs (score + generate) on
+a single C2 H100 with this image's TE 2.2 — no version bump needed. Weight
+fetch + load + inference took ~3.5 min end to end from a cold HF cache.
+`evo2_40b` and `evo2_1b_base` remain untested here.
+
 ## Running on Compute2 (Pyxis/enroot)
 
 Import once on a login node (large image — point enroot's scratch dirs off
@@ -65,8 +70,12 @@ the multi-GB checkpoint is fetched once and reused:
 
 srun --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+evo2+v1.sqsh \
      --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/root/.cache/huggingface,/scratch2/fs1/alexander.s.bradley:/scratch2/fs1/alexander.s.bradley \
+     --container-workdir=/scratch2/fs1/alexander.s.bradley \
      bash -lc 'export PYTHONNOUSERSITE=1; python /scratch2/fs1/alexander.s.bradley/scripts/evo2_score.py'
 ```
+
+`--container-workdir` is required, not optional — see the read-only-filesystem
+caveat below.
 
 ## Minimal inference (Python API — no CLI)
 
@@ -77,9 +86,15 @@ import torch
 from evo2 import Evo2
 
 model = Evo2('evo2_7b')                       # downloads weights to HF_HOME on first call
-input_ids = torch.tensor([model.tokenizer.tokenize('ACGT')]).to('cuda:0')
-logits, _ = model(input_ids)
+input_ids = torch.tensor(
+    model.tokenizer.tokenize('ACGT'), dtype=torch.int
+).unsqueeze(0).to('cuda:0')
+outputs, _ = model(input_ids)
+logits = outputs[0]
 ```
+
+`dtype=torch.int` is required — without it `torch.tensor(...)` infers a
+narrower integer type that the embedding lookup rejects at call time.
 
 Generate:
 
@@ -106,3 +121,19 @@ There is no dedicated CLI — wrap the Python API in a script under scratch
   upstream evo2 README suggests TE 2.3.0 for the FP8 (20B/40B) path; if the
   large models misbehave under FP8, a TE bump is the likely fix. The 7B
   bf16 path does not use TE.
+- **`--container-workdir` is mandatory, not a convenience flag.** Importing
+  `evo2` pulls in `vortex.logging`, which unconditionally opens
+  `activations_debug.log` (a relative path) at *import time* — before your
+  script runs any code. Enroot's container root is a read-only squashfs, so
+  if the process's working directory is the image's baked-in `/workspace`,
+  that open() fails with `OSError: Read-only file system`. There is no env
+  var or config flag upstream to disable or redirect this file (checked
+  `vortex/logging.py` directly) — the only fix is to start the container
+  with its working directory pointed at one of the `--container-mounts`
+  paths, so the relative path resolves somewhere writable.
+- **Tokenizer output needs an explicit `dtype=torch.int` cast.** Evo2's
+  `CharLevelTokenizer` returns a plain list of small integers; letting
+  `torch.tensor(...)` infer the dtype from that list can produce a `uint8`
+  tensor, which PyTorch's embedding lookup rejects (`Expected ... Long, Int;
+  but got torch.cuda.ByteTensor`). Always cast explicitly, matching the
+  upstream README's own examples.
