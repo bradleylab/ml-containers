@@ -32,8 +32,29 @@ RUN git clone https://github.com/SKrisanski/FSCT.git
 WORKDIR /opt/FSCT
 
 # ---- Pinned deps from FSCT's requirements.txt, CPU-only torch ----
-RUN pip install --index-url https://download.pytorch.org/whl/cpu \
-        torch==1.9.0+cpu torchvision==0.10.0+cpu
+#
+# `--extra-index-url`, NOT `--index-url`. This is load-bearing and was the
+# cause of a 2026-08 build failure that appeared with no diff to this recipe.
+#
+# `--index-url` REPLACES PyPI rather than adding to it, so the PyTorch index
+# becomes the only source for everything — including transitive deps and,
+# critically, the *build* dependencies pip needs if it ever falls back to an
+# sdist. In August 2026 pip resolved `typing-extensions` (a torch dependency,
+# unpinned upstream) to a source distribution, then tried to fetch `flit_core`
+# to build it, found no PyPI to fetch it from, and failed with
+# "pip subprocess to install build dependencies did not run successfully".
+# The torch wheels themselves were fine and still are — the rot was in an
+# unpinned transitive dep with no fallback index.
+#
+# With `--extra-index-url` the `+cpu` local version still forces torch and
+# torchvision to come from the PyTorch index (those builds exist nowhere else),
+# while everything else resolves from PyPI as normal.
+#
+# typing-extensions is additionally pinned so this cannot recur: it is a typing
+# shim with no effect on what the model computes.
+RUN pip install --extra-index-url https://download.pytorch.org/whl/cpu \
+        torch==1.9.0+cpu torchvision==0.10.0+cpu \
+        typing-extensions==4.12.2
 
 RUN pip install \
         -f https://data.pyg.org/whl/torch-1.9.0+cpu.html \
