@@ -52,6 +52,17 @@ RUN pip install --upgrade pip wheel \
 # TerraTorch pulls in a heavy transitive set (Lightning, torchgeo,
 # segmentation-models-pytorch, diffusers, timm, geopandas, rasterio).
 # Loose lower bound; verify on first build.
+# numpy is pinned because torch 2.5.1 segfaults against a newer one.
+#
+# Pinning terratorch alone did not fix this image: with terratorch 1.2.7 the
+# resolver still pulled numpy 2.4.6, and `import torch, terratorch` still died
+# with SIGSEGV. numpy 2.4.6 was released 2026-05-18, after this image's last
+# green build on 2026-05-03, when 2.4.4 was current — so 2.4.4 is the newest
+# numpy this torch is known to survive.
+#
+# Same failure class as the `numpy<2` pins in crossearth/concerto: a compiled
+# extension meeting a numpy it was not built against. Raising this pin means
+# raising torch, which changes what the model computes.
 # terratorch is pinned, not floated. `terratorch>=1.2.5` with no ceiling is
 # what broke this image: 1.2.11 (2026-08-12) segfaults on `import terratorch`
 # against the torch 2.5.1 pinned above, so the build died at its own smoke test
@@ -61,6 +72,7 @@ RUN pip install --upgrade pip wheel \
 # Bumping terratorch may require bumping torch, and that changes what the model
 # computes — not just how it installs. Re-validate outputs before doing it.
 RUN pip install \
+        "numpy==2.4.4" \
         "terratorch==1.2.7" \
         "huggingface_hub>=0.25.0"
 

@@ -50,26 +50,31 @@ RUN R -e "pkgs <- c('RCSF', 'data.table', 'optparse', 'arrow', 'jsonlite'); \
           missing <- pkgs[!pkgs %in% rownames(installed.packages())]; \
           if (length(missing)) stop('CRAN install failed for: ', paste(missing, collapse=', '))"
 
-# crownsegmentr from GitHub at a pinned commit, because CRAN no longer has it.
+# crownsegmentr from the CRAN *archive* tarball, checksum-pinned.
 #
-# It was archived from CRAN on 2026-06-09, as a knock-on of lidR being archived
-# the same day, which was itself a knock-on of rlas. That is what broke this
-# image: `install.packages('crownsegmentr')` silently found nothing and the
-# build died later at `library(crownsegmentr)` with "there is no package
-# called 'crownsegmentr'".
+# CRAN archived it on 2026-06-09 as a knock-on of lidR being archived the same
+# day, itself a knock-on of rlas. `install.packages('crownsegmentr')` then
+# silently found nothing — it only warns on an unavailable package — and the
+# build died two layers later at `library(crownsegmentr)`.
 #
-# lidR and rlas are also archived but still import here, because
-# rocker/geospatial ships them preinstalled. That is a latent dependency on the
-# base image: if a future rocker tag drops them, this image loses lidR too and
-# CRAN will not provide it. Pin the base tag deliberately.
-ARG CROWNSEGMENTR_REF=821a555e82f1b666652afa92d5b25c5f0f75ab70
-ENV CROWNSEGMENTR_REF=${CROWNSEGMENTR_REF}
-RUN R -e "if (!requireNamespace('remotes', quietly=TRUE)) \
-              install.packages('remotes', repos='https://cloud.r-project.org'); \
-          remotes::install_github('Lenostatos/crownsegmentr', \
-              ref=Sys.getenv('CROWNSEGMENTR_REF'), upgrade='never'); \
-          if (!requireNamespace('crownsegmentr', quietly=TRUE)) \
-              stop('crownsegmentr failed to install from GitHub')"
+# Installing from the archive rather than from GitHub, for two reasons.
+# `remotes::install_github` calls the GitHub API, which rate-limits anonymous
+# requests and failed here asking for a token — a build should not need
+# credentials to fetch public source. And 1.0.1 is the version this image was
+# validated against; GitHub HEAD has moved on since and would be a different
+# package, not a newer build of the same one.
+#
+# The sha256 is the pin. A changed tarball fails the build instead of silently
+# installing something else.
+ARG CROWNSEGMENTR_VERSION=1.0.1
+ARG CROWNSEGMENTR_SHA256=1b64031a665ddf3c000d590bc6bd926b3113f19673a5d1b2647b38bd61f5e6c1
+RUN curl -fsSL -o /tmp/crownsegmentr.tar.gz \
+        "https://cran.r-project.org/src/contrib/Archive/crownsegmentr/crownsegmentr_${CROWNSEGMENTR_VERSION}.tar.gz" \
+    && echo "${CROWNSEGMENTR_SHA256}  /tmp/crownsegmentr.tar.gz" | sha256sum -c - \
+    && R -e "install.packages('/tmp/crownsegmentr.tar.gz', repos=NULL, type='source'); \
+             if (!requireNamespace('crownsegmentr', quietly=TRUE)) \
+                 stop('crownsegmentr failed to install from the CRAN archive')" \
+    && rm -f /tmp/crownsegmentr.tar.gz
 
 # Python venv for post-processing.
 ENV VENV=/opt/venv
