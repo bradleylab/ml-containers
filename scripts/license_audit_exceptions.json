@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "Images whose label legitimately differs from what the GitHub API reports.",
+    "Each entry is a decision someone made and can defend, not a way to quiet",
+    "the check. Adding one means: you looked, and the label is right anyway.",
+    "Removing an image's recipe should remove its entry too."
+  ],
+  "dnabert-s": {
+    "label": "Apache-2.0",
+    "reason": "Upstream repo carries no LICENSE file, but the weights card at huggingface.co/zhihan1996/DNABERT-S states apache-2.0. The label follows the weights.",
+    "reviewed": "2026-08-19"
+  },
+  "esm": {
+    "label": "MIT",
+    "reason": "EvolutionaryScale became Chan Zuckerberg Biohub and the repo redirects, so the API reports NOASSERTION. ESM is MIT and ungated.",
+    "reviewed": "2026-08-19"
+  },
+  "forestformer3d": {
+    "label": "CC-BY-NC-4.0",
+    "reason": "No machine-readable LICENSE upstream, so the API reports NOASSERTION. The non-commercial term comes from the repo text and the paper. Non-commercial either way; do not treat as permissive.",
+    "reviewed": "2026-08-19"
+  },
+  "raman-classifier": {
+    "label": "MIT",
+    "reason": "Packages RamanSPy, which is BSD-3-Clause. BSD-3 permits redistribution under other terms provided attribution is kept, so MIT packaging over it is sound — unlike MIT over a copyleft upstream.",
+    "reviewed": "2026-08-19"
+  }
+}

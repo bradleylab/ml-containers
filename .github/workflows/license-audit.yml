@@ -1,0 +1,65 @@
+name: License-label audit
+
+# Compares every image's org.opencontainers.image.licenses label against the
+# license its bradleylab.model.upstream repository actually declares. A wrong
+# label misstates an obligation passed on to whoever pulls the image, and the
+# ones found so far all understated copyleft — MIT sitting over a GPL-3.0
+# upstream. Nothing surfaces that drift on its own, hence the schedule.
+#
+# Comments on the audit log issue every run, pass or fail, so a week with no
+# comment means the workflow broke rather than the labels being clean.
+# Genuinely-fine exceptions live in scripts/license_audit_exceptions.json and
+# stop applying the moment an image's label changes.
+
+on:
+  schedule:
+    # Sundays 07:40 UTC — 02:40 US Central in summer, 01:40 in winter.
+    - cron: '40 7 * * 0'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/license_audit.py'
+      - 'scripts/license_audit_exceptions.json'
+      - '.github/workflows/license-audit.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  LOG_ISSUE: 67
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare labels against upstream licenses
+        id: audit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          python3 scripts/license_audit.py > report.md
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          cat report.md
+
+      - name: Post the result to the audit log
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            cat report.md
+            echo
+            echo "[Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > comment.md
+          gh issue comment "$LOG_ISSUE" --repo "${{ github.repository }}" --body-file comment.md
+
+      - name: Fail if any label disagrees with its upstream
+        if: steps.audit.outputs.exit_code != '0'
+        run: |
+          echo "One or more images declare a license their upstream does not."
+          echo "See the report above and the audit log issue."
+          exit 1
