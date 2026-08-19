@@ -45,7 +45,15 @@ ENV PATH="/opt/conda/bin:$PATH"
 # install.packages() only WARNS when a package is unavailable, it does not
 # error, so a missing package used to surface two layers later at library().
 # The explicit check turns that into an immediate, named failure.
-RUN R -e "pkgs <- c('RCSF', 'data.table', 'optparse', 'arrow', 'jsonlite'); \
+# crownsegmentr's own Imports/LinkingTo are listed explicitly because the
+# tarball install below uses repos=NULL, which does NOT resolve dependencies —
+# that is what made the first archive-install attempt fail with
+# "dependency 'dbscan' is not available". From its DESCRIPTION:
+#   Imports:   assertthat, data.table, dbscan, lidR, methods, Rcpp, sf, terra
+#   LinkingTo: BH, progress, Rcpp
+# lidR, sf, terra and Rcpp come preinstalled in rocker/geospatial.
+RUN R -e "pkgs <- c('RCSF', 'data.table', 'optparse', 'arrow', 'jsonlite', \
+                    'dbscan', 'assertthat', 'BH', 'progress'); \
           install.packages(pkgs, repos='https://cloud.r-project.org', Ncpus=4); \
           missing <- pkgs[!pkgs %in% rownames(installed.packages())]; \
           if (length(missing)) stop('CRAN install failed for: ', paste(missing, collapse=', '))"

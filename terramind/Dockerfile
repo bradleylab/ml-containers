@@ -88,6 +88,17 @@ RUN mkdir -p /opt/hf-cache
 # uses importlib.metadata, not __version__, for every package.
 # No weight fetch at build time (HF cache is empty; first runtime
 # call downloads).
+# Import torch and terratorch in SEPARATE steps, with faulthandler on.
+#
+# This image failed twice with a bare "Segmentation fault (core dumped)" and no
+# further information, which is why two rounds of pinning missed the cause. A
+# combined `import torch, terratorch` cannot say which import died, and without
+# faulthandler a SIGSEGV produces no Python traceback at all. Split and
+# instrumented, the build now names the failing module.
+RUN python -X faulthandler -c "import torch; print('torch', torch.__version__, '| cuda-build', torch.version.cuda)"
+RUN python -X faulthandler -c "import numpy; print('numpy', numpy.__version__)"
+RUN python -X faulthandler -c "import terratorch; import importlib.metadata as im; print('terratorch', im.version('terratorch'))"
+
 RUN python -c "import torch, terratorch, diffusers; \
 import importlib.metadata as im; \
 from terratorch import BACKBONE_REGISTRY; \
