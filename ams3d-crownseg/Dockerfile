@@ -39,8 +39,37 @@ ENV PATH="/opt/conda/bin:$PATH"
 #       when a tile has no pre-classified ground points (class 2).
 # arrow: parquet I/O for per-tile tree attributes.
 # optparse: CLI arg parsing.
-RUN R -e "install.packages(c('lidR', 'crownsegmentr', 'RCSF', 'data.table', 'optparse', 'arrow', 'jsonlite'), \
-          repos='https://cloud.r-project.org', Ncpus=4)"
+# CRAN packages that are still on CRAN. `crownsegmentr` is NOT among them any
+# more — see below.
+#
+# install.packages() only WARNS when a package is unavailable, it does not
+# error, so a missing package used to surface two layers later at library().
+# The explicit check turns that into an immediate, named failure.
+RUN R -e "pkgs <- c('RCSF', 'data.table', 'optparse', 'arrow', 'jsonlite'); \
+          install.packages(pkgs, repos='https://cloud.r-project.org', Ncpus=4); \
+          missing <- pkgs[!pkgs %in% rownames(installed.packages())]; \
+          if (length(missing)) stop('CRAN install failed for: ', paste(missing, collapse=', '))"
+
+# crownsegmentr from GitHub at a pinned commit, because CRAN no longer has it.
+#
+# It was archived from CRAN on 2026-06-09, as a knock-on of lidR being archived
+# the same day, which was itself a knock-on of rlas. That is what broke this
+# image: `install.packages('crownsegmentr')` silently found nothing and the
+# build died later at `library(crownsegmentr)` with "there is no package
+# called 'crownsegmentr'".
+#
+# lidR and rlas are also archived but still import here, because
+# rocker/geospatial ships them preinstalled. That is a latent dependency on the
+# base image: if a future rocker tag drops them, this image loses lidR too and
+# CRAN will not provide it. Pin the base tag deliberately.
+ARG CROWNSEGMENTR_REF=821a555e82f1b666652afa92d5b25c5f0f75ab70
+ENV CROWNSEGMENTR_REF=${CROWNSEGMENTR_REF}
+RUN R -e "if (!requireNamespace('remotes', quietly=TRUE)) \
+              install.packages('remotes', repos='https://cloud.r-project.org'); \
+          remotes::install_github('Lenostatos/crownsegmentr', \
+              ref=Sys.getenv('CROWNSEGMENTR_REF'), upgrade='never'); \
+          if (!requireNamespace('crownsegmentr', quietly=TRUE)) \
+              stop('crownsegmentr failed to install from GitHub')"
 
 # Python venv for post-processing.
 ENV VENV=/opt/venv

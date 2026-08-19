@@ -46,14 +46,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # PyTorch 2.5.1 cu121 — H100 sm_90; matches satlas / clay / deepforest.
 RUN pip install --upgrade pip wheel \
-    && pip install --index-url https://download.pytorch.org/whl/cu121 \
+    && pip install --extra-index-url https://download.pytorch.org/whl/cu121 \
         torch==2.5.1 torchvision==0.20.1
 
 # TerraTorch pulls in a heavy transitive set (Lightning, torchgeo,
 # segmentation-models-pytorch, diffusers, timm, geopandas, rasterio).
 # Loose lower bound; verify on first build.
+# terratorch is pinned, not floated. `terratorch>=1.2.5` with no ceiling is
+# what broke this image: 1.2.11 (2026-08-12) segfaults on `import terratorch`
+# against the torch 2.5.1 pinned above, so the build died at its own smoke test
+# with exit 139. 1.2.7 is the last release that built green here (2026-05-03),
+# so this restores the known-good state rather than chasing latest.
+#
+# Bumping terratorch may require bumping torch, and that changes what the model
+# computes — not just how it installs. Re-validate outputs before doing it.
 RUN pip install \
-        "terratorch>=1.2.5" \
+        "terratorch==1.2.7" \
         "huggingface_hub>=0.25.0"
 
 RUN mkdir -p /opt/hf-cache
