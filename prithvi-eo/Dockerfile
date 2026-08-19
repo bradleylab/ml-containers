@@ -52,6 +52,21 @@ RUN pip install --upgrade pip wheel \
 # TerraTorch pulls in a heavy transitive set (Lightning, torchgeo,
 # segmentation-models-pytorch, diffusers, timm, geopandas, rasterio).
 # Loose lower bound; verify on first build.
+# kornia is pinned because 0.8.3 segfaults this image at import.
+#
+# This is the actual cause, established from a faulthandler traceback rather
+# than inferred. torch and numpy each import cleanly on their own; terratorch
+# pulls in kornia, and kornia's geometry/epipolar/essential.py runs
+# `torch.jit.script` at module scope, which dies with SIGSEGV under kornia
+# 0.8.3 against torch 2.5.1:
+#
+#   File ".../torch/jit/_script.py", line 1209 in _script_impl
+#   File ".../kornia/geometry/epipolar/essential.py", line 90 in <module>
+#
+# 0.8.3 was released 2026-05-19, sixteen days after this image last built green
+# on 2026-05-03, when 0.8.2 was current. Two earlier attempts pinned terratorch
+# and then numpy on circumstantial evidence; both were wrong, and the split
+# faulthandler imports below are what settled it. Leave them in place.
 # numpy is pinned because torch 2.5.1 segfaults against a newer one.
 #
 # Pinning terratorch alone did not fix this image: with terratorch 1.2.7 the
@@ -72,6 +87,7 @@ RUN pip install --upgrade pip wheel \
 # Bumping terratorch may require bumping torch, and that changes what the model
 # computes — not just how it installs. Re-validate outputs before doing it.
 RUN pip install \
+        "kornia==0.8.2" \
         "numpy==2.4.4" \
         "terratorch==1.2.7" \
         "huggingface_hub>=0.25.0"
