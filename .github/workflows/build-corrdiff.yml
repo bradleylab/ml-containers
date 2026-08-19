@@ -1,0 +1,71 @@
+name: Build corrdiff
+
+on:
+  push:
+    paths:
+      - 'corrdiff/**'
+      - '!corrdiff/**/*.md'
+      - '.github/workflows/build-corrdiff.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: bradleylab/corrdiff
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    # NATTEN publishes an sdist only, so this build compiles its CUTLASS
+    # neighborhood-attention kernels from source. That layer dominates the
+    # build and is the most likely thing here to hit a limit. 360 minutes is
+    # the GitHub-hosted maximum; if the job times out, the fix is a larger
+    # runner or a prebuilt NATTEN base layer, NOT widening
+    # NATTEN_CUDA_ARCH (which would make it slower still).
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free disk space on runner
+        # A -devel CUDA base (~6 GB) plus torch cu128 wheels plus the NATTEN
+        # build tree push well past the ~14 GB default free disk on
+        # ubuntu-latest. NATTEN's intermediate build artifacts are the bulk
+        # of it, so this step matters more here than in the sibling images.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker image prune -af || true
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # No build-args: the earth2studio version, the NATTEN version and the
+      # physicsnemo commit pin live in corrdiff/Dockerfile so they are
+      # version-controlled and a re-run of this workflow reproduces the
+      # committed build. Change a pin by editing the ARG defaults.
+      #
+      # The layer cache is worth more here than in the sibling images — it is
+      # what keeps a documentation-only change from recompiling NATTEN — so
+      # mode=max is deliberate despite the size.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: corrdiff
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:e2s0.17-cu128
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
