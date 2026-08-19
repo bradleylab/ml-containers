@@ -122,6 +122,13 @@ RUN python -m pip install pyg_lib torch_scatter torch_cluster \
 # GPU partition) are installed for import fidelity; we ship SPT +
 # SuperCluster (not EZ-SP), so either may be dropped if it fights the
 # build.
+# gitpython is ours, not upstream's. `src/` imports `git` for experiment
+# provenance, but neither upstream's install.sh nor its requirements declare it
+# — it used to arrive transitively via wandb, which declared
+# `GitPython>=1.0.0` up to 0.16.x and dropped it since. With current wandb the
+# import fails at `from src.models.semantic import SemanticSegmentationModule`
+# with ModuleNotFoundError: No module named 'git'. Declaring it directly means
+# the image no longer depends on another package's private dependency choice.
 RUN python -m pip install \
         "numpy<2" \
         matplotlib \
@@ -138,6 +145,7 @@ RUN python -m pip install \
         "rich<=14.0" \
         torch_tb_profiler \
         wandb \
+        gitpython \
         open3d \
         gdown \
         torch-ransac3d \

@@ -52,10 +52,27 @@ RUN pip install \
         plyfile \
         scikit-learn
 
-# Clone repo — default branch is `version1.0-paper`, which ships the
-# 73 MB global.pth checkpoint at pointstowood/model/global.pth.
+# Clone the `version1.0-paper` branch EXPLICITLY, pinned to a commit.
+#
+# This used to say "default branch is version1.0-paper" and clone without a
+# ref. Upstream then made `version2.0` the default (2026-05-30), and
+# `version2.0` has no `pointstowood/model/` directory at all — so the clone
+# silently produced a tree with no checkpoint and the build failed at the
+# `test -s model/global.pth` guard below. Nothing in this recipe changed; the
+# meaning of "default branch" did.
+#
+# The pin is the fix: the 73 MB `global.pth` (72,968,698 bytes) this image is
+# built around exists only on `version1.0-paper`, which is the branch the
+# published paper corresponds to. Moving to version2.0 would be a different
+# model, not an upgrade — validate before considering it.
+ARG P2W_BRANCH=version1.0-paper
+ARG P2W_REF=b912cad4a2189b1c25efbdb8f52e772e7350e78d
+ENV P2W_REF=${P2W_REF}
 WORKDIR /opt
-RUN git clone --depth=1 https://github.com/harryjfowen/PointsToWood.git
+RUN git clone --branch "${P2W_BRANCH}" https://github.com/harryjfowen/PointsToWood.git && \
+    cd PointsToWood && \
+    git checkout "${P2W_REF}" && \
+    git rev-parse HEAD | grep -q "^${P2W_REF}" || { echo "checkout drifted from pin"; exit 1; }
 WORKDIR /opt/PointsToWood/pointstowood
 
 # Verify weight is in-tree (not LFS stub)

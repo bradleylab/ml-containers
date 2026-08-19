@@ -46,14 +46,50 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # PyTorch 2.5.1 cu121 — H100 sm_90; matches satlas / clay / deepforest.
 RUN pip install --upgrade pip wheel \
-    && pip install --index-url https://download.pytorch.org/whl/cu121 \
+    && pip install --extra-index-url https://download.pytorch.org/whl/cu121 \
         torch==2.5.1 torchvision==0.20.1
 
 # TerraTorch pulls in a heavy transitive set (Lightning, torchgeo,
 # segmentation-models-pytorch, diffusers, timm, geopandas, rasterio).
 # Loose lower bound; verify on first build.
+# kornia is pinned because 0.8.3 segfaults this image at import.
+#
+# This is the actual cause, established from a faulthandler traceback rather
+# than inferred. torch and numpy each import cleanly on their own; terratorch
+# pulls in kornia, and kornia's geometry/epipolar/essential.py runs
+# `torch.jit.script` at module scope, which dies with SIGSEGV under kornia
+# 0.8.3 against torch 2.5.1:
+#
+#   File ".../torch/jit/_script.py", line 1209 in _script_impl
+#   File ".../kornia/geometry/epipolar/essential.py", line 90 in <module>
+#
+# 0.8.3 was released 2026-05-19, sixteen days after this image last built green
+# on 2026-05-03, when 0.8.2 was current. Two earlier attempts pinned terratorch
+# and then numpy on circumstantial evidence; both were wrong, and the split
+# faulthandler imports below are what settled it. Leave them in place.
+# numpy is pinned because torch 2.5.1 segfaults against a newer one.
+#
+# Pinning terratorch alone did not fix this image: with terratorch 1.2.7 the
+# resolver still pulled numpy 2.4.6, and `import torch, terratorch` still died
+# with SIGSEGV. numpy 2.4.6 was released 2026-05-18, after this image's last
+# green build on 2026-05-03, when 2.4.4 was current — so 2.4.4 is the newest
+# numpy this torch is known to survive.
+#
+# Same failure class as the `numpy<2` pins in crossearth/concerto: a compiled
+# extension meeting a numpy it was not built against. Raising this pin means
+# raising torch, which changes what the model computes.
+# terratorch is pinned, not floated. `terratorch>=1.2.5` with no ceiling is
+# what broke this image: 1.2.11 (2026-08-12) segfaults on `import terratorch`
+# against the torch 2.5.1 pinned above, so the build died at its own smoke test
+# with exit 139. 1.2.7 is the last release that built green here (2026-05-03),
+# so this restores the known-good state rather than chasing latest.
+#
+# Bumping terratorch may require bumping torch, and that changes what the model
+# computes — not just how it installs. Re-validate outputs before doing it.
 RUN pip install \
-        "terratorch>=1.2.5" \
+        "kornia==0.8.2" \
+        "numpy==2.4.4" \
+        "terratorch==1.2.7" \
         "huggingface_hub>=0.25.0"
 
 RUN mkdir -p /opt/hf-cache
@@ -63,6 +99,17 @@ RUN mkdir -p /opt/hf-cache
 # importlib.metadata for portable version
 # (per ~/.claude/rules/ml-containers.md — applies to every package
 # referenced in the printout, not just the headline).
+# Import torch and terratorch in SEPARATE steps, with faulthandler on.
+#
+# This image failed twice with a bare "Segmentation fault (core dumped)" and no
+# further information, which is why two rounds of pinning missed the cause. A
+# combined `import torch, terratorch` cannot say which import died, and without
+# faulthandler a SIGSEGV produces no Python traceback at all. Split and
+# instrumented, the build now names the failing module.
+RUN python -X faulthandler -c "import torch; print('torch', torch.__version__, '| cuda-build', torch.version.cuda)"
+RUN python -X faulthandler -c "import numpy; print('numpy', numpy.__version__)"
+RUN python -X faulthandler -c "import terratorch; import importlib.metadata as im; print('terratorch', im.version('terratorch'))"
+
 RUN python -c "import torch, terratorch; \
 import importlib.metadata as im; \
 from terratorch import BACKBONE_REGISTRY; \
