@@ -46,7 +46,9 @@
 # Megatron/apex/transformer-engine surface for a package that imports none
 # of it. So: slim Debian base, CUDA capability carried by the torch wheel.
 # One image therefore runs unchanged on Compute2's `general-cpu` and on
-# `general-gpu` with an H100.
+# `general-gpu` with an H100 — but only together with the
+# NVIDIA_VISIBLE_DEVICES setting below, without which the GPU half of
+# that claim is silently false.
 #
 # Python 3.11 matches upstream's own environment.yml (3.11.4) and sits
 # inside setup.py's `>=3.10,<3.14`.
@@ -58,6 +60,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     MPLBACKEND=Agg
+
+# Without these the slim base gets no GPU, whatever the torch wheel says.
+# enroot/libnvidia-container decides whether to inject the driver by reading
+# NVIDIA_VISIBLE_DEVICES from the image. CUDA base images set it; python:*-slim
+# does not, so the driver is never mounted, libcuda.so.1 is absent, and
+# torch.cuda.is_available() returns False on a GPU node even with the cu128
+# wheel installed. Verified on Compute2 2026-08-19: without this, an H100 job
+# reported NVIDIA_VISIBLE_DEVICES=unset, no nvidia-smi, no libcuda.so.1 and
+# available=False, while a CUDA-base image in the same allocation saw the H100.
+ENV NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 # git: pip installs both n2n4m and crism_ml from git URLs.
 # libgomp1: the slim base omits it. The heavyweight wheels here (torch,
