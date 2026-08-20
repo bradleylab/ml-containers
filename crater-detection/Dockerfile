@@ -69,7 +69,9 @@ RUN pip install --upgrade pip wheel \
         "spiceypy==6.0.0" \
         "tqdm>=4.66" \
         "matplotlib==3.9.2" \
-        "opencv-python-headless==4.10.0.84"
+        "opencv-python-headless==4.10.0.84" \
+        "mlflow==2.17.2" \
+        "onnx==1.17.0"
 
 RUN git clone --depth 1 https://github.com/wdoppenberg/crater-detection.git /opt/crater-detection \
     && cd /opt/crater-detection \
