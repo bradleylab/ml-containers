@@ -57,11 +57,17 @@ synthetic 6×128×128 patch of zeros. Zeros are the point: the test is
 whether the weights load and the graph runs on an H100, not whether the
 prediction is meaningful.
 
+The writable `/work` mount and `--container-workdir` are required, not
+cosmetic: importing `train_vanilla_unet` calls `os.makedirs` at module scope,
+and the container root is read-only, so the import itself fails without them.
+Create the directory first with `mkdir -p /scratch2/fs1/alexander.s.bradley/insar_work`.
+
 ```bash
 srun -A compute2-alexander.s.bradley -p general-gpu \
      --gpus=1 --cpus-per-task=4 --mem=16G --time=00:15:00 \
      --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+insar-unwrap+v1.sqsh \
-     --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/opt/hf-cache \
+     --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/opt/hf-cache,/scratch2/fs1/alexander.s.bradley/insar_work:/work \
+     --container-workdir=/work \
      bash -lc 'export PYTHONNOUSERSITE=1; export HF_HUB_OFFLINE=1; python - <<PY
 import torch
 from huggingface_hub import hf_hub_download
@@ -74,7 +80,10 @@ path = hf_hub_download(
     repo_id="Prabhjotschugh/InSAR-Phase-Unwrapping-Models",
     filename="standardized/vanilla_unet_model.pth",
 )
-ckpt = torch.load(path, map_location="cuda")
+# Map to CPU, not CUDA. The stats below are tensors from this checkpoint;
+# mapping them to CUDA and then normalising a CPU input against them raises
+# "Expected all tensors to be on the same device".
+ckpt = torch.load(path, map_location="cpu")
 model = VanillaInSAR_UNet(6, 1, base_channels=32, dropout=0.0)
 print("load_state_dict:", model.load_state_dict(ckpt["model"], strict=True))
 model.cuda().eval()
