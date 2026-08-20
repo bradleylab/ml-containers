@@ -13,7 +13,7 @@ here that does not need a job):
 
 ```bash
 enroot import \
-  -o /storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
+  -o /storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
   'docker://ghcr.io#bradleylab/n2n4m:v1'
 ```
 
@@ -35,7 +35,7 @@ sbatch -A compute2-alexander.s.bradley \
        -J n2n4m-smoke \
        -o n2n4m-smoke-%j.out \
        --wrap='srun \
-         --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
+         --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
          bash -lc "export PYTHONNOUSERSITE=1; python -c \"
 import importlib.metadata as im, warnings, numpy as np, torch
 warnings.simplefilter(\\\"ignore\\\")
@@ -60,7 +60,7 @@ often is — put the Python in a file on scratch and call it:
 ```bash
 srun -A compute2-alexander.s.bradley -p general-cpu --cpus-per-task=1 \
      --mem=4G --time=00:05:00 \
-     --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
+     --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
      --container-mounts=/scratch2/fs1/alexander.s.bradley/scripts:/scripts \
      bash -lc 'export PYTHONNOUSERSITE=1; python /scripts/n2n4m_smoke.py'
 ```
@@ -101,7 +101,7 @@ the device.
 ```bash
 srun -A compute2-alexander.s.bradley -p general-gpu --gpus=1 \
      --cpus-per-task=1 --mem=8G --time=00:05:00 \
-     --container-image=/storage1/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
+     --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
      --container-mounts=/scratch2/fs1/alexander.s.bradley/scripts:/scripts \
      bash -lc 'export PYTHONNOUSERSITE=1; python /scripts/n2n4m_smoke.py'
 ```
