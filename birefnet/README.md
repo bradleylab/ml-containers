@@ -28,6 +28,18 @@ e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4
 Bumping it means reading the diff of those two files first. This is executable
 content arriving from a third-party repo, not data.
 
+## It loads in half precision
+
+The checkpoint's weights are fp16. Feeding it a float32 tensor raises:
+
+```
+RuntimeError: Input type (float) and bias type (c10::Half) should be the same
+```
+
+On CPU you must cast the model up — `.float()` — because half-precision
+convolution is not implemented there. On a GPU either cast the model up or cast
+the input down; casting the input is the cheaper of the two at 1024x1024.
+
 ## kornia is pinned, deliberately
 
 `kornia==0.8.2`, not 0.8.3. Version 0.8.3 runs `torch.jit.script` at module

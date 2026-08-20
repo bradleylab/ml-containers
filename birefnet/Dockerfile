@@ -61,12 +61,19 @@ AutoModelForImageSegmentation.from_pretrained('ZhengPeng7/BiRefNet', trust_remot
 # Build smoke test — offline, CPU. A real forward pass; asserts the mask
 # comes back at input resolution and single-channel, which is what any
 # downstream compositing step assumes.
+#
+# .float() is required, not tidiness: this checkpoint loads in half
+# precision, and half-precision convolution is not implemented on CPU, so
+# a float32 input against the fp16 bias raises
+#   RuntimeError: Input type (float) and bias type (c10::Half) should be the same
+# On a GPU either cast the model up or cast the input to half; on CPU the
+# model must be cast up.
 RUN HF_HUB_OFFLINE=1 python -c "\
 import importlib.metadata as im, os; \
 import numpy as np, torch; \
 from transformers import AutoModelForImageSegmentation; \
 print('transformers', im.version('transformers'), '| torch', im.version('torch'), '| kornia', im.version('kornia')); \
-m = AutoModelForImageSegmentation.from_pretrained('ZhengPeng7/BiRefNet', trust_remote_code=True, revision=os.environ['BIREFNET_REVISION']).eval(); \
+m = AutoModelForImageSegmentation.from_pretrained('ZhengPeng7/BiRefNet', trust_remote_code=True, revision=os.environ['BIREFNET_REVISION']).eval().float(); \
 torch.set_grad_enabled(False); \
 x = torch.zeros(1, 3, 1024, 1024); \
 out = m(x); \
