@@ -62,7 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # torch-scatter and spconv wheels are published per exact torch+CUDA pair;
 # floating either is how this image stops building.
-RUN pip install --upgrade pip wheel \
+RUN pip install --upgrade pip wheel setuptools \
     && pip install \
         "torch-scatter" -f https://data.pyg.org/whl/torch-2.5.1+cu124.html \
     && pip install \
