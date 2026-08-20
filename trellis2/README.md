@@ -38,6 +38,22 @@ If that wheel ever stops matching, TRELLIS.2 accepts `ATTN_BACKEND` in
 built-in attention and needs no extra package** — that is the fallback, at some
 cost in speed and memory.
 
+## The build proves less here than for other images
+
+Importing `trellis2` pulls in Triton, which raises
+
+```
+RuntimeError: 0 active drivers ([]). There should only be one.
+```
+
+on a machine with no GPU. That is not a defect — it is what a GPU package does
+without a driver — but it means the CI runner cannot import the package at all.
+
+So the build smoke test verifies the compiled extensions are present and stops
+there. **The import, the pipeline construction and a real forward pass are only
+proven by `SMOKE.md` on an H100.** Until that has been run, a green build here
+is weaker evidence than a green build of, say, `dinov3`.
+
 ## Why the smoke test checks extensions, not imports
 
 A CUDA extension that installs with **no kernels still exits 0**. This repo has

@@ -103,23 +103,31 @@ ENV PYTHONPATH=/opt/trellis2
 COPY fetch_weights.py /opt/fetch_weights.py
 RUN python /opt/fetch_weights.py
 
-# Build smoke test — CPU, offline. Deliberately NOT an import check of
-# trellis2 alone: it asserts each compiled CUDA extension loaded its
-# native module, because a kernel-less install exits 0 and would
-# otherwise ship green. A forward pass needs a GPU and lives in SMOKE.md.
-RUN HF_HUB_OFFLINE=1 ATTN_BACKEND=sdpa python -c "\
-import importlib, importlib.metadata as im; \
-import torch; \
-print('torch', im.version('torch'), '| arch list', __import__('os').environ.get('TORCH_CUDA_ARCH_LIST')); \
+# Build smoke test — CPU, offline, and deliberately limited.
+#
+# It checks that each compiled CUDA extension is PRESENT, because a
+# kernel-less CUDA extension still exits 0 — the natten and
+# torch-harmonics failure this repo already shipped once, where a green
+# build produced a degraded image.
+#
+# It does NOT import trellis2. Importing it pulls in Triton, which raises
+#   RuntimeError: 0 active drivers ([]). There should only be one.
+# on a runner with no GPU. That is not a defect in the image; it is what
+# a GPU package does on a machine with no driver. So the import, the
+# pipeline construction and a real forward pass all live in SMOKE.md and
+# run on an H100 — which means this build proves less than the other
+# images in this repo, and that is stated rather than glossed.
+RUN HF_HUB_OFFLINE=1 python -c "\
+import importlib.util, importlib.metadata as im, os; \
+print('torch', im.version('torch'), '| arch list', os.environ.get('TORCH_CUDA_ARCH_LIST')); \
 mods = ['nvdiffrast', 'cumesh', 'flexgemm', 'ovoxel', 'flash_attn']; \
-missing = []; \
-[missing.append(m) for m in mods if importlib.util.find_spec(m) is None]; \
-print('extensions present:', [m for m in mods if m not in missing], '| absent:', missing); \
-assert 'flash_attn' not in missing, 'flash-attn wheel did not install'; \
-import trellis2; \
-print('trellis2 imported'); \
-from trellis2.pipelines import Trellis2ImageTo3DPipeline; \
-print('pipeline class resolved:', Trellis2ImageTo3DPipeline.__name__); \
+present = [m for m in mods if importlib.util.find_spec(m) is not None]; \
+missing = [m for m in mods if m not in present]; \
+print('extensions present:', present); \
+print('extensions absent :', missing); \
+assert not missing, f'compiled extensions missing: {missing}'; \
+assert os.path.isdir('/opt/trellis2/trellis2'), 'trellis2 source not in place'; \
+print('NOTE: trellis2 import and forward pass are proven in SMOKE.md, not here'); \
 print('SMOKE OK')"
 
 LABEL org.opencontainers.image.title="trellis2" \
