@@ -73,7 +73,11 @@ RUN pip install --upgrade pip wheel setuptools \
         "numpy<2" \
         "opencv-python-headless>=4.9"
 
-RUN pip install "git+https://github.com/Pointcept/Utonia.git@main"
+# --no-build-isolation: Utonia's setup.py imports pkg_resources, and pip's
+# isolated build environment does not inherit the setuptools installed
+# above. Without this the install fails on ModuleNotFoundError even though
+# setuptools is present in the image.
+RUN pip install --no-build-isolation "git+https://github.com/Pointcept/Utonia.git@main"
 
 # Bake the checkpoint (CC-BY-NC-4.0) so compute nodes need no network.
 RUN python -c "\
