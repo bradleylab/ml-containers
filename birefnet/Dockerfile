@@ -67,8 +67,9 @@ import numpy as np, torch; \
 from transformers import AutoModelForImageSegmentation; \
 print('transformers', im.version('transformers'), '| torch', im.version('torch'), '| kornia', im.version('kornia')); \
 m = AutoModelForImageSegmentation.from_pretrained('ZhengPeng7/BiRefNet', trust_remote_code=True, revision=os.environ['BIREFNET_REVISION']).eval(); \
+torch.set_grad_enabled(False); \
 x = torch.zeros(1, 3, 1024, 1024); \
-with torch.inference_mode(): out = m(x); \
+out = m(x); \
 pred = out[-1] if isinstance(out, (list, tuple)) else out; \
 pred = pred[-1] if isinstance(pred, (list, tuple)) else pred; \
 pred = pred.sigmoid(); \

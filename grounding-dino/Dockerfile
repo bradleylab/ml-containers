@@ -59,8 +59,9 @@ mid = 'IDEA-Research/grounding-dino-base'; \
 p = AutoProcessor.from_pretrained(mid); \
 m = AutoModelForZeroShotObjectDetection.from_pretrained(mid).eval(); \
 img = Image.fromarray(np.random.default_rng(0).integers(0, 255, (480, 640, 3), dtype=np.uint8)); \
+torch.set_grad_enabled(False); \
 x = p(images=img, text='a rock. a tree.', return_tensors='pt'); \
-with torch.inference_mode(): out = m(**x); \
+out = m(**x); \
 r = p.post_process_grounded_object_detection(out, x.input_ids, threshold=0.05, target_sizes=[(480, 640)])[0]; \
 print('keys', sorted(r.keys())); \
 assert {'scores', 'boxes'} <= set(r.keys()), sorted(r.keys()); \
