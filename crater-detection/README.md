@@ -40,6 +40,23 @@ dependencies are installed explicitly and the build smoke test imports the
 detection path — if `surrender` were genuinely needed there, the build fails
 instead of shipping a broken image.
 
+## The synthetic-data path does not work on modern Python
+
+`src/common/surrender.py` uses `from collections import Iterable`, removed in
+Python 3.10, and depends on the package whose `git://` install line is already
+broken. Importing the `src.detection` **package** pulls it in via
+`__init__.py` -> `.training`.
+
+So use the module, not the package:
+
+```python
+from src.detection.model import CraterDetector   # works
+import src.detection                             # ImportError on py3.10+
+```
+
+Inference does not need any of it. Training-data synthesis with SurRender would
+need both that dependency and an older Python, and is out of scope here.
+
 ## Maintenance status
 
 Upstream has had no commits since 2025-01, so the commit is pinned

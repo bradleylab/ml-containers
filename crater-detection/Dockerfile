@@ -89,8 +89,14 @@ RUN cd /opt/crater-detection/blobs \
        done
 
 # Build smoke test — CPU, offline. Loads the real checkpoint and asserts it
-# is a populated state dict. This is also what proves the surrender
-# omission is safe: if the detection path imported it, this would fail.
+# is a populated state dict, then imports the inference entrypoint.
+#
+# It imports src.detection.model, NOT the src.detection package. The
+# package __init__ also pulls in .training, which imports
+# src/common/surrender.py — and that file both needs the uninstallable
+# surrender dependency and uses `from collections import Iterable`,
+# removed in Python 3.10. The synthetic-data path is simply not usable
+# on a modern Python, and inference does not need it.
 RUN python -c "\
 import importlib.metadata as im; \
 import torch; \
@@ -100,8 +106,8 @@ state = sd.get('model_state_dict', sd) if isinstance(sd, dict) else sd; \
 keys = list(state.keys()) if hasattr(state, 'keys') else []; \
 print('checkpoint entries', len(keys), '| first', keys[:2]); \
 assert len(keys) > 50, len(keys); \
-import src.detection as d; \
-print('detection module imported:', d.__name__); \
+from src.detection.model import CraterDetector; \
+print('inference entrypoint imported:', CraterDetector.__name__); \
 print('SMOKE OK')"
 
 LABEL org.opencontainers.image.title="crater-detection" \
