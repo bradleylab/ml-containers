@@ -78,6 +78,20 @@ RUN git clone --depth 1 https://github.com/wdoppenberg/crater-detection.git /opt
     && git fetch --depth 1 origin "${CRATER_COMMIT}" \
     && git checkout "${CRATER_COMMIT}"
 
+# Break the import chain into the synthetic-data path.
+#
+# Importing ANY submodule of src runs src/__init__.py, which imports .detection,
+# whose __init__ imports .training, which imports src/common/surrender.py. That
+# file needs the surrender dependency whose git:// install line is already dead,
+# and uses `from collections import Iterable`, removed in Python 3.10. So the
+# whole training path is unusable on a modern Python, and it sits between the
+# caller and the inference model.
+#
+# Inference never touches it. The MIT licence permits the modification.
+RUN sed -i '/from .training import train_model/d' /opt/crater-detection/src/detection/__init__.py \
+    && sed -i '/from .matching import CraterDatabase/d' /opt/crater-detection/src/__init__.py \
+    && grep -q train_model /opt/crater-detection/src/detection/__init__.py && exit 1 || true
+
 # Fetch the real LFS objects over HTTPS and refuse anything pointer-sized.
 # 221297063 bytes is the size recorded in the LFS pointer for CraterRCNN.
 RUN cd /opt/crater-detection/blobs \
