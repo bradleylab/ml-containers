@@ -66,7 +66,7 @@ RUN pip install --upgrade pip wheel \
     && pip install \
         "torch-scatter" -f https://data.pyg.org/whl/torch-2.5.1+cu124.html \
     && pip install \
-        "spconv-cu124==2.3.6" \
+        "spconv-cu124==2.3.8" \
         "timm==1.0.28" \
         "huggingface_hub>=0.25" \
         "einops>=0.7" \
