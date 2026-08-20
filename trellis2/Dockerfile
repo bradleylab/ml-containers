@@ -97,10 +97,11 @@ RUN git clone -b main --recursive https://github.com/microsoft/TRELLIS.2.git /op
 
 ENV PYTHONPATH=/opt/trellis2
 
-# Bake the checkpoint so compute nodes need no outbound network.
-RUN python -c "\
-from huggingface_hub import snapshot_download; \
-snapshot_download('microsoft/TRELLIS.2-4B')"
+# Bake the checkpoint so compute nodes need no outbound network. The fetch is
+# retried — see the module docstring for why a bare snapshot_download is not a
+# reliable build step for a checkpoint this size.
+COPY fetch_weights.py /opt/fetch_weights.py
+RUN python /opt/fetch_weights.py
 
 # Build smoke test — CPU, offline. Deliberately NOT an import check of
 # trellis2 alone: it asserts each compiled CUDA extension loaded its
