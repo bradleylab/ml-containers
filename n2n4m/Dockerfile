@@ -72,6 +72,23 @@ ENV DEBIAN_FRONTEND=noninteractive \
 ENV NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
+# THE COST OF THE LINE ABOVE: this image can no longer *start* on Compute2's
+# general-cpu partition by default. enroot's NVIDIA hook reads
+# NVIDIA_VISIBLE_DEVICES, tries to inject a driver, and aborts where there is
+# none:
+#     nvidia-container-cli: initialization error: nvml error: driver not loaded
+#
+# CPU jobs must override it:
+#     srun --export=ALL,NVIDIA_VISIBLE_DEVICES=void ...
+#
+# "void" tells libnvidia-container to skip the hook entirely. Verified on
+# general-cpu 2026-08-21: without it the container fails to start; with it the
+# smoke test passes.
+#
+# This is not specific to this image — every CUDA-base image in this repo
+# behaves the same way, because those base images set the variable themselves.
+# n2n4m is only unusual in having claimed dual-partition support explicitly.
+
 # git: pip installs both n2n4m and crism_ml from git URLs.
 # libgomp1: the slim base omits it. The heavyweight wheels here (torch,
 # numpy, scipy, scikit-learn) each vendor their own copy, so this is

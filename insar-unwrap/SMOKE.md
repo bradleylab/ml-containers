@@ -1,5 +1,14 @@
 # insar-unwrap — Compute2 smoke test
 
+> [!warning] CPU-partition runs need `NVIDIA_VISIBLE_DEVICES=void`
+> Every CUDA-base image in this repo sets `NVIDIA_VISIBLE_DEVICES`, and enroot's
+> NVIDIA hook then tries to inject a driver on whatever node it lands on. On
+> `general-cpu` there is none, so the container fails to *start*:
+> `nvidia-container-cli: initialization error: nvml error: driver not loaded`.
+>
+> Add `--export=ALL,NVIDIA_VISIBLE_DEVICES=void` to any `srun` on `general-cpu`.
+> `void` tells libnvidia-container to skip the hook. Verified 2026-08-21.
+
 The smallest run that proves the image works on a compute node. It does
 not prove the science; it proves the container, the checkpoint, and the
 GPU are all reachable from a job.
@@ -28,7 +37,8 @@ That is one 93 MB file. Everything below then runs offline.
 **Input:** none.
 
 ```bash
-srun -A compute2-alexander.s.bradley -p general-cpu \
+srun --export=ALL,NVIDIA_VISIBLE_DEVICES=void \
+     -A compute2-alexander.s.bradley -p general-cpu \
      --cpus-per-task=2 --mem=8G --time=00:10:00 \
      --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+insar-unwrap+v1.sqsh \
      bash -lc 'export PYTHONNOUSERSITE=1; export HF_HUB_OFFLINE=1; \
