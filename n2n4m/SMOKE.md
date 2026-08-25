@@ -1,5 +1,14 @@
 # n2n4m — Compute2 smoke test
 
+> [!warning] CPU-partition runs need `NVIDIA_VISIBLE_DEVICES=void`
+> Every CUDA-base image in this repo sets `NVIDIA_VISIBLE_DEVICES`, and enroot's
+> NVIDIA hook then tries to inject a driver on whatever node it lands on. On
+> `general-cpu` there is none, so the container fails to *start*:
+> `nvidia-container-cli: initialization error: nvml error: driver not loaded`.
+>
+> Add `--export=ALL,NVIDIA_VISIBLE_DEVICES=void` to any `srun` on `general-cpu`.
+> `void` tells libnvidia-container to skip the hook. Verified 2026-08-21.
+
 The smallest job that proves the image landed on Compute2 intact. It
 touches no CRISM data, no Zenodo data, and no network: it loads the baked
 weights and scaler and runs one forward pass. If this passes, the image is
@@ -58,7 +67,8 @@ If quoting that through `--wrap` is more trouble than it is worth — and it
 often is — put the Python in a file on scratch and call it:
 
 ```bash
-srun -A compute2-alexander.s.bradley -p general-cpu --cpus-per-task=1 \
+srun --export=ALL,NVIDIA_VISIBLE_DEVICES=void \
+     -A compute2-alexander.s.bradley -p general-cpu --cpus-per-task=1 \
      --mem=4G --time=00:05:00 \
      --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+n2n4m+v1.sqsh \
      --container-mounts=/scratch2/fs1/alexander.s.bradley/scripts:/scripts \
