@@ -29,6 +29,10 @@
 #      below matches cu12 / torch 2.6 / cp311 / cxx11abiFALSE, which is
 #      what the pytorch base image's own torch was built against.
 #
+# Import names differ from the repository names: FlexGEMM installs as
+# flex_gemm and o-voxel as o_voxel. Checking the repo names instead
+# reports them missing when they are present.
+#
 # A CUDA extension that installs with NO kernels still exits 0 — the
 # failure this repo already hit with natten and torch-harmonics, where a
 # green build shipped a degraded image. So the smoke test below imports
@@ -120,7 +124,7 @@ RUN python /opt/fetch_weights.py
 RUN HF_HUB_OFFLINE=1 python -c "\
 import importlib.util, importlib.metadata as im, os; \
 print('torch', im.version('torch'), '| arch list', os.environ.get('TORCH_CUDA_ARCH_LIST')); \
-mods = ['nvdiffrast', 'cumesh', 'flexgemm', 'ovoxel', 'flash_attn']; \
+mods = ['nvdiffrast', 'cumesh', 'flex_gemm', 'o_voxel', 'flash_attn']; \
 present = [m for m in mods if importlib.util.find_spec(m) is not None]; \
 missing = [m for m in mods if m not in present]; \
 print('extensions present:', present); \
