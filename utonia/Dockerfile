@@ -73,6 +73,9 @@ RUN pip install --upgrade pip wheel "setuptools<81" \
         "timm==1.0.28" \
         "huggingface_hub>=0.25" \
         "einops>=0.7" \
+        "addict>=2.4" \
+        "scipy==1.14.1" \
+        "packaging" \
         "numpy<2" \
         "opencv-python-headless>=4.9"
 
@@ -96,6 +99,10 @@ import importlib.metadata as im; \
 import importlib.util, torch; \
 print('torch', im.version('torch'), '| numpy', im.version('numpy')); \
 assert importlib.util.find_spec('flash_attn') is None, 'flash_attn present — update the README contract'; \
+deps = ['addict', 'huggingface_hub', 'numpy', 'packaging', 'scipy', 'spconv', 'timm', 'torch', 'torch_scatter']; \
+absent = [d for d in deps if importlib.util.find_spec(d) is None]; \
+print('runtime deps absent:', absent); \
+assert not absent, absent; \
 import utonia; \
 print('utonia imported'); \
 from utonia.model import Utonia; \
