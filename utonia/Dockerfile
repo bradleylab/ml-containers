@@ -62,7 +62,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # torch-scatter and spconv wheels are published per exact torch+CUDA pair;
 # floating either is how this image stops building.
-RUN pip install --upgrade pip wheel setuptools \
+# setuptools held below 81: Utonia's setup.py imports pkg_resources, which
+# modern setuptools has removed. Upgrading unpinned installs a version
+# without it and the build fails inside setuptools' own build_meta.
+RUN pip install --upgrade pip wheel "setuptools<81" \
     && pip install \
         "torch-scatter" -f https://data.pyg.org/whl/torch-2.5.1+cu124.html \
     && pip install \
