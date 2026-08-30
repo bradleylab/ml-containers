@@ -334,6 +334,20 @@ The FRACTAL dataset itself derives from the French Lidar HD programme
 
 ## Build notes
 
+- **myria3d is installed editable, and that is not a style choice.**
+  Upstream's `pyproject.toml` declares `packages = ["myria3d"]`, naming the
+  top-level package and nothing beneath it. A regular install therefore copies
+  four files into site-packages — `__init__.py`, `_version.py`, `predict.py`,
+  `train.py` — and silently leaves `myria3d.models`, `myria3d.pctl` and the
+  rest of the source tree out. Package metadata reads correctly and
+  `import myria3d` succeeds, so the omission only shows up an import later, as
+  `ModuleNotFoundError: No module named 'myria3d.models'`. Upstream never meets
+  this because their own Dockerfile does not install the package at all; it
+  copies the repo in and runs from that directory. `pip install -e` points the
+  import machinery at `/opt/myria3d`, so the whole tree imports from any
+  working directory while the metadata the smoke test reads still registers.
+  If a future edit "tidies" this back to a plain install, the build fails at
+  smoke test 1 — which is where it should fail.
 - **Weights removal is deliberate, not an oversight.** Upstream commits
   the checkpoint at `trained_model_assets/`; the Dockerfile deletes it
   after cloning. If a future rebuild finds no `.ckpt` there, upstream may

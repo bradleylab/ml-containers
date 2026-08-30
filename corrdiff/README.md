@@ -33,8 +33,11 @@ field directly rather than a residual on top of a regression prediction.
 - `earth2studio==0.17.0`.
 - `nvidia-physicsnemo` built from git at the revision earth2studio pins — **not**
   a PyPI release, for a specific reason spelled out under Caveats.
-- `natten==0.21.7` compiled from source for sm_90, with the Hopper
-  fused-neighborhood-attention path enabled.
+- `natten==0.21.6` from SHI-Labs' prebuilt wheel index, the build matched to
+  torch 2.11.0 / cu128 / cp312 / x86_64. Their cu128 wheels are compiled with
+  9.0 in the arch list, so the Hopper fused-neighborhood-attention path this
+  model's DiT reaches is present; the build asserts that with `cuobjdump`
+  rather than trusting it.
 - No wrapper CLI. Earth-2 Studio is a Python API; run inference from a script.
 
 ## Checkpoints and GPU requirements
@@ -269,20 +272,29 @@ part of a published layer.
   `TODO(cosmo)` says the git pin goes away then. Moving to a release also
   removes the conflict earth2studio declares between `cosmo` and the `all` /
   `da-healda` extras, which cap physicsnemo at 2.1.1.
-- **NATTEN is the build-cost problem in this image.** It publishes an sdist
-  only — no wheels on PyPI at any version — so every build compiles CUTLASS
-  kernels from source. The layer is limited to sm_90 with 4 workers, which is
-  what a standard GitHub-hosted runner tolerates, but this is by far the
-  longest step and the most likely thing to hit a CI time limit. If it does,
-  the fix is a larger runner or a prebuilt base layer, not widening the arch
-  list.
-- **NATTEN can also install with no CUDA kernels and not tell you.** With no
-  GPU visible and `NATTEN_CUDA_ARCH` unset, its `setup.py` prints "Building
+- **NATTEN used to be the build-cost problem, and the source build had two
+  traps.** PyPI carries an sdist only, so the first version of this recipe
+  compiled CUTLASS kernels from source and never once finished. The first trap
+  is that `NATTEN_CUDA_ARCH` does not take the value it appears to:
+  `setup.py` runs `float(arch) * 10` on it, so the `90` that reads as "sm_90"
+  becomes SM 900 and every kernel dies on `nvcc fatal: Unsupported gpu
+  architecture 'compute_900'`. Hopper is the dotted `9.0`. The second is that
+  even spelled right, a Hopper build stamps out 94 CUTLASS translation units
+  and compiles them four at a time on a 4-vCPU runner. Both go away with
+  SHI-Labs' own prebuilt wheel, which is what the image installs now.
+- **NATTEN can install with no CUDA kernels and not tell you.** With no GPU
+  visible and `NATTEN_CUDA_ARCH` unset, a source build prints "Building
   WITHOUT libnatten" and *succeeds*. The result imports fine and fails only
-  when a DiT block runs on a GPU, hours into a job. The Dockerfile sets the
-  variable and the smoke test asserts `natten.HAS_LIBNATTEN`.
-- **Kernels are compiled for sm_90 only.** Matches Compute2's H100s. This image
-  will not run on an older GPU without a rebuild.
+  when a DiT block runs on a GPU, hours into a job. Two checks stand against
+  that now: the install layer runs `cuobjdump --list-elf` over the installed
+  `libnatten` and requires an sm_90 cubin, and the smoke test asserts
+  `natten.HAS_LIBNATTEN` and re-reads the natten version after the
+  earth2studio resolve, so a swap for the PyPI sdist fails the build.
+- **The wheel carries every architecture NATTEN ships, not only sm_90.** Their
+  release script builds cu128 wheels for SM 5.0 through 12.0. The image is
+  still stated as H100-only because the rest of the stack is tuned for one,
+  but the neighborhood-attention kernels themselves are not the limit they
+  were when this layer was compiled locally.
 - **physicsnemo sets the torch floor.** It declares `torch>=2.10.0`; the image
   pins torch 2.11.0 and holds it with a pip constraint file so no later resolve
   can silently replace the GPU stack — the failure mode the cuequivariance

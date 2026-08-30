@@ -59,7 +59,13 @@ RUN mkdir -p /etc/pip \
 ENV PIP_CONSTRAINT=/etc/pip/e2s-constraint.txt
 
 ARG EARTH2STUDIO_VERSION=0.17.0
-ARG NATTEN_VERSION=0.21.7
+# 0.21.6 rather than the newest 0.21.7 because 0.21.6 is the newest release
+# whose official wheel index carries a build for this image's exact
+# torch 2.11.0 / cu128 / cp312 / x86_64 target (see NATTEN_WHEEL below).
+# earth2studio's `cosmo` extra asks for `natten` with no floor, so the choice
+# is ours, and a matching prebuilt wheel is worth more here than a patch
+# release. Move it only in step with a wheel that matches the torch pin.
+ARG NATTEN_VERSION=0.21.6
 # The DiT in this model uses `attention_backend="natten2d_rope"`, which exists
 # only on physicsnemo main — it is absent from the v2.1.1 tag, verified by
 # diffing physicsnemo/models/dit/dit.py at both refs. earth2studio's `cosmo`
@@ -73,25 +79,47 @@ ENV EARTH2STUDIO_VERSION=${EARTH2STUDIO_VERSION} \
     NATTEN_VERSION=${NATTEN_VERSION} \
     PHYSICSNEMO_REF=${PHYSICSNEMO_REF}
 
-# NATTEN ships an sdist only — no wheels on PyPI at any version — so this
-# layer is a full CUTLASS compile and dominates build time. Two settings
-# matter:
+# NATTEN ships an sdist only on *PyPI*, but SHI-Labs publish prebuilt wheels
+# of their own at https://whl.natten.org, one per (natten, torch, CUDA,
+# CPython, machine) combination. This is one of theirs, matched to the torch
+# pin above: torch 2.11.0, cu128, cp312, x86_64. Override for a local
+# experiment with `docker build --build-arg NATTEN_WHEEL=<url> corrdiff/`.
 #
-#   * NATTEN_CUDA_ARCH=90 targets the H100 (sm_90) and enables NATTEN's Hopper
-#     FNA path. It is not an optimization: with no GPU visible and the variable
-#     unset, natten's setup.py prints "Building WITHOUT libnatten" and the
-#     build *succeeds*, producing an install whose CUDA kernels do not exist.
-#     The smoke test asserts HAS_LIBNATTEN for exactly this reason.
-#   * NATTEN_N_WORKERS defaults to cpu_count//4. Raising it shortens the build
-#     but each worker is an nvcc process holding several GB; 4 is what a
-#     standard GitHub-hosted runner tolerates.
+# Compiling the sdist instead was tried and is the wrong trade. Two things go
+# wrong with it:
 #
-# `--no-build-isolation` because natten's setup.py imports torch to discover
-# the extension ABI, matching upstream's own
-# `[tool.uv] no-build-isolation-package` entry.
-RUN NATTEN_CUDA_ARCH=90 NATTEN_N_WORKERS=4 \
-    pip install --no-cache-dir --no-build-isolation \
-        "natten==${NATTEN_VERSION}"
+#   * The arch variable does not take the value it looks like it takes.
+#     natten's setup.py runs `float(arch) * 10` on it, so the documented
+#     `NATTEN_CUDA_ARCH=90` becomes SM 900 and every kernel dies on
+#     `nvcc fatal: Unsupported gpu architecture 'compute_900'`. The value that
+#     means Hopper is the dotted `9.0`.
+#   * Even spelled correctly, a Hopper build stamps out 94 CUTLASS translation
+#     units under natten's default autogen policy and compiles them four at a
+#     time on a 4-vCPU runner. That is the layer this workflow's 360-minute
+#     timeout was written around, and it buys nothing the wheel does not
+#     already contain.
+#
+# The wheel is not a downgrade in coverage. NATTEN's own release script
+# (scripts/packaging/pkg_helpers.bash) builds every cu128 wheel with
+# TORCH_CUDA_ARCH_LIST="5.0;6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0;10.0;12.0", so
+# 9.0 — the Hopper FNA path this model's DiT reaches through
+# `attention_backend="natten2d_rope"` — is in it. The smoke test does not take
+# that on trust: it runs cuobjdump over the installed libnatten and asserts an
+# sm_90 cubin is present, which is also what catches the older failure mode
+# where a kernel-less natten installs cleanly and exits 0.
+ARG NATTEN_WHEEL=https://github.com/SHI-Labs/NATTEN/releases/download/v0.21.6/natten-0.21.6%2Btorch2110cu128-cp312-cp312-linux_x86_64.whl
+ENV NATTEN_WHEEL=${NATTEN_WHEEL}
+RUN pip install --no-cache-dir "natten @ ${NATTEN_WHEEL}" \
+    && python -c "import importlib.metadata as im; v = im.version('natten'); \
+print('natten', v); \
+assert v.split('+')[0] == '${NATTEN_VERSION}', v; \
+assert v.split('+')[1] == 'torch2110cu128', v; \
+so = [f for f in im.files('natten') if f.name.startswith('libnatten') and f.name.endswith('.so')]; \
+assert len(so) == 1, so; \
+print(so[0].locate())" | tee /tmp/libnatten.path \
+    && cuobjdump --list-elf "$(tail -n1 /tmp/libnatten.path)" > /tmp/libnatten.elf \
+    && grep -q 'sm_90' /tmp/libnatten.elf \
+    && echo "libnatten carries sm_90 cubins: $(grep -c 'sm_90' /tmp/libnatten.elf)"
 
 # One resolve for the framework, the git physicsnemo, and the rest of the
 # `cosmo` extra.
@@ -110,11 +138,19 @@ ENV EARTH2STUDIO_CACHE=/root/.cache/earth2studio
 # Build-time smoke test — offline, no weight fetch. Versions from package
 # metadata per the ml-containers rule, never `pkg.__version__`.
 #
-# HAS_LIBNATTEN is the assertion that earns its keep: a natten built without
-# CUDA kernels installs cleanly and only fails once a DiT block actually runs
-# on an H100, hours into a job. The physicsnemo SHA is read back from pip's
-# own direct_url.json record so a silently drifted pin fails the build rather
-# than shipping.
+# HAS_LIBNATTEN is the assertion that earns its keep: a natten carrying no
+# CUDA kernels imports cleanly and only fails once a DiT block actually runs
+# on an H100, hours into a job. The natten version is re-read here too, not
+# just at install: the resolve above asks for `earth2studio`, whose `cosmo`
+# extra requires `natten` with no floor, and an already-satisfied requirement
+# is meant to be left alone — this asserts that outcome rather than assuming
+# it, so a swap for the PyPI sdist fails the build. The physicsnemo SHA is
+# read back from pip's own direct_url.json record so a silently drifted pin
+# fails the build rather than shipping.
+#
+# load_default_package() is called, not merely looked up: it is the real entry
+# point a job starts from, it resolves the Hugging Face package descriptor,
+# and it fetches no weights.
 RUN python -c "import importlib.metadata as im, json, os, torch; \
 from natten import HAS_LIBNATTEN; \
 from earth2studio.models.dx import CorrDiffCosmoEra5; \
@@ -124,10 +160,13 @@ bad = [k for k in ODF.failures if k.endswith('corrdiff_cosmo_era5.py')]; \
 print('earth2studio', im.version('earth2studio'), '| nvidia-physicsnemo', im.version('nvidia-physicsnemo'), pnm_sha, \
 '| natten', im.version('natten'), 'libnatten', HAS_LIBNATTEN, '| torch', torch.__version__); \
 assert torch.__version__.split('+')[0] == '${TORCH_VERSION}', torch.__version__; \
-assert HAS_LIBNATTEN, 'natten built without libnatten — NATTEN_CUDA_ARCH was not honoured'; \
+assert HAS_LIBNATTEN, 'natten carries no CUDA kernels — the prebuilt wheel was replaced'; \
+assert im.version('natten') == '${NATTEN_VERSION}+torch2110cu128', im.version('natten'); \
 assert pnm_sha == os.environ['PHYSICSNEMO_REF'], (pnm_sha, os.environ['PHYSICSNEMO_REF']); \
 assert not bad, ('cosmo optional dependencies failed to import', bad); \
-assert CorrDiffCosmoEra5.load_default_package is not None"
+package = CorrDiffCosmoEra5.load_default_package(); \
+print('default package', package); \
+assert package is not None"
 
 WORKDIR /workspace
 
@@ -148,4 +187,5 @@ LABEL org.opencontainers.image.title="corrdiff" \
       bradleylab.build.earth2studio_version="${EARTH2STUDIO_VERSION}" \
       bradleylab.build.torch_version="${TORCH_VERSION}" \
       bradleylab.build.natten_version="${NATTEN_VERSION}" \
+      bradleylab.build.natten_wheel="${NATTEN_WHEEL}" \
       bradleylab.build.physicsnemo_ref="${PHYSICSNEMO_REF}"
