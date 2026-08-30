@@ -105,8 +105,8 @@ print('runtime deps absent:', absent); \
 assert not absent, absent; \
 import utonia; \
 print('utonia imported'); \
-from utonia.model import Utonia; \
-print('Utonia class resolved'); \
+from utonia.model import PointTransformerV3; \
+print('model class resolved:', PointTransformerV3.__name__); \
 print('flash-attn absent as designed; callers must pass enable_flash=False'); \
 print('SMOKE OK')"
 

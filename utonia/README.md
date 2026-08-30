@@ -26,8 +26,13 @@ different operation, so the non-fused path computes the same thing — slower,
 and with a larger activation footprint at the same batch size.
 
 ```python
-model = Utonia(..., enable_flash=False)   # required in this image
+from utonia.model import PointTransformerV3
+model = PointTransformerV3.from_pretrained("Pointcept/Utonia", enable_flash=False)
 ```
+
+The class is `PointTransformerV3`, not `Utonia` — the repository is named for
+the release, the class for the architecture it extends. `enable_flash=False` is
+required in this image.
 
 Leaving the default `True` raises `AssertionError: Make sure flash_attn is
 installed.` — a clear failure, not a silent one.
