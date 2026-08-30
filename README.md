@@ -5,6 +5,16 @@ Custom ML Docker images for bradleylab research compute (WashU RIS Compute2, EC2
 For per-image task / sensor / paper / weights / license / lab-status,
 see [`MODEL_CARDS.md`](MODEL_CARDS.md).
 
+**Publishing a license anywhere else? Read it from
+[`LICENSE_MANIFEST.json`](LICENSE_MANIFEST.json), not from a Dockerfile.**
+That file is generated from the `org.opencontainers.image.licenses` and
+`bradleylab.model.licence.note` labels by `scripts/license_manifest.py`, and CI
+fails if it falls behind them. Every license error that has reached the lab
+website so far was a label copied by hand and then left behind when the
+Dockerfile moved on. Composite licenses (`Apache-2.0 AND CC-BY-NC-4.0`) are
+recorded verbatim — publish them whole; dropping the second term drops the
+binding constraint.
+
 ## Conventions
 
 These rules govern what belongs in this repo and how images are built and
