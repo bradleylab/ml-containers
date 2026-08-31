@@ -1,15 +1,24 @@
 name: License-label audit
 
-# Compares every image's org.opencontainers.image.licenses label against the
-# license its bradleylab.model.upstream repository actually declares. A wrong
-# label misstates an obligation passed on to whoever pulls the image, and the
-# ones found so far all understated copyleft — MIT sitting over a GPL-3.0
-# upstream. Nothing surfaces that drift on its own, hence the schedule.
+# Two guards over the same labels.
 #
-# Comments on the audit log issue every run, pass or fail, so a week with no
-# comment means the workflow broke rather than the labels being clean.
-# Genuinely-fine exceptions live in scripts/license_audit_exceptions.json and
-# stop applying the moment an image's label changes.
+# `audit` compares every image's org.opencontainers.image.licenses label
+# against the license its bradleylab.model.upstream repository actually
+# declares. A wrong label misstates an obligation passed on to whoever pulls
+# the image, and the ones found so far all understated copyleft — MIT sitting
+# over a GPL-3.0 upstream. Nothing surfaces that drift on its own, hence the
+# schedule. It comments on the audit log issue every run, pass or fail, so a
+# week with no comment means the workflow broke rather than the labels being
+# clean. Genuinely-fine exceptions live in scripts/license_audit_exceptions.json
+# and stop applying the moment an image's label changes.
+#
+# `manifest` checks that LICENSE_MANIFEST.json still matches those labels. The
+# manifest exists so downstream consumers — the lab website above all — read
+# the license from a file instead of copying it out of a Dockerfile by eye,
+# which is how GeoCLIP went out as Apache-2.0 over an MIT upstream and how SAM2
+# and MOMO each went out with half a composite license. A manifest allowed to
+# go stale would reintroduce exactly that gap, so a Dockerfile label change
+# that skips the regeneration fails here.
 
 on:
   schedule:
@@ -18,8 +27,11 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - '*/Dockerfile'
+      - 'LICENSE_MANIFEST.json'
       - 'scripts/license_audit.py'
       - 'scripts/license_audit_exceptions.json'
+      - 'scripts/license_manifest.py'
       - '.github/workflows/license-audit.yml'
 
 permissions:
@@ -63,3 +75,16 @@ jobs:
           echo "One or more images declare a license their upstream does not."
           echo "See the report above and the audit log issue."
           exit 1
+
+  # Its own job rather than another step of `audit`, so that a stale manifest
+  # and a wrong label are told apart from the checks list, and so this one
+  # still runs when the upstream API is unreachable.
+  manifest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the manifest still matches the Dockerfile labels
+        run: python3 scripts/license_manifest.py --check
