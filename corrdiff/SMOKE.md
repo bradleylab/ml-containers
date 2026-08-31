@@ -114,9 +114,9 @@ The job exits 0 and `corrdiff-smoke-<jobid>.out` contains:
 
 Any Python traceback is a failure. Two are worth distinguishing:
 
-- A CUDA error from inside a NATTEN kernel means the kernels were compiled for
-  the wrong architecture. The image targets sm_90 only; nothing older will run
-  it.
+- A CUDA error from inside a NATTEN kernel means the installed `libnatten`
+  carries no cubin for the GPU it is running on. The build asserts an sm_90
+  cubin is present, so on an H100 this points somewhere other than NATTEN.
 - An `OptionalDependencyError` naming the `cosmo` group means the git-pinned
   physicsnemo did not resolve. This should have been impossible — the
   build-time smoke test reads the commit back from pip's `direct_url.json` — so

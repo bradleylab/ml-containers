@@ -119,11 +119,14 @@ RUN pip install --no-cache-dir --force-reinstall --no-deps "flash-attn @ ${FLASH
 # Open Data and GRIB input paths do not touch it, and upstream's checkpoint
 # pyproject lists it only under the `training` extra.
 #
-# torch and numpy are restated here as resolver guards. Nothing in the list
-# requires a different torch, but this image is one `pip install` away from the
-# failure mode that has bitten the lab three times — a transitive dep quietly
-# dragging in a new torch — and an explicit pin turns that into a resolver
-# error at build time instead of a wrong answer at runtime.
+# torch, torch-geometric and numpy are restated here as resolver guards.
+# Nothing in the list requires a different torch, but this image is one
+# `pip install` away from the failure mode that has bitten the lab three times
+# — a transitive dep quietly dragging in a new torch — and an explicit pin
+# turns that into a resolver error at build time instead of a wrong answer at
+# runtime. torch-geometric is restated because nothing in the list caps it: an
+# unguarded resolve moves layer 1's 2.6.1 to 2.8.x, away from the version
+# upstream's own pyproject pins.
 #
 # earthkit-data is the live instance of that failure mode, not a hypothetical
 # one: anemoi-inference 0.8.3 asks only for `earthkit-data>=0.12.4`, with no
@@ -131,8 +134,19 @@ RUN pip install --no-cache-dir --force-reinstall --no-deps "flash-attn @ ${FLASH
 # resolves to 1.1.1 — a major version the 0.8.3 runner was never tested
 # against. Later anemoi-inference releases added the `<1` cap; 0.8.3 predates
 # it, and upstream's own aifs pyproject supplies the cap by hand. So does this.
-RUN pip install --no-cache-dir \
+#
+# The `-c` is what makes this layer terminate. Left to search on its own, pip
+# walked mirlib, contourpy and cftime downwards release by release, reached the
+# cfunits 3.3.2 sdist seventeen minutes in, and died there — that sdist's
+# setup.py no longer runs under current setuptools. The pin set is not in
+# conflict; uv resolves it in seconds and agrees with the checkpoint repo's own
+# uv.lock throughout the anemoi / earthkit / ecCodes chain. constraints.txt is
+# that resolution, so pip has one candidate per package and nothing to search.
+# See the header of aifs/constraints.txt for how to regenerate it.
+COPY constraints.txt /etc/pip/aifs-constraints.txt
+RUN pip install --no-cache-dir -c /etc/pip/aifs-constraints.txt \
         "torch==2.7.0" \
+        "torch-geometric==2.6.1" \
         "numpy==1.26.4" \
         "anemoi-inference[huggingface]==0.8.3" \
         "anemoi-plugins-ecmwf-inference[opendata]==0.2.1" \
@@ -165,9 +179,13 @@ ENV HF_HOME=/root/.cache/huggingface \
 # What this actually proves, beyond "pip exited 0":
 #   - the model class the checkpoint unpickles into is importable;
 #   - eccodes found its binary library (the eccodeslib chain above);
-#   - cfunits found libudunits2 AND its XML (import-time failure otherwise);
+#   - cfunits found libudunits2 AND its XML (import-time failure otherwise),
+#     and converts a real quantity through it — 3.6 km/h is 1 m/s — rather
+#     than only constructing a Units object;
 #   - torch is a CUDA build, not the CPU wheel;
 #   - numpy stayed on 1.x, i.e. the anemoi-graphs ceiling still holds;
+#   - torch-geometric is still layer 1's 2.6.1, i.e. the constraints file kept
+#     the anemoi resolve from upgrading it;
 #   - flash-attn is present and new enough for anemoi-models' own >=2.6.0 gate.
 #
 # flash_attn is checked by metadata rather than imported: its extension module
@@ -186,9 +204,15 @@ print('anemoi-inference', v('anemoi-inference'), '| anemoi-models', v('anemoi-mo
 print('torch', torch.__version__, 'cuda', torch.version.cuda, '| flash-attn', v('flash-attn'), \
 '| numpy', v('numpy'), '| earthkit-data', v('earthkit-data'), '| earthkit-regrid', v('earthkit-regrid'), \
 '| eccodes', v('eccodes'), '| ecmwf-opendata', v('ecmwf-opendata'), '| huggingface-hub', v('huggingface-hub')); \
-cfunits.Units('m s-1'); \
+ms = cfunits.Units('m s-1'); \
+kmh = cfunits.Units('km h-1'); \
+speed = float(cfunits.Units.conform(3.6, kmh, ms)); \
+print('cfunits: 3.6 km h-1 ->', speed, 'm s-1'); \
+assert ms.isvalid and kmh.isvalid, (ms, kmh); \
+assert abs(speed - 1.0) < 1e-9, speed; \
 assert torch.version.cuda is not None, 'CPU-only torch wheel installed'; \
 assert Version(v('numpy')).major == 1, v('numpy'); \
+assert v('torch-geometric') == '2.6.1', v('torch-geometric'); \
 assert Version(v('flash-attn')) >= Version('2.6.0'), v('flash-attn')"
 
 WORKDIR /workspace

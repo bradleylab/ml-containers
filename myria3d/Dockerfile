@@ -187,7 +187,20 @@ RUN git clone https://github.com/IGNF/myria3d.git /opt/myria3d && \
 # installing it registers package metadata, which is what the smoke test
 # reads the version from. run.py and configs/ still run from the source
 # tree at /opt/myria3d.
-RUN pip install --no-deps /opt/myria3d
+#
+# `-e` is load-bearing, not a convenience. Upstream's pyproject declares
+# `[tool.setuptools] packages = ["myria3d"]` — the top-level package and
+# nothing under it — so a regular install copies four files into
+# site-packages (`__init__.py`, `_version.py`, `predict.py`, `train.py`) and
+# leaves `myria3d.models`, `myria3d.pctl` and the rest behind. Metadata reads
+# fine and `import myria3d` succeeds, so the gap only surfaces one import
+# later, as `ModuleNotFoundError: No module named 'myria3d.models'`. Upstream
+# never hits it because their own Dockerfile does not install the package at
+# all; it copies the repo in and runs from that directory. An editable install
+# points the import machinery at /opt/myria3d, so the whole source tree is
+# importable from any working directory while metadata still registers.
+# Do not "clean this up" to a regular install.
+RUN pip install --no-deps -e /opt/myria3d
 
 # Weights are NOT baked.
 #
@@ -210,16 +223,30 @@ ENV MYRIA3D_CKPT_SHA256=58baca3fbc00af2fa4af2a26cea345c08decbbba0215d21d6640c412
     HF_HOME=/root/.cache/huggingface
 
 # Build-time smoke test 1 — versions from package metadata (never
-# pkg.__version__), the model class reached, and a real RandLA-Net built on
-# CPU at the FRACTAL geometry (9 input features, 7 classes). Offline: no
-# checkpoint, no HF call, no GPU.
-RUN python -c "import importlib.metadata as im, os, torch; \
+# pkg.__version__), the two PyG companion extensions run on CPU, the model
+# class is reached, and a real RandLA-Net is built at the FRACTAL geometry
+# (9 input features, 7 classes). Offline: no checkpoint, no HF call, no GPU.
+#
+# The knn_graph and scatter_add calls are the point of the three-way
+# torch/CUDA/PyG pin documented at the top of this file. Both wheels import
+# cleanly even when their compiled ops are wrong for the installed torch, so
+# running one op from each is what actually tests the pin: knn_graph is what
+# RandLA-Net's neighborhood search reaches, scatter_add is what
+# myria3d/models/interpolation.py reaches.
+RUN python -c "import importlib.metadata as im, os, torch, torch_cluster, torch_scatter; \
 print('torch', torch.__version__, '| cuda', torch.version.cuda); \
 print(' | '.join(f'{p} {im.version(p)}' for p in ( \
     'myria3d', 'torch_geometric', 'torch_scatter', 'torch_cluster', 'torch_sparse', \
     'pytorch-lightning', 'torchmetrics', 'hydra-core', 'numpy', 'laspy', \
     'ign-pdal-tools', 'huggingface-hub'))); \
 assert im.version('myria3d') == '3.9.0', im.version('myria3d'); \
+torch.manual_seed(0); \
+pts = torch.rand(64, 3); \
+edge_index = torch_cluster.knn_graph(pts, k=4); \
+print('torch_cluster.knn_graph edge_index', tuple(edge_index.shape)); \
+assert tuple(edge_index.shape) == (2, 256), tuple(edge_index.shape); \
+degree = torch_scatter.scatter_add(torch.ones(edge_index.shape[1]), edge_index[1], dim=0, dim_size=64); \
+assert int(degree.sum().item()) == 256, degree.sum(); \
 from myria3d.models.model import Model; \
 from myria3d.models.modules.pyg_randla_net import PyGRandLANet; \
 net = PyGRandLANet(num_features=9, num_classes=7, num_neighbors=16, decimation=4, return_logits=True); \

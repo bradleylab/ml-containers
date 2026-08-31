@@ -237,6 +237,19 @@ paid-feed models require a data subscription that AIFS-on-Open-Data does not.
 
 ## Build notes / caveats
 
+- **`constraints.txt` is what makes the build terminate, and it is not
+  optional.** The top-level pins alone gave pip nothing to steer by, so it
+  searched: mirlib, then contourpy, then cftime, each walked downwards one
+  release at a time, and finally cfunits, where it reached the 3.3.2 sdist
+  seventeen minutes in and died — that sdist's `setup.py` no longer runs under
+  current setuptools. Nothing in the pin set actually conflicts; uv resolves it
+  in seconds, and its answer matches the checkpoint repo's own `uv.lock` on
+  cfunits (3.3.7), eccodeslib (2.46.2.19) and mir-python (1.28.1.19). The file
+  is that resolution, passed as `pip install -c`, so pip has exactly one
+  candidate per package and no search to do. Its header carries the `uv pip
+  compile` line that regenerates it; regenerate rather than hand-edit, and do
+  it whenever a top-level pin moves.
+
 - **The pins are old on purpose.** anemoi-inference is at 0.11.2 and
   anemoi-models at 0.18.0 on PyPI (2026-08-18); this image installs 0.8.3 and
   0.9.3. An anemoi checkpoint is a pickled torch object whose classes come from
