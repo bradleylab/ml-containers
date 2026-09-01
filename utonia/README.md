@@ -26,16 +26,49 @@ different operation, so the non-fused path computes the same thing — slower,
 and with a larger activation footprint at the same batch size.
 
 ```python
-from utonia.model import PointTransformerV3
-model = PointTransformerV3.from_pretrained("Pointcept/Utonia", enable_flash=False)
+import utonia
+model = utonia.load(
+    "/opt/weights/utonia.pth",
+    custom_config=dict(enable_flash=False, enc_patch_size=[1024] * 5),
+)
 ```
 
-The class is `PointTransformerV3`, not `Utonia` — the repository is named for
-the release, the class for the architecture it extends. `enable_flash=False` is
-required in this image.
+Leaving `enable_flash` at its default raises `AssertionError: Make sure
+flash_attn is installed.` — a clear failure, not a silent one. `enc_patch_size`
+belongs with it: upstream's own no-flash path sets both
+(`demo/3_batch_forward.py`), because non-fused attention holds a larger
+activation footprint at the same batch size.
 
-Leaving the default `True` raises `AssertionError: Make sure flash_attn is
-installed.` — a clear failure, not a silent one.
+## Do NOT call `from_pretrained()`
+
+`PointTransformerV3` subclasses `PyTorchModelHubMixin`, so `from_pretrained()`
+exists and is the obvious thing to reach for. **It is wrong here**, and it fails
+in a way that looks like a bug in the weights:
+
+```
+AssertionError: Head dimension must be divisible by 3 for 3D RoPE, 16
+```
+
+`Pointcept/Utonia` publishes no `config.json` — only `.pth` files. So
+`from_pretrained()` has nothing to configure from and silently falls back to the
+constructor defaults, `enc_channels (48, 96, 192, 384, 512)` over
+`enc_num_head (3, 6, 12, 24, 32)`. That is head dimension **16** at every stage,
+and 3D RoPE requires a multiple of 3.
+
+The real architecture lives inside the checkpoint, at `ckpt["config"]`: channels
+`(54, 108, 216, 432, 576)` over the same head counts, i.e. head dimension **18**
+throughout, with `in_channels=9` for `[coord, color, normal]`. `utonia.load()`
+reads it; `custom_config` overlays that config rather than replacing it, which
+is how `enable_flash` gets turned off without discarding the architecture.
+
+Note also that `utonia.load()`'s Hugging Face branch cannot reach a baked cache:
+its `repo_id` defaults to `Pointcept/utonia` (lowercase u) against a real repo
+named `Pointcept/Utonia`, and it passes `local_dir=~/.cache/utonia/ckpt`, which
+bypasses `HF_HOME`. Hence the fixed path — `load()` also accepts a plain file,
+which resolves nothing and needs no network.
+
+The class is `PointTransformerV3`, not `Utonia` — the repository is named for
+the release, the class for the architecture it extends.
 
 If throughput matters more than build simplicity later, the fix is a **prebuilt
 flash-attn wheel** matching torch, CUDA and Python exactly. Not a source build
@@ -57,9 +90,16 @@ either is how the image stops building.
 
 ## Verification
 
-The build smoke test asserts **both halves** of the no-flash contract: that
-`flash_attn` really is absent, and that the package imports and the model class
-resolves without it. An import-only check would pass on an image whose only
-usable path had been removed.
+**Verified on Compute2, 2026-08-31, job 2950544, c2-gpu-005 (H100 80GB).**
 
-**Not yet executed on Compute2.**
+The checkpoint's own config read back as `in_channels 9`, `enc_channels
+(54, 108, 216, 432, 576)`, `enc_depths (3, 3, 3, 12, 3)`, `enc_num_head
+(3, 6, 12, 24, 32)` — head dimension 18 at every stage. Model built to
+137,253,744 parameters and a forward pass over a synthetic 20,000-point cloud
+returned features of shape `(2194, 576)`, all finite.
+
+The build smoke test asserts that architecture, plus the parameter count and the
+absence of `flash_attn`. The previous version resolved the model *class* and
+stopped — which passed on an image whose only documented calling path could not
+construct a model at all. That defect survived to an H100 run weeks later, which
+is why the build now constructs the real model from the staged checkpoint.

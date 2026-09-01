@@ -439,7 +439,7 @@
     {
       "name": "utonia",
       "licenses": "Apache-2.0 AND CC-BY-NC-4.0",
-      "licence_note": "weights are CC-BY-NC-4.0 — non-commercial only, despite Apache-2.0 code; no flash-attn in this image, pass enable_flash=False",
+      "licence_note": "weights are CC-BY-NC-4.0 — non-commercial only, despite Apache-2.0 code",
       "status": "experimental",
       "upstream": "https://github.com/Pointcept/Utonia"
     },
