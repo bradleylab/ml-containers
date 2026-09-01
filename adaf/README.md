@@ -108,9 +108,15 @@ h5py 3.2.0 predates Python 3.10 and ships no cp310+ wheel, so a newer
 interpreter turns that pin into a source build that fails. Upstream's "newer
 Python should also work" refers to GDAL, not to these.
 
-GDAL, rasterio and fiona come from conda-forge as a pinned set — they are built
-against a specific GDAL ABI and floating any one breaks the others. Upstream
-installs them from cgohlke's `win_amd64` wheels, which have no Linux
+GDAL, rasterio and fiona come from conda-forge, resolved as a set rather than
+pinned to exact versions. Exact pins are what broke the first build: conda found
+a combination satisfying all three against a `libsqlite` too old for the
+`libgdal` it chose, and the image failed with `undefined symbol:
+sqlite3_total_changes64`. What matters is that they resolve consistently, so the
+solver gets the constraint that actually matters (`libsqlite>=3.46`) and is left
+free on the rest.
+
+Upstream installs these from cgohlke's `win_amd64` wheels, which have no Linux
 equivalent; that, not anything architectural, is why the published instructions
 are Windows-only.
 

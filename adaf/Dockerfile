@@ -83,14 +83,41 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # GDAL, rasterio and fiona from conda-forge: the Linux answer to upstream's
-# cgohlke wheels. Pinned as a set because rasterio and fiona are built against
-# a specific GDAL ABI and floating any one of them breaks the other two.
-RUN conda install -y -n base -c conda-forge \
+# cgohlke wheels.
+#
+# DO NOT PIN THESE TO EXACT VERSIONS. An earlier revision asked for
+# gdal=3.9.2 / rasterio=1.3.11 / fiona=1.10.1 and conda dutifully found a
+# combination satisfying all three -- against a libsqlite already in the base
+# environment that was too old for the libgdal build it chose:
+#
+#   libgdal.so.35: undefined symbol: sqlite3_total_changes64
+#   ModuleNotFoundError: No module named '_gdal'
+#
+# sqlite3_total_changes64 arrived in SQLite 3.37. What matters is that these
+# resolve as a CONSISTENT SET, not that any one lands on a chosen version, so
+# the solver is given the constraint that actually matters (libsqlite) and left
+# free on the rest. --override-channels keeps defaults out of the solve, which
+# is the other common source of this exact symbol error.
+RUN conda install -y -n base -c conda-forge --override-channels \
         python=3.9 \
-        gdal=3.9.2 \
-        rasterio=1.3.11 \
-        fiona=1.10.1 \
+        gdal \
+        rasterio \
+        fiona \
+        "libsqlite>=3.46" \
     && conda clean -afy
+
+# Verify the geospatial stack HERE, immediately, rather than in the smoke test
+# at the end.
+#
+# The build above takes about two minutes. The weight download further down
+# takes most of an hour and moves 5.52 GB. When this import check lived only in
+# the final smoke test, a broken GDAL cost a full 95-minute build to discover
+# something provable in 120 seconds. Cheap checks go next to the step they
+# check.
+RUN python -c "\
+from osgeo import gdal; \
+import rasterio, fiona, sqlite3; \
+print('gdal', gdal.__version__, '| rasterio', rasterio.__version__, '| fiona', fiona.__version__, '| sqlite', sqlite3.sqlite_version)"
 
 # numpy is held at 1.26.4 by upstream: AiTLAS and the GDAL stack both predate
 # the numpy 2 ABI break. opencv is held below 4.12 for the same reason.
@@ -113,6 +140,15 @@ RUN git clone https://github.com/EarthObservation/adaf.git /opt/adaf \
 RUN pip install /opt/adaf/installation/aitlas-0.0.1-py3-none-any.whl
 
 ENV PYTHONPATH=/opt/adaf
+
+# Second fail-fast gate, same reasoning as the GDAL check: AiTLAS carries tight
+# pins (h5py<3.2.1, imagecodecs==2023.3.16) that can install cleanly and still
+# fail to import. Prove the model classes resolve BEFORE the 5.52 GB download.
+RUN python -c "\
+import torch; \
+from aitlas.models import FasterRCNN, HRNet; \
+import rvt.vis; \
+print('torch', torch.__version__, '| aitlas models:', FasterRCNN.__name__, HRNet.__name__)"
 
 COPY fetch_weights.py /opt/fetch_weights.py
 RUN python /opt/fetch_weights.py
