@@ -25,11 +25,32 @@
 # operation, so the non-fused path computes the same thing — slower, and
 # with a larger activation footprint at the same batch size.
 #
-# So: this image installs no flash-attn, and callers MUST construct the
-# model with enable_flash=False. Passing the default True raises
-#   AssertionError: Make sure flash_attn is installed.
-# which is a clear failure rather than a silent one. The smoke test
-# asserts both halves of that contract.
+# ---------------------------------------------------------------------
+# THE CALLING CONTRACT: use utonia.load(), NOT from_pretrained().
+# ---------------------------------------------------------------------
+# PointTransformerV3 subclasses PyTorchModelHubMixin, so from_pretrained()
+# exists and is the obvious thing to reach for. It is WRONG here.
+# Pointcept/Utonia publishes no config.json — only .pth files — so
+# from_pretrained() has nothing to configure from and silently falls back
+# to the constructor defaults, enc_channels (48, 96, 192, 384, 512) over
+# enc_num_head (3, 6, 12, 24, 32). That is head dimension 16 at every
+# stage, and the model dies during construction with
+#   AssertionError: Head dimension must be divisible by 3 for 3D RoPE, 16
+#
+# The real architecture lives INSIDE the checkpoint, under ckpt["config"]:
+# channels (54, 108, 216, 432, 576) over heads (3, 6, 12, 24, 32), i.e.
+# head dimension 18 throughout. utonia.load() reads it. So:
+#
+#   model = utonia.load("/opt/weights/utonia.pth",
+#                       custom_config=dict(enable_flash=False,
+#                                          enc_patch_size=[1024] * 5))
+#
+# custom_config overlays ckpt["config"] rather than replacing it, which is
+# how enable_flash gets turned off without discarding the architecture.
+# Both keys are needed: upstream's own no-flash path sets the patch size
+# too (demo/3_batch_forward.py), because the non-fused attention holds a
+# larger activation footprint. The smoke test below asserts the recovered
+# architecture, so a checkpoint swap that changes it fails the build.
 #
 # If throughput ever matters more than build simplicity, the fix is a
 # prebuilt flash-attn wheel matching torch/CUDA/python exactly — not a
@@ -85,29 +106,54 @@ RUN pip install --upgrade pip wheel "setuptools<81" \
 # setuptools is present in the image.
 RUN pip install --no-build-isolation "git+https://github.com/Pointcept/Utonia.git@main"
 
-# Bake the checkpoint (CC-BY-NC-4.0) so compute nodes need no network.
-RUN python -c "\
-from huggingface_hub import snapshot_download; \
-snapshot_download('Pointcept/Utonia')"
+# Bake the checkpoint (CC-BY-NC-4.0) at a FIXED PATH, not in the HF cache.
+#
+# utonia.load()'s Hugging Face branch cannot reach a baked cache: its
+# repo_id defaults to "Pointcept/utonia" (lowercase u) while the real repo
+# is "Pointcept/Utonia", and it passes local_dir=~/.cache/utonia/ckpt,
+# which bypasses HF_HOME entirely. Either alone would miss; together they
+# guarantee a network fetch. load() also accepts a plain file path, which
+# resolves nothing and needs no network — so that is what this image
+# offers, and what the README documents.
+RUN mkdir -p /opt/weights && python -c "\
+import shutil; \
+from huggingface_hub import hf_hub_download; \
+shutil.copyfile(hf_hub_download('Pointcept/Utonia', 'utonia.pth'), '/opt/weights/utonia.pth'); \
+print('checkpoint staged at /opt/weights/utonia.pth')"
 
-# Build smoke test — offline, CPU. Asserts BOTH halves of the no-flash
-# contract: that flash_attn really is absent, and that the model builds
-# and runs a forward pass with enable_flash=False. An import-only check
-# would pass on an image whose only usable path is the one we removed.
+# Build smoke test — offline, CPU.
+#
+# The previous version of this test resolved the model CLASS and stopped.
+# It passed on an image whose only documented calling path
+# (from_pretrained) could not construct a model at all — the failure only
+# surfaced on an H100 weeks later. So this one builds the real model from
+# the staged checkpoint and asserts the architecture it recovered.
+#
+# The asserted values are the checkpoint's own, read back on
+# c2-gpu-005 (job 2950544, 2026-08-31). They are here to catch a
+# checkpoint swap that silently changes the architecture, which is the
+# failure that would otherwise reach a caller as a shape error.
 RUN HF_HUB_OFFLINE=1 python -c "\
-import importlib.metadata as im; \
-import importlib.util, torch; \
+import importlib.metadata as im, importlib.util, torch, utonia; \
 print('torch', im.version('torch'), '| numpy', im.version('numpy')); \
 assert importlib.util.find_spec('flash_attn') is None, 'flash_attn present — update the README contract'; \
 deps = ['addict', 'huggingface_hub', 'numpy', 'packaging', 'scipy', 'spconv', 'timm', 'torch', 'torch_scatter']; \
 absent = [d for d in deps if importlib.util.find_spec(d) is None]; \
 print('runtime deps absent:', absent); \
 assert not absent, absent; \
-import utonia; \
-print('utonia imported'); \
-from utonia.model import PointTransformerV3; \
-print('model class resolved:', PointTransformerV3.__name__); \
-print('flash-attn absent as designed; callers must pass enable_flash=False'); \
+cfg = utonia.load('/opt/weights/utonia.pth', ckpt_only=True)['config']; \
+print('in_channels', cfg['in_channels'], '| enc_channels', tuple(cfg['enc_channels']), '| enc_num_head', tuple(cfg['enc_num_head'])); \
+assert cfg['in_channels'] == 9, cfg['in_channels']; \
+assert tuple(cfg['enc_channels']) == (54, 108, 216, 432, 576), cfg['enc_channels']; \
+assert tuple(cfg['enc_depths']) == (3, 3, 3, 12, 3), cfg['enc_depths']; \
+assert tuple(cfg['enc_num_head']) == (3, 6, 12, 24, 32), cfg['enc_num_head']; \
+heads = [c // h for c, h in zip(cfg['enc_channels'], cfg['enc_num_head'])]; \
+print('head dims', heads); \
+assert all(d % 3 == 0 for d in heads), heads; \
+model = utonia.load('/opt/weights/utonia.pth', custom_config=dict(enable_flash=False, enc_patch_size=[1024] * 5)).eval(); \
+n = sum(p.numel() for p in model.parameters()); \
+print('params', n); \
+assert n == 137253744, n; \
 print('SMOKE OK')"
 
 LABEL org.opencontainers.image.title="utonia" \
@@ -122,8 +168,9 @@ LABEL org.opencontainers.image.title="utonia" \
       bradleylab.model.task="point cloud self-supervised embeddings and semantic segmentation" \
       bradleylab.model.sensor="point-cloud (indoor, outdoor and remote-sensing pretraining)" \
       bradleylab.model.status="experimental" \
-      bradleylab.model.weights.source="huggingface-hub:Pointcept/Utonia (CC-BY-NC-4.0; baked at build into HF_HOME=/opt/hf-cache)" \
-      bradleylab.model.licence.note="weights are CC-BY-NC-4.0 — non-commercial only, despite Apache-2.0 code; no flash-attn in this image, pass enable_flash=False"
+      bradleylab.model.api="utonia.load('/opt/weights/utonia.pth', custom_config=dict(enable_flash=False, enc_patch_size=[1024]*5)) — NOT from_pretrained(), which builds the wrong architecture from defaults" \
+      bradleylab.model.weights.source="huggingface-hub:Pointcept/Utonia (CC-BY-NC-4.0; utonia.pth staged at build to /opt/weights/utonia.pth)" \
+      bradleylab.model.licence.note="weights are CC-BY-NC-4.0 — non-commercial only, despite Apache-2.0 code"
 
 WORKDIR /work
-CMD ["python", "-c", "print('utonia ready — pass enable_flash=False, see README.md')"]
+CMD ["python", "-c", "print('utonia ready — load with utonia.load(\'/opt/weights/utonia.pth\', custom_config=dict(enable_flash=False, enc_patch_size=[1024]*5)); see README.md')"]
