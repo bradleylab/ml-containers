@@ -82,39 +82,47 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 libglib2.0-0 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# GDAL, rasterio and fiona from conda-forge: the Linux answer to upstream's
-# cgohlke wheels.
+# GDAL, rasterio and fiona from conda-forge, in a DEDICATED ENVIRONMENT.
 #
-# DO NOT PIN THESE TO EXACT VERSIONS. An earlier revision asked for
-# gdal=3.9.2 / rasterio=1.3.11 / fiona=1.10.1 and conda dutifully found a
-# combination satisfying all three -- against a libsqlite already in the base
-# environment that was too old for the libgdal build it chose:
+# Two earlier revisions installed them into `base` and both failed the same
+# way -- first libgdal.so.35, then libgdal.so.36:
 #
-#   libgdal.so.35: undefined symbol: sqlite3_total_changes64
+#   libgdal.so.NN: undefined symbol: sqlite3_total_changes64
 #   ModuleNotFoundError: No module named '_gdal'
 #
-# sqlite3_total_changes64 arrived in SQLite 3.37. What matters is that these
-# resolve as a CONSISTENT SET, not that any one lands on a chosen version, so
-# the solver is given the constraint that actually matters (libsqlite) and left
-# free on the rest. --override-channels keeps defaults out of the solve, which
-# is the other common source of this exact symbol error.
-RUN conda install -y -n base -c conda-forge --override-channels \
+# sqlite3_total_changes64 arrived in SQLite 3.37, so libgdal was resolving
+# against something older. Adding `libsqlite>=3.46` to the same `conda install`
+# did not fix it, which rules out the constraint being absent and points at the
+# environment instead: miniforge3's `base` ships Python 3.12, and asking for
+# python=3.9 there forces a wholesale downgrade that leaves packages built
+# against the newer stack in place. A fresh env solves every package together
+# and gets its own consistent link paths, so it does not inherit that mess.
+#
+# Everything after this uses the env by putting it first on PATH -- `conda run`
+# per RUN line would work too, but PATH keeps the rest of the file ordinary.
+RUN conda create -y -n adaf -c conda-forge --override-channels \
         python=3.9 \
         gdal \
         rasterio \
         fiona \
-        "libsqlite>=3.46" \
     && conda clean -afy
 
-# Verify the geospatial stack HERE, immediately, rather than in the smoke test
-# at the end.
+ENV PATH=/opt/conda/envs/adaf/bin:$PATH \
+    CONDA_DEFAULT_ENV=adaf
+
+# Verify the geospatial stack HERE, and print enough to diagnose it if it still
+# fails. Two builds have already died at this exact point; a third failure
+# should at least say which libsqlite libgdal actually bound to, rather than
+# costing another round trip to find out.
 #
-# The build above takes about two minutes. The weight download further down
-# takes most of an hour and moves 5.52 GB. When this import check lived only in
-# the final smoke test, a broken GDAL cost a full 95-minute build to discover
-# something provable in 120 seconds. Cheap checks go next to the step they
-# check.
-RUN python -c "\
+# The check is also placed deliberately early. The weight download further down
+# moves 5.52 GB and takes most of an hour -- when this lived only in the final
+# smoke test, a broken GDAL cost a 95-minute build to discover something
+# provable in two minutes. Cheap checks go next to the step they check.
+RUN set -x \
+    && conda list -n adaf | grep -iE "sqlite|gdal|rasterio|fiona|^python " \
+    && ldd /opt/conda/envs/adaf/lib/libgdal.so 2>/dev/null | grep -i sqlite || true \
+    && python -c "\
 from osgeo import gdal; \
 import rasterio, fiona, sqlite3; \
 print('gdal', gdal.__version__, '| rasterio', rasterio.__version__, '| fiona', fiona.__version__, '| sqlite', sqlite3.sqlite_version)"
