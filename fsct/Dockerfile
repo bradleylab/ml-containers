@@ -115,6 +115,7 @@ LABEL org.opencontainers.image.title="fsct" \
       bradleylab.model.task="stem-point semantic segmentation + DBH" \
       bradleylab.model.sensor="lidar:tls" \
       bradleylab.model.status="production" \
+      bradleylab.model.gpu="none — CPU-only — FSCT hard-pins torch==1.9.0+cu111 with matching PyG extension wheels, which cannot target sm_90; an H100 allocation would be wasted" \
       bradleylab.model.weights.source="upstream-repo:in-tree" \
       bradleylab.model.notes="upstream has no LICENSE file; treat as research-use only"
 

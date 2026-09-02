@@ -41,6 +41,11 @@ FIELDS = {
     "licence_note": "bradleylab.model.licence.note",
     "status": "bradleylab.model.status",
     "upstream": "bradleylab.model.upstream",
+    # Declared GPU expectation, read by the Compute2 smoke harness so a
+    # deliberately CPU-only image is not reported as a failure. Absent means
+    # "expected to use the GPU if it has torch", which is the common case --
+    # only the exceptions need to declare themselves.
+    "gpu": "bradleylab.model.gpu",
 }
 
 

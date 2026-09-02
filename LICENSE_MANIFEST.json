@@ -7,448 +7,512 @@
       "licenses": "GPL-3.0-only",
       "licence_note": null,
       "status": "production-capable",
-      "upstream": "https://github.com/3DFin/3DFin"
+      "upstream": "https://github.com/3DFin/3DFin",
+      "gpu": null
     },
     {
       "name": "aifs",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/ecmwf/anemoi-inference"
+      "upstream": "https://github.com/ecmwf/anemoi-inference",
+      "gpu": null
     },
     {
       "name": "ams3d-crownseg",
       "licenses": "GPL-3.0-or-later",
       "licence_note": null,
       "status": "production",
-      "upstream": "https://github.com/Lenostatos/crownsegmentr"
+      "upstream": "https://github.com/Lenostatos/crownsegmentr",
+      "gpu": null
     },
     {
       "name": "backman-thermal-deer",
       "licenses": "NOASSERTION",
       "licence_note": null,
       "status": "production",
-      "upstream": "https://doi.org/10.5281/zenodo.14799290"
+      "upstream": "https://doi.org/10.5281/zenodo.14799290",
+      "gpu": null
     },
     {
       "name": "birefnet",
       "licenses": "MIT",
       "licence_note": "trust_remote_code checkpoint — the pinned revision governs executable model code, not only weights",
       "status": "utility",
-      "upstream": "https://github.com/ZhengPeng7/BiRefNet"
+      "upstream": "https://github.com/ZhengPeng7/BiRefNet",
+      "gpu": null
     },
     {
       "name": "boltz",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/jwohlwend/boltz"
+      "upstream": "https://github.com/jwohlwend/boltz",
+      "gpu": null
     },
     {
       "name": "chai-1",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/chaidiscovery/chai-lab"
+      "upstream": "https://github.com/chaidiscovery/chai-lab",
+      "gpu": null
     },
     {
       "name": "clay",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/Clay-foundation/model"
+      "upstream": "https://github.com/Clay-foundation/model",
+      "gpu": null
     },
     {
       "name": "clean",
       "licenses": "LicenseRef-CLEAN-Non-Exclusive-Research-Use",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/tttianhao/CLEAN"
+      "upstream": "https://github.com/tttianhao/CLEAN",
+      "gpu": "none — CPU-only by design — upstream's own Dockerfile installs CPU torch and the model is small enough that a GPU buys nothing"
     },
     {
       "name": "concerto",
       "licenses": "Apache-2.0 AND CC-BY-NC-4.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/Pointcept/Concerto"
+      "upstream": "https://github.com/Pointcept/Concerto",
+      "gpu": null
     },
     {
       "name": "corrdiff",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/NVIDIA/earth2studio"
+      "upstream": "https://github.com/NVIDIA/earth2studio",
+      "gpu": null
     },
     {
       "name": "crater-detection",
       "licenses": "MIT",
       "licence_note": "upstream unmaintained since 2025-01; commit pinned",
       "status": "experimental",
-      "upstream": "https://github.com/wdoppenberg/crater-detection"
+      "upstream": "https://github.com/wdoppenberg/crater-detection",
+      "gpu": null
     },
     {
       "name": "croma",
       "licenses": "MIT",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/antofuller/CROMA"
+      "upstream": "https://github.com/antofuller/CROMA",
+      "gpu": null
     },
     {
       "name": "crossearth",
       "licenses": "MIT",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/VisionXLab/CrossEarth"
+      "upstream": "https://github.com/VisionXLab/CrossEarth",
+      "gpu": null
     },
     {
       "name": "dbloops",
       "licenses": "GPL-3.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/haydenjgeo/DBloops"
+      "upstream": "https://github.com/haydenjgeo/DBloops",
+      "gpu": null
     },
     {
       "name": "deepforest",
       "licenses": "MIT",
       "licence_note": null,
       "status": "exploratory",
-      "upstream": "https://github.com/weecology/DeepForest"
+      "upstream": "https://github.com/weecology/DeepForest",
+      "gpu": null
     },
     {
       "name": "depth-anything-3",
       "licenses": "Apache-2.0",
       "licence_note": "checkpoint licences differ within this family — DA3-LARGE and DA3NESTED-GIANT-LARGE-1.1 are CC-BY-NC-4.0; this image bakes the Apache-2.0 DA3-LARGE-1.1",
       "status": "experimental",
-      "upstream": "https://github.com/ByteDance-Seed/Depth-Anything-3"
+      "upstream": "https://github.com/ByteDance-Seed/Depth-Anything-3",
+      "gpu": null
     },
     {
       "name": "dinov3",
       "licenses": "LicenseRef-DINOv3",
       "licence_note": "DINOv3 License at /opt/licenses/LICENSE.dinov3.md — redistribute only with this file; publications must acknowledge DINO Materials",
       "status": "utility",
-      "upstream": "https://github.com/facebookresearch/dinov3"
+      "upstream": "https://github.com/facebookresearch/dinov3",
+      "gpu": null
     },
     {
       "name": "dinov3-sat",
       "licenses": "LicenseRef-DINOv3",
       "licence_note": "DINOv3 License at /opt/licenses/LICENSE.dinov3.md — redistribute only with this file; publications must acknowledge DINO Materials",
       "status": "utility",
-      "upstream": "https://github.com/facebookresearch/dinov3"
+      "upstream": "https://github.com/facebookresearch/dinov3",
+      "gpu": null
     },
     {
       "name": "dnabert-s",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/MAGICS-LAB/DNABERT_S"
+      "upstream": "https://github.com/MAGICS-LAB/DNABERT_S",
+      "gpu": null
     },
     {
       "name": "dofa",
       "licenses": "CC-BY-4.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/zhu-xlab/DOFA"
+      "upstream": "https://github.com/zhu-xlab/DOFA",
+      "gpu": null
     },
     {
       "name": "dofa-clip",
       "licenses": "CC-BY-NC-4.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/xiong-zhitong/DOFA-CLIP"
+      "upstream": "https://github.com/xiong-zhitong/DOFA-CLIP",
+      "gpu": null
     },
     {
       "name": "esm",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/Biohub/esm"
+      "upstream": "https://github.com/Biohub/esm",
+      "gpu": null
     },
     {
       "name": "evo2",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/ArcInstitute/evo2"
+      "upstream": "https://github.com/ArcInstitute/evo2",
+      "gpu": null
     },
     {
       "name": "forainet",
       "licenses": "NOASSERTION",
       "licence_note": null,
       "status": "working",
-      "upstream": "https://github.com/prs-eth/ForAINet"
+      "upstream": "https://github.com/prs-eth/ForAINet",
+      "gpu": null
     },
     {
       "name": "forestformer3d",
       "licenses": "CC-BY-NC-4.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/SmartForest-no/ForestFormer3D"
+      "upstream": "https://github.com/SmartForest-no/ForestFormer3D",
+      "gpu": null
     },
     {
       "name": "fourcastnet3",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/NVIDIA/earth2studio"
+      "upstream": "https://github.com/NVIDIA/earth2studio",
+      "gpu": null
     },
     {
       "name": "fsct",
       "licenses": "GPL-3.0",
       "licence_note": null,
       "status": "production",
-      "upstream": "https://github.com/SKrisanski/FSCT"
+      "upstream": "https://github.com/SKrisanski/FSCT",
+      "gpu": "none — CPU-only — FSCT hard-pins torch==1.9.0+cu111 with matching PyG extension wheels, which cannot target sm_90; an H100 allocation would be wasted"
     },
     {
       "name": "geoclip",
       "licenses": "MIT",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/VicenteVivan/geo-clip"
+      "upstream": "https://github.com/VicenteVivan/geo-clip",
+      "gpu": null
     },
     {
       "name": "geolg-3dfaultnet",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental — unvalidated provenance, benchmark before use",
-      "upstream": "https://github.com/letsfly27/GeoLG-3DFaultNet"
+      "upstream": "https://github.com/letsfly27/GeoLG-3DFaultNet",
+      "gpu": null
     },
     {
       "name": "grounding-dino",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/IDEA-Research/GroundingDINO"
+      "upstream": "https://github.com/IDEA-Research/GroundingDINO",
+      "gpu": null
     },
     {
       "name": "hylite",
       "licenses": "MIT",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/hifexplo/hylite"
+      "upstream": "https://github.com/hifexplo/hylite",
+      "gpu": null
     },
     {
       "name": "insar-unwrap",
       "licenses": "MIT AND CC-BY-4.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/prabhjotschugh/When-Less-is-More-InSAR-Phase-Unwrapping"
+      "upstream": "https://github.com/prabhjotschugh/When-Less-is-More-InSAR-Phase-Unwrapping",
+      "gpu": null
     },
     {
       "name": "kpconv",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/HuguesTHOMAS/KPConv-PyTorch"
+      "upstream": "https://github.com/HuguesTHOMAS/KPConv-PyTorch",
+      "gpu": null
     },
     {
       "name": "momo",
       "licenses": "MIT AND CC-BY-4.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/kerner-lab/MOMO"
+      "upstream": "https://github.com/kerner-lab/MOMO",
+      "gpu": null
     },
     {
       "name": "myria3d",
       "licenses": "BSD-3-Clause",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/IGNF/myria3d"
+      "upstream": "https://github.com/IGNF/myria3d",
+      "gpu": null
     },
     {
       "name": "n2n4m",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/rob-platt/n2n4m"
+      "upstream": "https://github.com/rob-platt/n2n4m",
+      "gpu": null
     },
     {
       "name": "neuralhydrology",
       "licenses": "BSD-3-Clause",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/neuralhydrology/neuralhydrology"
+      "upstream": "https://github.com/neuralhydrology/neuralhydrology",
+      "gpu": null
     },
     {
       "name": "ntv3",
       "licenses": "LicenseRef-InstaDeep-NTv3-NonCommercial",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/instadeepai/nucleotide-transformer"
+      "upstream": "https://github.com/instadeepai/nucleotide-transformer",
+      "gpu": null
     },
     {
       "name": "octformer",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/octree-nn/octformer"
+      "upstream": "https://github.com/octree-nn/octformer",
+      "gpu": null
     },
     {
       "name": "point-transformer-v3",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/Pointcept/Pointcept"
+      "upstream": "https://github.com/Pointcept/Pointcept",
+      "gpu": null
     },
     {
       "name": "pointstowood",
       "licenses": "AGPL-3.0-only",
       "licence_note": null,
       "status": "exploratory",
-      "upstream": "https://github.com/harryjfowen/PointsToWood"
+      "upstream": "https://github.com/harryjfowen/PointsToWood",
+      "gpu": null
     },
     {
       "name": "prithvi-eo",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/IBM/terratorch"
+      "upstream": "https://github.com/IBM/terratorch",
+      "gpu": null
     },
     {
       "name": "raman-classifier",
       "licenses": "MIT",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/barahona-research-group/RamanSPy"
+      "upstream": "https://github.com/barahona-research-group/RamanSPy",
+      "gpu": null
     },
     {
       "name": "remoteclip",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/ChenDelong1999/RemoteCLIP"
+      "upstream": "https://github.com/ChenDelong1999/RemoteCLIP",
+      "gpu": null
     },
     {
       "name": "rf-detr",
       "licenses": "Apache-2.0",
       "licence_note": "rfdetr_plus (RF-DETR-XL/2XL) is PML 1.0 and is deliberately NOT installed; the build asserts its absence",
       "status": "utility",
-      "upstream": "https://github.com/roboflow/rf-detr"
+      "upstream": "https://github.com/roboflow/rf-detr",
+      "gpu": null
     },
     {
       "name": "sam2",
       "licenses": "Apache-2.0 AND BSD-3-Clause",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/facebookresearch/sam2"
+      "upstream": "https://github.com/facebookresearch/sam2",
+      "gpu": null
     },
     {
       "name": "sam3",
       "licenses": "LicenseRef-SAM",
       "licence_note": "SAM License at /opt/licenses/LICENSE.sam3.md — publications must acknowledge SAM Materials; trade-control terms forbid military, weapons and ITAR uses",
       "status": "experimental",
-      "upstream": "https://github.com/facebookresearch/sam3"
+      "upstream": "https://github.com/facebookresearch/sam3",
+      "gpu": null
     },
     {
       "name": "saprot",
       "licenses": "MIT AND GPL-3.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/westlake-repl/SaProt"
+      "upstream": "https://github.com/westlake-repl/SaProt",
+      "gpu": null
     },
     {
       "name": "satlas",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/allenai/satlaspretrain_models"
+      "upstream": "https://github.com/allenai/satlaspretrain_models",
+      "gpu": null
     },
     {
       "name": "segment-any-tree-h100",
       "licenses": "MIT",
       "licence_note": null,
       "status": "production",
-      "upstream": "https://github.com/SmartForest-no/SegmentAnyTree"
+      "upstream": "https://github.com/SmartForest-no/SegmentAnyTree",
+      "gpu": null
     },
     {
       "name": "seisbench",
       "licenses": "GPL-3.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/seisbench/seisbench"
+      "upstream": "https://github.com/seisbench/seisbench",
+      "gpu": null
     },
     {
       "name": "seist",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/senli1073/SeisT"
+      "upstream": "https://github.com/senli1073/SeisT",
+      "gpu": null
     },
     {
       "name": "siglip2",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/google-research/big_vision"
+      "upstream": "https://github.com/google-research/big_vision",
+      "gpu": null
     },
     {
       "name": "sonata",
       "licenses": "Apache-2.0 AND CC-BY-NC-4.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/facebookresearch/sonata"
+      "upstream": "https://github.com/facebookresearch/sonata",
+      "gpu": null
     },
     {
       "name": "stormcast",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/NVIDIA/earth2studio"
+      "upstream": "https://github.com/NVIDIA/earth2studio",
+      "gpu": null
     },
     {
       "name": "superpoint-transformer",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/drprojects/superpoint_transformer"
+      "upstream": "https://github.com/drprojects/superpoint_transformer",
+      "gpu": null
     },
     {
       "name": "terramind",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/IBM/terramind"
+      "upstream": "https://github.com/IBM/terramind",
+      "gpu": null
     },
     {
       "name": "timesfm",
       "licenses": "Apache-2.0",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/google-research/timesfm"
+      "upstream": "https://github.com/google-research/timesfm",
+      "gpu": null
     },
     {
       "name": "treelearn",
       "licenses": "MIT",
       "licence_note": null,
       "status": "production",
-      "upstream": "https://github.com/ecker-lab/TreeLearn"
+      "upstream": "https://github.com/ecker-lab/TreeLearn",
+      "gpu": null
     },
     {
       "name": "treex",
       "licenses": "MIT",
       "licence_note": null,
       "status": "experimental",
-      "upstream": "https://github.com/ai4trees/pointtree"
+      "upstream": "https://github.com/ai4trees/pointtree",
+      "gpu": "none — CPU-only — torch is a transitive import for pointtree.instance_segmentation, never a compute path; nothing here executes torch ops"
     },
     {
       "name": "trellis2",
       "licenses": "MIT",
       "licence_note": "generative reconstruction — not a measurement; do not substitute for photogrammetry in analysis",
       "status": "experimental",
-      "upstream": "https://github.com/microsoft/TRELLIS.2"
+      "upstream": "https://github.com/microsoft/TRELLIS.2",
+      "gpu": "required — CUDA kernels compiled for sm_90 only; will not run on pre-H100 GPUs"
     },
     {
       "name": "utonia",
       "licenses": "Apache-2.0 AND CC-BY-NC-4.0",
       "licence_note": "weights are CC-BY-NC-4.0 — non-commercial only, despite Apache-2.0 code",
       "status": "experimental",
-      "upstream": "https://github.com/Pointcept/Utonia"
+      "upstream": "https://github.com/Pointcept/Utonia",
+      "gpu": null
     },
     {
       "name": "xrd-classifier",
       "licenses": "MIT",
       "licence_note": null,
       "status": "utility",
-      "upstream": "https://github.com/njszym/XRD-AutoAnalyzer"
+      "upstream": "https://github.com/njszym/XRD-AutoAnalyzer",
+      "gpu": null
     }
   ]
 }
