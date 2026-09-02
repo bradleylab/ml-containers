@@ -149,9 +149,29 @@ at this model scale. CPU works, slowly.
 
 ## Status
 
-**Experimental — never run on real data by this lab.** The build smoke test
-loads a checkpoint into a model, which is more than a presence check, but no
-detection has been scored against ground truth here. See `SMOKE.md`.
+**Experimental. Plumbing verified on real data; detection quality unmeasured.**
+
+Run on Compute2 2026-09-01, job 2957140, c2-gpu-016 (H100 80GB), against the
+Tisch Park drone-LiDAR DTM (0.25 m, 1017 x 686 m, EPSG:32615). Whole chain in
+36 seconds:
+
+| Stage | Result |
+|---|---|
+| torch / GPU | 2.5.1+cu121, H100 visible |
+| SLRM visualisations | 12 tiles, 0.9 s |
+| Segmentation via `custom_model` | 11.6 s |
+| Vectorisation (library defaults) | GPKG written, 1 polygon |
+| Stock `labels=["barrow"]` route | works — the backslash symlinks resolve |
+
+Both calling routes work, so the Linux path shim does what it claims.
+
+**This says nothing about detection quality.** Tisch Park is an urban campus
+park with no archaeology in it, so the single polygon (159 m2, roundness 0.961)
+is a false positive by construction — almost certainly a landscaping mound or
+tree ring. One detection over 0.7 km2 is at least not a noise storm, but one
+number on a site with no ground truth is not a specificity measurement.
+
+Measuring recall needs a site with a published earthwork inventory.
 
 ## Provenance
 
