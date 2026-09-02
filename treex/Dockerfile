@@ -152,6 +152,7 @@ LABEL org.opencontainers.image.title="treex" \
       bradleylab.model.task="tree-instance segmentation, point cloud (classical, unsupervised)" \
       bradleylab.model.sensor="lidar:tls,pls,uls" \
       bradleylab.model.status="experimental" \
+      bradleylab.model.gpu="none — CPU-only — torch is a transitive import for pointtree.instance_segmentation, never a compute path; nothing here executes torch ops" \
       bradleylab.model.weights.source="none (classical algorithm)"
 
 WORKDIR /work
