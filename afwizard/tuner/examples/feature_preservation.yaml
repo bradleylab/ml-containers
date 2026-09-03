@@ -1,0 +1,75 @@
+# Objective: keep small, spatially coherent relief on the ground surface.
+#
+# For finding earthworks -- mounds, pits, graves, platforms -- where the target
+# is a lump or a hollow of a known rough size. scale_lo_m/scale_hi_m is the
+# feature size; change it per case. Sign does not matter to recovered_variance
+# (a mound and a pit score the same); relief_sign_ratio in the report says which
+# you kept.
+#
+# recovered_variance isolates what the filter CHANGED relative to the vendor
+# surface, so terrain and the vendor's own relief cancel out. added_nugget_ratio
+# caps speckle introduced, relative to speckle already present -- dimensionless,
+# so it needs no knowledge of the site's units.
+#
+# Every path is read inside the job; on Compute2 they must be Storage3 paths.
+# COMMISSION CAPS, CALIBRATED ON GREENWOOD (run3, 2026-09-02) -- REVISIT PER SITE.
+# On that site every candidate ranked the same by recovered_variance, by
+# added_nugget_ratio and by height_above_reference_p99: the settings that
+# recovered the most coherent relief also leaked the most clustered low
+# vegetation. So the caps below are what actually cut on that data (ratio
+# spread 0.28-0.49, p99 spread 0.22-0.59 m), not universal constants. Read the
+# Pareto front in summary.json before trusting the pick.
+dataset: /work/cloud.laz
+segmentation: /work/segments.geojson
+reference_dem: /work/vendor_dem_1m.tif
+dtm_resolution_m: 1.0
+prefilter:
+- type: filters.elm
+- type: filters.outlier
+  method: statistical
+  mean_k: 8
+  multiplier: 3.0
+filter: filters.smrf
+search_space:
+  window:
+    min: 4.0
+    max: 30.0
+  threshold:
+    min: 0.1
+    max: 0.8
+  slope:
+    min: 0.05
+    max: 0.4
+  scalar:
+    min: 0.8
+    max: 1.5
+fixed:
+  cell: 1.0
+constraints:
+  recall_vendor_ground:
+    min: 0.99
+  added_nugget_ratio:
+    max: 0.45
+  height_above_reference_p99:
+    max: 0.5
+maximize:
+  recovered_variance:
+    scale_lo_m: 2.0
+    scale_hi_m: 10.0
+report:
+- coverage
+- added_points
+- nugget
+- added_nugget
+- height_above_reference_p90
+- height_above_reference_p99
+- structured_variance:
+    scale_lo_m: 2.0
+    scale_hi_m: 10.0
+- relief_sign_ratio:
+    scale_lo_m: 2.0
+    scale_hi_m: 10.0
+search:
+  initial_samples: 40
+  refine_samples: 20
+  seed: 42

@@ -65,6 +65,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# geojson is pinned below 3 because afwizard 1.0.1 was written against 2.x and
+# geojson 3 changed FeatureCollection's constructor to take the features list
+# rather than the whole collection. With 3.x installed, load_segmentation()
+# fails with "string indices must be integers" -- the loader walking a dict's
+# keys as if they were features. Upstream fixed this in commit 8fdbc5f on
+# 2026-07-20 but has cut no release since v1.0.1 (2025-11-14), so conda-forge
+# still ships the mismatch. Drop the pin when 1.0.2 lands.
+#
 # A dedicated environment, not `base`. Installing into miniforge's base means
 # downgrading the Python it ships with, which leaves packages built against the
 # newer stack behind — that is how the adaf image failed twice with an
@@ -88,6 +96,7 @@ RUN conda create -y -n afwizard -c conda-forge --override-channels \
         python-pdal \
         gdal \
         hdf5 \
+        "geojson<3" \
     && conda clean -afy
 
 ENV PATH=/opt/conda/envs/afwizard/bin:$PATH \
@@ -98,6 +107,32 @@ ENV PATH=/opt/conda/envs/afwizard/bin:$PATH \
 # than at import, which is the worst place to discover it. Upstream calls the
 # underlying situation a bug; the workaround is theirs.
 ENV PROJ_LIB=/opt/conda/envs/afwizard/share/proj
+
+# The tuner: objective-driven parameter search, scored on the classified cloud.
+# It drives the PDAL CLI, so it needs nothing beyond what is already here, and
+# it is what an agent calls -- see README "Tuning for an objective".
+COPY tuner /opt/afwizard-tuner
+RUN pip install --no-deps /opt/afwizard-tuner \
+    && echo "afwizard-tune: $(afwizard-tune list-criteria --json | python -c 'import json,sys; print(len(json.load(sys.stdin)))') criteria registered"
+
+# The tuner's numeric stack, exercised without PDAL: a synthetic 60x60 DTM
+# with one planted 10 m bump must show coherent relief at 2-10 m, and a flat
+# one must not. This catches a scipy/rasterio import problem or a broken
+# variogram at build time rather than on a compute node.
+RUN python -c "\
+import numpy as np; \
+from rasterio.transform import from_origin; \
+from afwizard_tuner import criteria; \
+from afwizard_tuner.backend import Evaluation; \
+yy, xx = np.mgrid[0:60, 0:60].astype(float); \
+bump = 0.5 * np.exp(-(((yy - 30) ** 2 + (xx - 30) ** 2) / (2 * 4.0 ** 2))); \
+mk = lambda z: Evaluation(vendor_class=np.empty(0, int), classification=np.empty(0, int), height_above_reference=np.empty(0), xyz=np.empty((0, 3)), dtm=z, mask=np.ones_like(z, bool), reference=np.zeros_like(z), dtm_transform=from_origin(0, 60, 1, 1), dtm_resolution_m=1.0, seconds=0.0); \
+sv_bump = criteria.compute('structured_variance', mk(bump), scale_lo_m=2.0, scale_hi_m=10.0); \
+sv_flat = criteria.compute('structured_variance', mk(np.zeros((60, 60))), scale_lo_m=2.0, scale_hi_m=10.0); \
+rv_bump = criteria.compute('recovered_variance', mk(bump), scale_lo_m=2.0, scale_hi_m=10.0); \
+print('structured_variance bump', round(sv_bump, 6), '| flat', round(sv_flat, 6), '| recovered', round(rv_bump, 6)); \
+assert sv_bump > 1e-4 and sv_flat < 1e-9 and rv_bump > 1e-4, (sv_bump, sv_flat, rv_bump); \
+print('tuner numeric stack OK')"
 
 # Build smoke test — imports, versions, and the two things that would otherwise
 # fail silently at runtime: that the community filter library actually resolves
@@ -116,6 +151,14 @@ assert srs.ImportFromEPSG(32615) == 0, 'PROJ database unusable — check PROJ_LI
 print('PROJ ok: EPSG:32615 resolved'); \
 import afwizard.library as lib; \
 print('filter library module:', lib.__name__); \
+import geojson, tempfile, os; \
+assert int(geojson.__version__.split('.')[0]) < 3, geojson.__version__; \
+fc = {'type': 'FeatureCollection', 'features': [{'type': 'Feature', 'properties': {'pipeline': 'x'}, 'geometry': {'type': 'Polygon', 'coordinates': [[[0,0],[1,0],[1,1],[0,0]]]}}]}; \
+d = tempfile.mkdtemp(); path = os.path.join(d, 's.geojson'); \
+open(path, 'w').write(__import__('json').dumps(fc)); \
+seg = afwizard.load_segmentation(path); \
+assert len(seg['features']) == 1 and seg['features'][0]['properties']['pipeline'] == 'x', 'segmentation did not round-trip'; \
+print('load_segmentation ok under geojson', geojson.__version__); \
 import subprocess; \
 res = subprocess.run(['pdal', '--version'], capture_output=True, text=True); \
 print('pdal stderr on startup:', repr(res.stderr[:200])); \
@@ -136,6 +179,8 @@ LABEL org.opencontainers.image.title="afwizard" \
       bradleylab.model.status="experimental" \
       bradleylab.model.gpu="none — PDAL-based geometric filtering, no neural network and no CUDA path" \
       bradleylab.model.weights.source="none — this is software, not a trained model" \
+      bradleylab.model.api="afwizard-tune list-criteria | tune --objective F --outdir D | wire; objective is YAML the caller composes (constraints, maximize, report); every evaluation is returned" \
+      bradleylab.model.pins="geojson<3 until afwizard>1.0.1 ships the 8fdbc5f fix" \
       bradleylab.model.licence.note="MIT throughout. The LAStools and OPALS backends are proprietary and NOT installed; only the open-source PDAL backend is available in this image"
 
 WORKDIR /work
