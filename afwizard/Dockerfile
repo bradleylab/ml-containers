@@ -97,6 +97,10 @@ RUN conda create -y -n afwizard -c conda-forge --override-channels \
         gdal \
         hdf5 \
         "geojson<3" \
+        rasterio \
+        scipy \
+        shapely \
+        pyyaml \
     && conda clean -afy
 
 ENV PATH=/opt/conda/envs/afwizard/bin:$PATH \
@@ -109,11 +113,26 @@ ENV PATH=/opt/conda/envs/afwizard/bin:$PATH \
 ENV PROJ_LIB=/opt/conda/envs/afwizard/share/proj
 
 # The tuner: objective-driven parameter search, scored on the classified cloud.
-# It drives the PDAL CLI, so it needs nothing beyond what is already here, and
-# it is what an agent calls -- see README "Tuning for an objective".
+# It drives the PDAL CLI; its Python dependencies (rasterio, scipy, shapely,
+# pyyaml) are in the conda create above, in the SAME solve as gdal, because
+# rasterio must be built against the gdal that is installed. It is installed
+# --no-deps so pip cannot pull a second, mismatched rasterio from PyPI.
+#
+# The first build of this recipe failed here with "No module named rasterio":
+# the laptop it was developed on had every dependency and the image had none
+# of them. The gate below is what caught it, at step 6 of 8, before the
+# expensive steps -- and it is a real gate now. Its first form ran the check
+# inside $(...) inside an echo, whose exit status a shell discards.
 COPY tuner /opt/afwizard-tuner
 RUN pip install --no-deps /opt/afwizard-tuner \
-    && echo "afwizard-tune: $(afwizard-tune list-criteria --json | python -c 'import json,sys; print(len(json.load(sys.stdin)))') criteria registered"
+    && afwizard-tune list-criteria --json > /tmp/criteria.json \
+    && python -c "\
+import json; \
+c = json.load(open('/tmp/criteria.json')); \
+names = sorted(x['name'] for x in c); \
+print('afwizard-tune:', len(c), 'criteria registered:', names); \
+assert len(c) >= 10, names" \
+    && rm /tmp/criteria.json
 
 # The tuner's numeric stack, exercised without PDAL: a synthetic 60x60 DTM
 # with one planted 10 m bump must show coherent relief at 2-10 m, and a flat
