@@ -216,6 +216,36 @@ Coverage came back 0.98–1.00 at 1 m because ~3 points/m² fills nearly every
 which is where the original "30% of cells" figure was measured. It is
 resolution-dependent by design.
 
+### The same objective at full size, on Compute2 through `ml-jobs`
+
+`mljob run afwizard tune greenwood_feature_preservation.yaml` — 40 + 20
+evaluations per segment, 116 total, 10 minutes on a `general-cpu` node, then
+`wire --apply` handing the picks to AFwizard's own `apply_adaptive_pipeline`,
+which wrote the filtered LAS and GeoTIFF with its provenance log.
+
+| Segment | Feasible | Pick (window / threshold / slope / scalar) | recovered relief | speckle added | 99th-pct height | Pareto front |
+|---|---|---|---|---|---|---|
+| open | 58 / 58 | 16.0 / **0.80** / 0.21 / 1.42 | 0.00073 m² | 0.39× | 0.44 m | 42 rows |
+| wooded | 39 / 58 | 25.8 / 0.30 / **0.40** / 1.41 | 0.00249 m² | 0.44× | 0.50 m | 26 rows |
+
+Two bold values sit at the edge of the search space — the open threshold at
+its maximum 0.80, the wooded slope at its maximum 0.40. The optimum wants to
+go further than the box allowed. That is the caller's knob (`search_space`),
+and the table says so rather than hiding it.
+
+**Against the hand-chosen settings the project started with** (open
+8 / 0.20 / 0.12; wooded 18 / 0.45 / 0.18), scored on the same criteria:
+
+| Segment | Hand-chosen recovered relief | Tuned | Hand-chosen speckle / tail | Tuned |
+|---|---|---|---|---|
+| open | 0.00054 m² | 0.00073 m² (+34%) | 0.28× / 0.26 m | 0.39× / 0.44 m |
+| wooded | 0.00239 m² | 0.00249 m² (+4%) | 0.44× / 0.50 m | 0.44× / 0.50 m |
+
+The wooded guess was already near-optimal under this objective. The open guess
+was cleaner and recovered a third less; both are on the front. Neither result
+is a surprise given the calibration warning above — and both are the kind of
+answer the tuner exists to give, rather than a single number that hides it.
+
 ### What running it exposed that reading the code did not
 
 Three criteria were wrong in their first form, and each looked plausible until
