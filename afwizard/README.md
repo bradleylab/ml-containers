@@ -60,6 +60,41 @@ and need licences this lab does not hold; upstream ships a separate
 `set_lastools_directory()` and `set_opals_directory()` will find nothing in this
 image. That is expected, not broken.
 
+## Does it run headless? Two phases — one does, one does not
+
+**No for the exploration phase, yes for the application phase.** Upstream's own
+CLI help states the split:
+
+> This CLI is used once you have finished the interactive exploration work with
+> the AFwizard Jupyter UI. The CLI takes your dataset and the segmentation file
+> created in Jupyter and executes the ground point filtering on the entire
+> dataset.
+
+| Phase | Headless? | What happens |
+|---|---|---|
+| Segment the area, tune and assign filters | **No** — JupyterLab widgets, and the polygons are drawn by a person | produces a segmentation GeoJSON |
+| Apply that segmentation to the full dataset | **Yes** — `afwizard` CLI or `apply_adaptive_pipeline` | writes filtered LAS/LAZ + GeoTIFF |
+
+So a SLURM job can do the filtering, but something has to hand it a
+segmentation GeoJSON first. That file is the artifact the interactive phase
+exists to produce, and it is reusable — segment a survey area once, then apply
+it headlessly to as many tiles or repeat flights as you like.
+
+### The headless CLI
+
+```bash
+afwizard --dataset cloud.laz --dataset-crs EPSG:26915          --segmentation segments.geojson --segmentation-crs EPSG:26915          --output-dir /work/out --resolution 1.0 --compress
+```
+
+`--library` can be given multiple times to add filter-library locations.
+`--resolution` is the GeoTIFF meshing resolution in metres (default 0.5).
+`--opals-dir` and `--lastools-dir` exist but have nothing to point at in this
+image — see below.
+
+A fully scripted run without any Jupyter is possible if you hand-author the
+segmentation GeoJSON, or reuse one. The format is documented upstream; the
+interactive UI is a convenience for producing it, not the only way.
+
 ## Batch use
 
 The interactive apps (`pipeline_tuning`, `select_best_pipeline`,

@@ -69,6 +69,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # downgrading the Python it ships with, which leaves packages built against the
 # newer stack behind — that is how the adaf image failed twice with an
 # undefined libsqlite symbol before being rebuilt this way.
+# hdf5 is listed explicitly even though nothing here reads HDF directly.
+# Without it, conda resolves a pdal whose HDF and icebridge reader plugins
+# link against a libhdf5_cpp that is not installed, and EVERY invocation --
+# including `afwizard --help` -- prints several hundred characters of
+#
+#   (PDAL Error) Can't load library .../libpdal_plugin_reader_hdf.so:
+#   libhdf5_cpp.so.320: cannot open shared object file
+#
+# to stderr. Nothing this lab does needs those readers, so the capability is
+# not the point: the noise is. It fires before real output, interleaves with
+# it, and would bury an actual error in a batch log.
 RUN conda create -y -n afwizard -c conda-forge --override-channels \
         python=3.11 \
         afwizard \
@@ -76,6 +87,7 @@ RUN conda create -y -n afwizard -c conda-forge --override-channels \
         pdal \
         python-pdal \
         gdal \
+        hdf5 \
     && conda clean -afy
 
 ENV PATH=/opt/conda/envs/afwizard/bin:$PATH \
@@ -104,6 +116,10 @@ assert srs.ImportFromEPSG(32615) == 0, 'PROJ database unusable — check PROJ_LI
 print('PROJ ok: EPSG:32615 resolved'); \
 import afwizard.library as lib; \
 print('filter library module:', lib.__name__); \
+import subprocess; \
+res = subprocess.run(['pdal', '--version'], capture_output=True, text=True); \
+print('pdal stderr on startup:', repr(res.stderr[:200])); \
+assert 'load library' not in res.stderr, 'PDAL plugin failed to load - a shared library dependency is missing; see the hdf5 note above'; \
 print('SMOKE OK')"
 
 LABEL org.opencontainers.image.title="afwizard" \
