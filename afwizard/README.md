@@ -116,6 +116,125 @@ apply_adaptive_pipeline(
 community-contributed pipelines from the `afwizard-library` package, installed
 alongside.
 
+## Tuning for an objective — `afwizard-tune`
+
+The interactive slider workflow asks a person to look at a filtered surface and
+judge whether it is right *for this site and this purpose*. That judgment is two
+jobs: knowing what "right" means for the case, and checking a result against
+it. `afwizard-tune` splits them. **The caller** — an agent, usually — decides
+what right means and writes it down as an objective. **The tuner** runs a
+parameter search and scores every candidate against that objective. It never
+encodes a purpose of its own.
+
+```
+afwizard-tune list-criteria                       # the vocabulary
+afwizard-tune tune --objective obj.yaml --outdir run/
+afwizard-tune describe --outdir run/              # re-read without re-running
+afwizard-tune wire --objective obj.yaml --outdir run/ --apply
+```
+
+### The criteria are the vocabulary
+
+Each is one number from a filtered cloud, and carries the prose a caller needs
+to decide whether to use it: what it measures, which direction is better, what
+failure it catches, and what kind of task cares. `list-criteria` prints all of
+it. Read that before writing an objective; the descriptions say which pairings
+are safe and which are traps (maximizing coverage with no commission check is
+satisfied by labelling everything ground).
+
+The one that carries the archaeological concern is `structured_variance`, and
+it is parameterized by scale precisely so it is not archaeology-specific:
+spatially coherent relief at 2–10 m is a mound, at 1–3 m a grave depression, at
+20–50 m a terrace. Same criterion; the scale is the caller's input. It is also
+sign-agnostic, which is why `relief_sign_ratio` exists separately.
+
+### The objective is a file the caller writes
+
+```yaml
+constraints:
+  recall_vendor_ground: {min: 0.99}                 # never drop the vendor's ground
+  nugget: {max_ratio_to_reference: 1.2}            # no more speckle than the vendor DEM
+maximize:
+  structured_variance: {scale_lo_m: 2.0, scale_hi_m: 10.0}
+report: [coverage, added_points, height_above_reference_p99]
+```
+
+Constraints prune. The maximize target ranks the survivors. Report entries are
+computed and returned but never influence the pick. Two complete examples ship
+in `examples/`: one that preserves features, one that smooths for hydrology —
+same tuner, opposite purposes.
+
+### What comes back
+
+`evaluations.csv` — every parameter set tried, every criterion, feasible or
+not and why. `summary.json` — the pick per segment, its scores, and the rule
+that chose it. The pick is the least important row: the table is what lets a
+caller re-reason and re-pick without re-running.
+
+### Handing the result to AFwizard
+
+`wire` writes each pick as an AFwizard filter, puts the pipeline hash into a
+copy of the segmentation, and with `--apply` runs `apply_adaptive_pipeline` so
+the applied filtering carries its provenance trail. One trap it handles: AFwizard
+hashes a pipeline's **metadata only**, so two filters with different settings
+and the same title collide. The settings are written into the title.
+
+### Why the search drives PDAL directly
+
+Every criterion scores a classified point cloud regardless of who classified
+it. During the search that is the PDAL CLI, one call per candidate — filter,
+height above the reference DEM, DTM, and the per-point columns all come out of
+a single pipeline in a few seconds. AFwizard is used at the end, for the record,
+not in the loop.
+
+### Worked run — Greenwood Cemetery, USGS 3DEP 2017, two canopy segments
+
+947,352 points, vendor classes 1 / 2 / 7 only (no vegetation classes — class 1
+holds everything the vendor did not commit to, including about half the true
+ground). Objective: `examples/feature_preservation.yaml` at 2–10 m, a small
+search of 6 + 4 per segment, 81 s on a laptop with the PDAL binary.
+
+| Segment | Feasible | Pick (window / threshold / slope / scalar) | recovered relief | speckle added | 99th-pct height above vendor DEM | vendor ground kept |
+|---|---|---|---|---|---|---|
+| open | 9 / 9 | 12.0 / 0.75 / 0.24 / 0.93 | 0.00068 m² | 0.36× vendor | 0.42 m | 100% |
+| wooded | 2 / 9 | 20.6 / 0.32 / 0.40 / 1.44 | 0.00250 m² | 0.44× vendor | 0.50 m | 100% |
+
+Two things the table shows that a single number would hide:
+
+- **The commission caps are doing the work in the wooded zone.** Under a loose
+  cap every wooded candidate passed and the pick was the one adding the most
+  speckle and the tallest height tail (0.59 m). Under the shipped caps it is
+  the moderate setting, and it sits exactly at the height cap — a boundary,
+  not a plateau. The 60-evaluation run will say which.
+- **On this site the settings that recover the most coherent relief also leak
+  the most vegetation.** Every candidate ranks the same way on all three. That
+  is what the Pareto front in `summary.json` is for: the pick is one point on
+  it, and a caller who knows the site can move along it.
+
+Coverage came back 0.98–1.00 at 1 m because ~3 points/m² fills nearly every
+1 m cell; it becomes a discriminating criterion at `dtm_resolution_m: 0.5`,
+which is where the original "30% of cells" figure was measured. It is
+resolution-dependent by design.
+
+### What running it exposed that reading the code did not
+
+Three criteria were wrong in their first form, and each looked plausible until
+the numbers came back. They are recorded here so nobody re-derives them.
+
+1. **Structured variance measured the hill, not the lumps.** On a site with
+   24 m of relief, the raw semivariogram at 2–10 m is topography; candidate
+   filters differed by 0.1%. Detrending fixes it — but detrending by filling
+   gaps with a constant first puts a fake step at every polygon edge, and the
+   open zone is 115 fragments. The moving mean has to be NaN-aware.
+2. **The nugget extrapolated to zero.** On an interpolated surface the
+   variogram grows faster than linearly, so the lag-0 intercept goes negative
+   and floors, and a ratio constraint against it is vacuous. It is now the
+   adjacent-cell semivariance, no extrapolation.
+3. **Coverage read 1.0 for every candidate**, twice, for two different
+   reasons: first because the rasterizer covers the crop's bounding box and
+   the polygon fills a few percent of it; then, masked, because the IDW window
+   fills every cell anyway. It is now counted from the points.
+
 ## Not built from upstream's Dockerfile
 
 Upstream builds on `jupyter/base-notebook:2022-06-06` from a git checkout,

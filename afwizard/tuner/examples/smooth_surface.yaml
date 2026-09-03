@@ -1,0 +1,40 @@
+# Objective: a dense, clean bare-earth surface with nothing but ground in it.
+#
+# For hydrology, flood modelling, or any use that wants terrain and treats
+# micro-relief as noise. This is the objective the feature-preservation case
+# must NOT be given: it will happily flatten a mound.
+dataset: /work/cloud.laz
+segmentation: /work/segments.geojson
+reference_dem: /work/vendor_dem_1m.tif
+dtm_resolution_m: 1.0
+
+prefilter:
+  - {type: filters.elm}
+  - {type: filters.outlier, method: statistical, mean_k: 8, multiplier: 3.0}
+
+filter: filters.smrf
+search_space:
+  window:    {min: 4.0,  max: 30.0}
+  threshold: {min: 0.10, max: 0.80}
+  slope:     {min: 0.05, max: 0.40}
+  scalar:    {min: 0.80, max: 1.50}
+fixed:
+  cell: 1.0
+
+constraints:
+  recall_vendor_ground: {min: 0.99}
+  # Anything added more than 15 cm above the vendor's terrain model is
+  # probably not ground. The 90th percentile is what is being capped.
+  height_above_reference_p90: {max: 0.15}
+
+maximize: coverage
+
+report:
+  - added_points
+  - nugget
+  - height_above_reference_p99
+
+search:
+  initial_samples: 40
+  refine_samples: 20
+  seed: 42
