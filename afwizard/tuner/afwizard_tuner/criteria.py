@@ -247,7 +247,7 @@ _register(Criterion(
     "recall_vendor_ground", "higher",
     "Fraction of the vendor's ground points the filter also labels ground.",
     "A filter more conservative than the vendor -- it is dropping points a careful classifier was sure of.",
-    "Almost every task. Vendor ground classes are conservative and should not be lost; treat any drop as diagnostic.",
+    "Almost every task WHERE THE INPUT CARRIES A VENDOR GROUND CLASS (USGS 3DEP does). NaN on unclassified clouds -- raw drone products have no class 2 -- and a NaN constraint rejects every candidate. Omit it there; the reference-DEM criteria carry the burden instead.",
     compute=recall_vendor_ground,
 ))
 _register(Criterion(
