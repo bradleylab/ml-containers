@@ -10,12 +10,22 @@
 # Run on Compute2 general-cpu partition, no GPU allocation.
 # (The FSCT source supports GPU; use_CPU_only=True is hardcoded here.)
 
-FROM python:3.9-slim-bullseye
+# bookworm, not bullseye: Debian 11 LTS ended 2026-08-31 and its security
+# archive is being thinned -- three builds in a row died on 404s for bullseye
+# packages the index still listed. FSCT's own pins are Python and torch
+# 1.9.0+cu111 (manylinux2014 wheels), neither of which cares which Debian
+# release supplies libc.
+FROM python:3.9-slim-bookworm
 
+# PYTHONNOUSERSITE=1: enroot bind-mounts $HOME on Compute2, the login node's
+# Python is 3.9, and so is this image's -- so ~/.local/lib/python3.9/site-packages
+# would otherwise shadow the container's packages (found via a foreign pyproj in
+# the adaf image, 2026-09-04).
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONNOUSERSITE=1
 
 # System deps:
 #   - build-essential: hdbscan / python-louvain compile C extensions
@@ -117,7 +127,7 @@ LABEL org.opencontainers.image.title="fsct" \
       bradleylab.model.status="production" \
       bradleylab.model.gpu="none — CPU-only — FSCT hard-pins torch==1.9.0+cu111 with matching PyG extension wheels, which cannot target sm_90; an H100 allocation would be wasted" \
       bradleylab.model.weights.source="upstream-repo:in-tree" \
-      bradleylab.model.notes="upstream has no LICENSE file; treat as research-use only"
+      bradleylab.model.licence.note="GPL-3.0 (upstream LICENSE file, verified 2026-09-04) — copyleft: anything linked into a distributed derivative must be GPL-compatible"
 
 WORKDIR /opt/FSCT/scripts
 ENTRYPOINT ["python", "/opt/FSCT/scripts/run_cli.py"]

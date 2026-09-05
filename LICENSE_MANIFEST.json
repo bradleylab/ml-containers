@@ -237,7 +237,7 @@
     {
       "name": "fsct",
       "licenses": "GPL-3.0",
-      "licence_note": null,
+      "licence_note": "GPL-3.0 (upstream LICENSE file, verified 2026-09-04) — copyleft: anything linked into a distributed derivative must be GPL-compatible",
       "status": "production",
       "upstream": "https://github.com/SKrisanski/FSCT",
       "gpu": "none — CPU-only — FSCT hard-pins torch==1.9.0+cu111 with matching PyG extension wheels, which cannot target sm_90; an H100 allocation would be wasted"
