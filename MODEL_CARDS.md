@@ -30,7 +30,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Tree-instance segmentation (UAV airborne lidar) |
 | Sensor | UAV airborne lidar (ALS); also tested at TLS density |
 | Upstream repo | [SmartForest-no/SegmentAnyTree](https://github.com/SmartForest-no/SegmentAnyTree) |
-| Upstream license | Apache-2.0 |
+| Upstream license | **MIT** (image label, CI-audited against upstream; the previous card text was wrong: “Apache-2.0…”) |
 | Paper | Wielgosz et al. (2024), *Remote Sensing of Environment* — [doi:10.1016/j.rse.2024.114367](https://doi.org/10.1016/j.rse.2024.114367) |
 | Weights source | Ships in upstream repo via `git clone` during build; v2 patches the checkpoint's run_config in-place |
 | Weights license | Same as upstream (Apache-2.0) per repo metadata |
@@ -47,7 +47,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Adaptive mean-shift crown segmentation (classical) |
 | Sensor | UAV airborne lidar (ALS) |
 | Upstream repo | [Lenostatos/crownsegmentr](https://github.com/Lenostatos/crownsegmentr) (R wrapper around AMS3D C++) |
-| Upstream license | GPL-3.0+ |
+| Upstream license | GPL-3.0-or-later — GPL-3.0+ |
 | Paper | Ferraz et al. (2016), *Remote Sensing of Environment* 183, 318–333 — [doi:10.1016/j.rse.2016.05.028](https://doi.org/10.1016/j.rse.2016.05.028) |
 | Weights source | None (classical algorithm; no learned components) |
 | Weights license | N/A |
@@ -63,8 +63,8 @@ update its card *in the same PR*. Top-level `README.md` and
 |--|--|
 | Task | TLS DL stem-point semantic segmentation → classical cylinder fit for DBH |
 | Sensor | TLS / MLS |
-| Upstream repo | [philwilkes/FSCT](https://github.com/philwilkes/FSCT) (archived; active fork at [tls-tools-ucl/TLS2trees](https://github.com/tls-tools-ucl/TLS2trees)) |
-| Upstream license | **No LICENSE file in repo root** — treat as research use only; do not redistribute |
+| Upstream repo | [SKrisanski/FSCT](https://github.com/SKrisanski/FSCT) — the repository the image clones and the one carrying the GPL-3.0 LICENSE (verified 2026-09-04); [philwilkes/FSCT](https://github.com/philwilkes/FSCT) is an archived fork, active successor [tls-tools-ucl/TLS2trees](https://github.com/tls-tools-ucl/TLS2trees) |
+| Upstream license | **GPL-3.0** (image label, CI-audited against upstream; the previous card text was wrong: “**No LICENSE file in repo root** — treat as research use only; do not…”) — GPL-3.0 (upstream LICENSE file, verified 2026-09-04) — copyleft: anything linked into a distributed derivative must be GPL-compatible |
 | Paper | Krisanski et al. (2021), *Remote Sensing* 13(8), 1413 — [doi:10.3390/rs13081413](https://doi.org/10.3390/rs13081413) |
 | Weights source | Ships in upstream repo |
 | Weights license | Inherits unclear-license posture from upstream |
@@ -98,7 +98,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Dense feature extraction — frozen backbone for downstream segmentation / classification heads |
 | Sensor | RGB aerial or satellite orthoimagery (pretrained at 0.6 m GSD; runs at any GSD) |
 | Upstream repo | [facebookresearch/dinov3](https://github.com/facebookresearch/dinov3) |
-| Upstream license | **DINOv3 License — not open source.** Redistribution permitted only with a copy of the Agreement (shipped at `/opt/licenses/LICENSE.dinov3.md`); publications must acknowledge DINO Materials; trade-control + no-military/ITAR terms |
+| Upstream license | LicenseRef-DINOv3 — **DINOv3 License — not open source.** Redistribution permitted only with a copy of the Agreement (shipped at `/opt/licenses/LICENSE.dinov3.md`); publications must acknowledge DINO Materials; trade-control + no-military/ITAR terms |
 | Paper | Simeoni, Vo, Oquab et al. (2025), *DINOv3* |
 | Weights source | `timm/vit_large_patch16_dinov3.sat493m`, **baked at build**. The `facebook/` repo of the same weights is manually gated; the timm mirror is not |
 | Weights license | DINOv3 License (as above) |
@@ -132,7 +132,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | DL semantic leaf-wood segmentation (per-point binary classification) |
 | Sensor | High-resolution TLS |
 | Upstream repo | [harryjfowen/PointsToWood](https://github.com/harryjfowen/PointsToWood) (default branch `version1.0-paper`) |
-| Upstream license | **AGPL-3.0** (strong copyleft; container redistribution requires source availability — link to upstream repo satisfies that) |
+| Upstream license | AGPL-3.0-only — **AGPL-3.0** (strong copyleft; container redistribution requires source availability — link to upstream repo satisfies that) |
 | Paper | Owen, Allen, Grieve, Wilkes & Lines (2025, in review) — [arXiv:2503.04420](https://arxiv.org/abs/2503.04420) |
 | Weights source | In-tree at `version1.0-paper` (`pointstowood/model/global.pth`, 73 MB); verified loadable at build time via `torch.load` |
 | Weights license | AGPL-3.0 (per upstream repo) |
@@ -149,7 +149,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Deterministic TLS stem detection + DBH estimation |
 | Sensor | TLS |
 | Upstream repo | [3DFin/3DFin](https://github.com/3DFin/3DFin) (PyPI: `3DFin`) |
-| Upstream license | GPL-3.0 |
+| Upstream license | GPL-3.0-only — GPL-3.0 |
 | Paper | Laino et al. (2024), *Forestry: An International Journal of Forest Research* — [doi:10.1093/forestry/cpae020](https://doi.org/10.1093/forestry/cpae020) |
 | Weights source | None (classical algorithm; no learned components) |
 | Weights license | N/A |
@@ -166,7 +166,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Frame-level animal detection in thermal video (recurrent ONNX) |
 | Sensor | DJI XT2 thermal video (640×512) |
 | Upstream | No GitHub repo; code + ONNX model distributed via Zenodo: [doi:10.5281/zenodo.14799290](https://doi.org/10.5281/zenodo.14799290) |
-| Upstream license | See Zenodo deposit — license lives in the deposit, not surfaced via repo metadata |
+| Upstream license | NOASSERTION — See Zenodo deposit — license lives in the deposit, not surfaced via repo metadata |
 | Paper | Backman et al. (2025), *Methods in Ecology and Evolution* — [doi:10.1111/2041-210X.70006](https://doi.org/10.1111/2041-210X.70006) |
 | Weights source | NOT bundled into image — `inferenceExample/` (model.onnx + generateVideoPredictions.py) bind-mounted at runtime because redistribution rights are not established. Wrapper at `tyson-deer-survey/tyson-thermal-deer-survey/scripts/run_backman_inference.py` |
 | Weights license | Unclear; bundling deferred until license is verified |
@@ -200,7 +200,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Panoptic (semantic + instance) segmentation of airborne lidar — PointGroup-style 3-head architecture, 7-level sparse U-Net backbone |
 | Sensor | Airborne lidar; 5 semantic classes (ground, low veg, stems, live branches, dead branches) |
 | Upstream repo | [prs-eth/ForAINet](https://github.com/prs-eth/ForAINet) |
-| Upstream license | **No LICENSE file in repo root** — default copyright; redistribution and derivative use not granted by upstream. The lab's `:v2` image baking the weights is a research-use posture parallel to `segment-any-tree-h100`. Do not push this image to public GHCR with intent to redistribute outside the lab without upstream contact |
+| Upstream license | NOASSERTION — **No LICENSE file in repo root** — default copyright; redistribution and derivative use not granted by upstream. The lab's `:v2` image baking the weights is a research-use posture parallel to `segment-any-tree-h100`. Do not push this image to public GHCR with intent to redistribute outside the lab without upstream contact |
 | Paper | Xiang et al. (2024), *Remote Sensing of Environment* 305, 114078 — [doi:10.1016/j.rse.2024.114078](https://doi.org/10.1016/j.rse.2024.114078) (DOI to be re-verified before any publication-grade citation) |
 | Weights source | Upstream Dropbox link → mirrored to GitHub Release [`forainet-weights-v1`](https://github.com/bradleylab/ml-containers/releases/tag/forainet-weights-v1) on this repo. Canonical lab archive on NAS at `/mnt/nas/datasets/ml_model_weights/forainet/PointGroup-PAPER.pt`. SHA-256 `97c03ce81621dc4193e55d2ca2294861b1f4421c94d192799e5fe031f9d35861` verified at build time |
 | Weights license | Not stated by upstream — treat same as upstream code |
@@ -217,7 +217,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Transformer-panoptic 3D forest instance segmentation (OneFormer3D-based) — replaces PointGroup-style clustering with learned instance queries; no post-hoc clustering parameters |
 | Sensor | Airborne / UAV lidar; trained on FOR-instanceV2 (extends FOR-instance with TU_WIEN deciduous alluvial leaf-off + BlueCat broadleaf temperate) |
 | Upstream repo | [SmartForest-no/ForestFormer3D](https://github.com/SmartForest-no/ForestFormer3D) |
-| Upstream license | CC BY-NC 4.0 (inherited from OneFormer3D base) — academic use OK; commercial requires upstream permission |
+| Upstream license | CC-BY-NC-4.0 — CC BY-NC 4.0 (inherited from OneFormer3D base) — academic use OK; commercial requires upstream permission |
 | Paper | Xiang et al. (2025), *Proceedings of ICCV* (Oral) — [arXiv:2506.16991](https://arxiv.org/abs/2506.16991) |
 | Weights source | Zenodo record [16742708](https://zenodo.org/records/16742708): `clean_forestformer.zip` (~198 MB, md5 `553d67379331966509076f3fbb409e57`) → `epoch_3000_fix.pth`. Runtime fetch via `download_weights.sh` (Zenodo can be flaky) |
 | Weights license | CC BY-NC 4.0 |
@@ -273,8 +273,8 @@ update its card *in the same PR*. Top-level `README.md` and
 | Paper | Liu, Chen, Guan, Zhou, Zhu, Ye, Fu, Zhou (2024), *IEEE TGRS* — preprint [arXiv:2306.11029](https://arxiv.org/abs/2306.11029); IEEE Xplore record [10504785](https://ieeexplore.ieee.org/document/10504785) |
 | Weights source | Hugging Face Hub: [`chendelong/RemoteCLIP`](https://huggingface.co/chendelong/RemoteCLIP). Three OpenCLIP-format checkpoints: `RemoteCLIP-RN50.pt` (~400 MB), `RemoteCLIP-ViT-B-32.pt` (~600 MB), `RemoteCLIP-ViT-L-14.pt` (~1.7 GB). Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
 | Weights license | Per HF model card; verify before redistribution |
-| Container stack | python:3.11-slim + PyTorch 2.5.1 + torchvision 0.20.1 (CPU wheels) + `open-clip-torch>=2.20` + `huggingface_hub>=0.25` + Pillow |
-| H100 status | N/A (CPU runtime by design; CUDA variant deferred until a batch-embedding workload lands) |
+| Container stack | python:3.11-slim + PyTorch 2.5.1 + torchvision 0.20.1 (**cu121 wheels on amd64, CPU wheels on arm64**) + `open-clip-torch>=2.20` + `huggingface_hub>=0.25` + Pillow |
+| H100 status | amd64 image carries CUDA torch (sm_90 asserted at build); the 2026-09-01 harness found the CPU-only build running a pure-GPU workload on Compute2 while holding a GPU allocation. arm64 stays CPU by design |
 | Lab status | **utility** — no specific lab task; the container enables zero-shot scene classification and embedding workflows on demand, parallel to sam2 |
 | First-run / current behavior | Build smoke test passes (2026-05-01); `open_clip.create_model_and_transforms` and `huggingface_hub.hf_hub_download` reach; no production inference output yet |
 | Tags | `:v1` (= `:latest`, `:torch2.5-cpu`) |
@@ -373,7 +373,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Raman mineral identification via nearest-neighbour matching against the RRUFF reference library |
 | Sensor | Raman spectrum (1D, 2-column wavenumber/intensity text input) |
 | Upstream repo | [barahona-research-group/RamanSPy](https://github.com/barahona-research-group/RamanSPy) |
-| Upstream license | BSD-3 (ramanspy code). RRUFF reference data: cite Lafuente et al. 2015 — no explicit Creative Commons license posted by the project |
+| Upstream license | **MIT** (image label, CI-audited against upstream; the previous card text was wrong: “BSD-3 (ramanspy code). RRUFF reference data: cite Lafuente et al. 2015…”) |
 | Paper | Georgiev, Pedersen, Xie, Fern, Barahona (2024), *Anal. Chem.* — *RamanSPy: An Open-Source Python Package for Integrative Raman Spectroscopy Data Analysis*, [doi:10.1021/acs.analchem.4c00383](https://doi.org/10.1021/acs.analchem.4c00383). Reference data: Lafuente B, Downs RT, Yang H, Stone N (2015). *The power of databases: the RRUFF project*. In: Highlights in Mineralogical Crystallography, T Armbruster & RM Danisi, eds., De Gruyter, Berlin, 1-30 |
 | Weights source | None (classical algorithm). Reference library is RRUFF `excellent_unoriented` (~229 MB raw archive), preprocessed at build time and baked as a single ~30-50 MB numpy index at `/opt/rruff_index.npz` |
 | Weights license | N/A. RRUFF reference spectra are redistributed in preprocessed numerical form; downstream users must cite Lafuente et al. 2015 |
@@ -430,7 +430,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Multispectral / RGB image-text retrieval and zero-shot scene scoring (CLIP architecture; SigLIP text encoder; DOFA wavelength-conditioned image trunk) |
 | Sensor | Image:multispectral (Sentinel-2 / Sentinel-1 / Gaofen / hyperspectral via wavelength conditioning), or RGB. Wavelengths supplied at runtime |
 | Upstream repo | [xiong-zhitong/DOFA-CLIP](https://github.com/xiong-zhitong/DOFA-CLIP) (vendored open_clip fork) |
-| Upstream license | Apache-2.0 (code, this repo + xiong-zhitong/DOFA-CLIP) |
+| Upstream license | **CC-BY-NC-4.0** (image label, CI-audited against upstream; the previous card text was wrong: “Apache-2.0 (code, this repo + xiong-zhitong/DOFA-CLIP)…”) |
 | Paper | Xiong et al. (2025) *DOFA-CLIP: Vision-Language Foundation Model for Earth Observation* — [arXiv:2503.06312](https://arxiv.org/abs/2503.06312) |
 | Weights source | Hugging Face Hub: [`earthflow/GeoLB-ViT-14-SigLIP-so400m-384-EO`](https://huggingface.co/earthflow/GeoLB-ViT-14-SigLIP-so400m-384-EO) (~1.7 GB safetensors) baked at build time via the vendored open_clip's `create_model_from_pretrained("hf-hub:...")` |
 | Weights license | **CC-BY-NC-4.0** per HF model card (non-commercial only). Commercial use requires explicit upstream permission (`xiongzhitong@gmail.com`). The only NC-licensed image in the catalog as of v1 |
@@ -468,7 +468,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Sensor | image:multi-resolution (Mars orbital — HiRISE 0.25 m/px, CTX 5 m/px, THEMIS 100 m/px) |
 | Domain | `planetary-mars` (label `bradleylab.model.domain`) — the catalog's Mars group; any future Mars container should carry the same label |
 | Upstream repo | [kerner-lab/MOMO](https://github.com/kerner-lab/MOMO) |
-| Upstream license | MIT (per upstream LICENSE) |
+| Upstream license | **MIT AND CC-BY-4.0** (image label, CI-audited against upstream; the previous card text was wrong: “MIT (per upstream LICENSE)…”) |
 | Paper | Model: *MOMO: Mars Orbital Model Foundation Model for Mars Orbital Applications* ([arXiv:2604.02719](https://arxiv.org/abs/2604.02719)). Benchmark: *Mars-Bench: A Benchmark for Evaluating Foundation Models for Mars Science Tasks* ([arXiv:2510.24010](https://arxiv.org/abs/2510.24010), NeurIPS 2025) |
 | Weights source | HF Hub: [`Mirali33/MOMO`](https://huggingface.co/Mirali33/MOMO) — single multi-sensor checkpoint + three sensor-specific (HiRISE / CTX / THEMIS), in ViT-Small / ViT-Base / ViT-Large variants. Cache at `$HF_HOME=/opt/hf-cache` for bind-mount persistence |
 | Weights license | CC-BY-4.0 (per HF model card [`Mirali33/MOMO`](https://huggingface.co/Mirali33/MOMO)) |
@@ -486,7 +486,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Density-based 3D point-cloud clustering for grain-size distribution + boulder mapping. Two-pass DBSCAN over local 3D neighbourhood with epsilon scaling (`np`, `esfa`, `esfb`). Detector-only — does NOT bundle the upstream Random Forest clast/matrix classifier (Terpunkto) |
 | Sensor | lidar:tls,mls (high-density gravel-bed point clouds — point spacing well under 1 cm) |
 | Upstream repo | [haydenjgeo/DBloops](https://github.com/haydenjgeo/DBloops) at v1.0.0 (commit `c3acb15`) |
-| Upstream license | MIT (DBloops MATLAB code) |
+| Upstream license | **GPL-3.0** (image label, CI-audited against upstream; the previous card text was wrong: “MIT (DBloops MATLAB code)…”) |
 | Paper | Jacobson et al. (2025) — "DBloops: density-based loop scaling for grain-size distribution from 3D point clouds" (DOI TBD) |
 | Weights source | None (classical algorithm; no learned components). Bundled source: `DBloops/`, `Terpunkto/`, `G3point/` from upstream tag, with backslash-path patches applied (eight one-line edits; see `bradleylab/rock_glaciers/scripts/matlab/dbloops_patches.diff`) |
 | Weights license | N/A |
@@ -527,11 +527,11 @@ update its card *in the same PR*. Top-level `README.md` and
 | Paper | Gong et al. (2025), *TPAMI 2025* — *CrossEarth: Geospatial Vision Foundation Model for Domain Generalizable Remote Sensing Semantic Segmentation*, [arXiv:2410.22629](https://arxiv.org/abs/2410.22629) |
 | Weights source | HF Hub: [`Cusyoung/CrossEarth`](https://huggingface.co/Cusyoung/CrossEarth) (`dinov2_converted.pth`, `dinov2_converted_1024x1024.pth`). Note typo: HF org is `Cusyoung`, not author handle `Cuzyoung`. Cache at `$HF_HOME=/opt/hf-cache` |
 | Weights license | Per HF model card — verify before redistribution |
-| Container stack | `pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime` (amd64-only) + Python 3.10 + `mmengine` + `mmcv>=2.0.0,<2.2` + `mmsegmentation>=1.0.0,<1.3` + `mmdet>=3.0.0,<3.4` + `xformers==0.0.20` (exact pin per upstream — newer breaks DINOv2 attention) |
-| H100 status | Native sm_90 (TORCH_CUDA_ARCH_LIST covers 7.0–9.0); CUDA 11.7 stack |
+| Container stack | `pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime` (amd64-only) + Python 3.10 + `mmengine` + `mmcv==2.1.0` + `mmsegmentation>=1.0.0,<1.3` + `mmdet>=3.0.0,<3.4` + `xformers==0.0.22.post7`. v1 was torch 2.0.1/cu117 per upstream's recipe; CUDA 11.7 predates sm_90 and the image **hung** on an H100 (harness 2026-09-01). The xformers pin moved with torch — upstream's 0.0.20 was an environment snapshot, not an API constraint |
+| H100 status | v2: sm_90 in torch's compiled arch list, asserted at build. v1 claimed sm_90 via TORCH_CUDA_ARCH_LIST but that env var does nothing for a prebuilt wheel — the wheel had no sm_90 and the image hung |
 | Lab status | **utility** — pretrained backbone + segmentation head; out-of-the-box inference on supported RSDG benchmarks. Recommended tier: any GPU with ≥8 GB VRAM for inference |
 | First-run / current behavior | **Real-input validated on Compute2** (job 729263, A100 80GB PCIe, 1m10s): real RGB → 512×512 → 307.2M-param `ReinsDinoVisionTransformer` (DINOv2-Large + LoRAReins) with `dinov2_converted.pth` (1.22 GB) loaded from HF Hub `Cusyoung/CrossEarth` → 4 multi-scale features (1, 1024, 32, 32) + 100 query tokens (100, 256), real vs synth distance 93.62. See `geospatial-containers/crossearth_test/` |
-| Tags | `:v1` (= `:latest`, `:torch2.0-cu117`) |
+| Tags | `:v2` (= `:latest`, `:torch2.1-cu121`); `:v1` retained on GHCR, do not use on H100 |
 | Notes | Sister to `dofa`/`dofa-clip`/`terramind` in the RS foundation-model cluster, but addresses the domain-generalization problem differently: instead of spectral conditioning (DOFA) or multimodal pretraining (TerraMind), CrossEarth uses Earth-Style Injection (data-level augmentation) + multi-task training over a 32-scenario RSDG benchmark. Only RS FM in the catalog built on a generalist self-supervised vision backbone (DINOv2). Closes the second remaining Tier 2 wishlist candidate per 2026-05-07 prior-art triage. Upstream is a research codebase (not pip-installable) — vendored at HEAD. mmcv 2.x + mmseg 1.x + xformers 0.0.20 + torch 2.0 stack mirrors upstream conda recipe; newer torch likely works but isn't validated |
 
 ## croma
@@ -687,7 +687,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Task | Genomic language model — sequence embeddings (1536-D) at nucleotide resolution over windows up to **1 Mb**, plus ~16,000 functional genomic tracks across 24 species (the signal set otherwise obtained from BigWig files) and base-resolution annotation suitable for writing out as BED |
 | Sensor | `dna-sequence` (label `bradleylab.model.sensor`) — nucleotide sequence, not a sensor product |
 | Upstream repo | [instadeepai/nucleotide-transformer](https://github.com/instadeepai/nucleotide-transformer) (see `docs/nucleotide_transformer_v3.md`) — released December 2025, actively maintained. HF collection `InstaDeepAI/nucleotide-transformer-v3` |
-| Upstream license | **CC BY-NC-SA 4.0** (upstream code) — non-commercial |
+| Upstream license | **LicenseRef-InstaDeep-NTv3-NonCommercial** (image label, CI-audited against upstream; the previous card text was wrong: “**CC BY-NC-SA 4.0** (upstream code) — non-commercial…”) |
 | Paper | Not recorded in this repo — `ntv3/README.md` cites the upstream repo and its v3 documentation page, and gives no paper reference; defer to upstream for the current citation |
 | Weights source | HF Hub: [`InstaDeepAI/NTv3_650M_post`](https://huggingface.co/InstaDeepAI/NTv3_650M_post) (650M params, 2.72 GB fp32 safetensors, embedding dim 1536 — the recommended checkpoint), plus `NTv3_100M_post`, `NTv3_{100M,650M}_post_131kb`, pre-trained-only `NTv3_{8M,100M,650M}_pre`, and a separate `NTv3_generative` checkpoint (Jan 2026, out of scope here). Sizes for the non-default checkpoints were not recorded in the lab's research pass — check the HF model card rather than assuming. **Gated**: an HF account must accept the terms on the model page before any download works, or it returns 403. Not baked; staged on a login node with a token from the environment, after which jobs run offline with `HF_HUB_OFFLINE=1` |
 | Weights license | **InstaDeep NTv3 non-commercial licence** — no commercial use, and no training a competing model on this model's outputs. Image labelled `LicenseRef-InstaDeep-NTv3-NonCommercial` with a `bradleylab.model.use_restriction` label, because the restriction travels with the image and will not be obvious to whoever pulls it next. The **second** non-commercial image in the catalog, after `dofa-clip` |

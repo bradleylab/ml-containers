@@ -247,6 +247,6 @@ LABEL org.opencontainers.image.title="forainet" \
       bradleylab.model.status="working" \
       bradleylab.model.weights.source="github-release:forainet-weights-v1 (mirrored from upstream Dropbox)" \
       bradleylab.model.weights.sha256="97c03ce81621dc4193e55d2ca2294861b1f4421c94d192799e5fe031f9d35861" \
-      bradleylab.model.notes="upstream has no LICENSE file; treat as research-use only"
+      bradleylab.model.licence.note="upstream ships LICENSE.md with no recognised SPDX licence (GitHub: NOASSERTION); treat as research-use only until the authors clarify"
 
 ENTRYPOINT ["bash"]

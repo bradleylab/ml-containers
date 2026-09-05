@@ -70,11 +70,16 @@
 
 FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel
 
+# PYTHONNOUSERSITE=1: enroot bind-mounts $HOME on Compute2, the login node's
+# Python is 3.9, and so is this image's -- so ~/.local/lib/python3.9/site-packages
+# would otherwise shadow the container's packages (found via a foreign pyproj in
+# the adaf image, 2026-09-04).
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PYTHONNOUSERSITE=1 \
     TORCH_NVCC_FLAGS="-Xfatbin -compress-all" \
     TORCH_CUDA_ARCH_LIST="7.0 7.5 8.0 8.6 8.9 9.0" \
     CMAKE_CUDA_ARCHITECTURES="70;75;80;86;89;90" \
@@ -374,6 +379,6 @@ LABEL org.opencontainers.image.title="forestformer3d" \
       bradleylab.model.task="panoptic instance segmentation, point cloud" \
       bradleylab.model.sensor="lidar:airborne" \
       bradleylab.model.status="experimental" \
-      bradleylab.model.notes="CC BY-NC 4.0 inherited from OneFormer3D base; academic use OK, commercial requires upstream permission"
+      bradleylab.model.licence.note="CC-BY-NC-4.0 inherited from the OneFormer3D base; academic use OK, commercial requires upstream permission"
 
 CMD ["bash"]

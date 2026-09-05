@@ -81,7 +81,7 @@ LABEL org.opencontainers.image.title="sam2" \
       bradleylab.model.sensor="image:rgb" \
       bradleylab.model.status="utility" \
       bradleylab.model.weights.source="huggingface-hub:facebook/sam2.1-hiera-large (default)" \
-      bradleylab.model.notes="code Apache-2.0; weights BSD-3-Clause (Meta)"
+      bradleylab.model.licence.note="code Apache-2.0; weights BSD-3-Clause (Meta) — a composite; publish both halves"
 
 ENTRYPOINT ["python", "/app/sam2_infer.py"]
 CMD ["--help"]

@@ -213,7 +213,7 @@
     {
       "name": "forainet",
       "licenses": "NOASSERTION",
-      "licence_note": null,
+      "licence_note": "upstream ships LICENSE.md with no recognised SPDX licence (GitHub: NOASSERTION); treat as research-use only until the authors clarify",
       "status": "working",
       "upstream": "https://github.com/prs-eth/ForAINet",
       "gpu": null
@@ -221,7 +221,7 @@
     {
       "name": "forestformer3d",
       "licenses": "CC-BY-NC-4.0",
-      "licence_note": null,
+      "licence_note": "CC-BY-NC-4.0 inherited from the OneFormer3D base; academic use OK, commercial requires upstream permission",
       "status": "experimental",
       "upstream": "https://github.com/SmartForest-no/ForestFormer3D",
       "gpu": null
@@ -237,7 +237,7 @@
     {
       "name": "fsct",
       "licenses": "GPL-3.0",
-      "licence_note": null,
+      "licence_note": "GPL-3.0 (upstream LICENSE file, verified 2026-09-04) — copyleft: anything linked into a distributed derivative must be GPL-compatible",
       "status": "production",
       "upstream": "https://github.com/SKrisanski/FSCT",
       "gpu": "none — CPU-only — FSCT hard-pins torch==1.9.0+cu111 with matching PyG extension wheels, which cannot target sm_90; an H100 allocation would be wasted"
@@ -320,7 +320,7 @@
       "licence_note": null,
       "status": "utility",
       "upstream": "https://github.com/neuralhydrology/neuralhydrology",
-      "gpu": null
+      "gpu": "none — CPU torch by design: CAMELS-scale LSTM inference is not GPU-bound and this image targets inference, not training"
     },
     {
       "name": "ntv3",
@@ -376,7 +376,7 @@
       "licence_note": null,
       "status": "utility",
       "upstream": "https://github.com/ChenDelong1999/RemoteCLIP",
-      "gpu": null
+      "gpu": "optional — amd64 image carries CUDA torch (sm_90); arm64 image is CPU-only by design"
     },
     {
       "name": "rf-detr",
@@ -389,7 +389,7 @@
     {
       "name": "sam2",
       "licenses": "Apache-2.0 AND BSD-3-Clause",
-      "licence_note": null,
+      "licence_note": "code Apache-2.0; weights BSD-3-Clause (Meta) — a composite; publish both halves",
       "status": "utility",
       "upstream": "https://github.com/facebookresearch/sam2",
       "gpu": null

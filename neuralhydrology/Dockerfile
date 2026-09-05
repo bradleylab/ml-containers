@@ -78,6 +78,7 @@ LABEL org.opencontainers.image.title="neuralhydrology" \
       bradleylab.model.task="rainfall-runoff / streamflow prediction (LSTM)" \
       bradleylab.model.sensor="time-series:meteorological-forcing+streamflow" \
       bradleylab.model.status="utility" \
+      bradleylab.model.gpu="none — CPU torch by design: CAMELS-scale LSTM inference is not GPU-bound and this image targets inference, not training" \
       bradleylab.model.weights.source="user-supplied (checkpoint directory bind-mounted at runtime; pretrained CAMELS checkpoints from the NeuralHydrology research blog)"
 
 WORKDIR /work
