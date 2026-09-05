@@ -108,7 +108,21 @@ RUN conda create -y -n adaf -c conda-forge --override-channels \
     && conda clean -afy
 
 ENV PATH=/opt/conda/envs/adaf/bin:$PATH \
-    CONDA_DEFAULT_ENV=adaf
+    CONDA_DEFAULT_ENV=adaf \
+    PYTHONNOUSERSITE=1 \
+    PROJ_LIB=/opt/conda/envs/adaf/share/proj
+
+# PYTHONNOUSERSITE=1 is load-bearing on Compute2, and specific to Python 3.9
+# images. enroot bind-mounts $HOME, the login node's Python is 3.9, and the
+# operator's own pip packages live in ~/.local/lib/python3.9/site-packages --
+# which Python 3.9 inside this image puts on sys.path AHEAD of the conda env.
+# The first symptom was pyproj resolving to the home copy and pointing PROJ at
+# a database that does not exist in the container:
+#     PROJ: proj_create_from_database: Open of /opt/conda/envs/adaf/share/proj failed
+# Every CRS transform then fails. It did not bite at Tisch Park because the
+# DTM and the outputs shared one CRS and nothing was reprojected; it bit the
+# moment a WGS84 inventory met a UTM raster. PROJ_LIB is set for the same
+# reason the afwizard image sets it.
 
 # Verify the geospatial stack HERE, and print enough to diagnose it if it still
 # fails. Two builds have already died at this exact point; a third failure
@@ -153,9 +167,17 @@ ENV PYTHONPATH=/opt/adaf
 # pins (h5py<3.2.1, imagecodecs==2023.3.16) that can install cleanly and still
 # fail to import. Prove the model classes resolve BEFORE the 5.52 GB download.
 RUN python -c "\
-import torch; \
+import sys, torch, pyproj; \
+from osgeo import osr; \
 from aitlas.models import FasterRCNN, HRNet; \
 import rvt.vis; \
+assert not any('.local' in p for p in sys.path), [p for p in sys.path if '.local' in p]; \
+assert pyproj.datadir.get_data_dir().startswith('/opt/conda'), pyproj.datadir.get_data_dir(); \
+srs = osr.SpatialReference(); assert srs.ImportFromEPSG(26916) == 0, 'PROJ database unusable'; \
+wgs = osr.SpatialReference(); wgs.ImportFromEPSG(4326); wgs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER); \
+x, y, _ = osr.CoordinateTransformation(wgs, srs).TransformPoint(-90.0619, 38.6603); \
+assert 230000 < x < 240000 and 4280000 < y < 4290000, (x, y); \
+print('PROJ ok: Monks Mound ->', round(x), round(y), 'UTM16N'); \
 print('torch', torch.__version__, '| aitlas models:', FasterRCNN.__name__, HRNet.__name__)"
 
 COPY fetch_weights.py /opt/fetch_weights.py
