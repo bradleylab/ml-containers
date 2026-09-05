@@ -128,7 +128,7 @@
       "licence_note": null,
       "status": "utility",
       "upstream": "https://github.com/VisionXLab/CrossEarth",
-      "gpu": null
+      "gpu": "required — torch 2.1.0 cu121 with sm_90; v1 (cu117) could not target the H100 and hung"
     },
     {
       "name": "dbloops",
