@@ -14,7 +14,7 @@
 # Upstream: https://github.com/ChenDelong1999/RemoteCLIP
 # Paper:    https://arxiv.org/abs/2306.11029  (Liu, Chen et al. 2024)
 # Weights:  https://huggingface.co/chendelong/RemoteCLIP
-# Stack:    python:3.11-slim + PyTorch 2.5 CPU + open-clip-torch
+# Stack:    python:3.11-slim + PyTorch 2.5 (cu121 on amd64, CPU on arm64) + open-clip-torch
 #
 # Multi-arch: linux/amd64 + linux/arm64. Every dependency publishes an
 # aarch64 wheel (torch 2.5.1, torchvision 0.20.1, open-clip-torch is
@@ -39,12 +39,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# PyTorch CPU wheels — matches seisbench / neuralhydrology for ABI
-# consistency. CLIP is fast enough on CPU for typical use; a CUDA
-# variant for batch embedding can be added later.
+# Torch per architecture. The amd64 image carries CUDA torch so batch
+# embedding on Compute2 uses the H100 -- the 2026-09-01 harness found this
+# image executing a pure-GPU workload on CPU while holding a GPU allocation.
+# The arm64 image keeps CPU torch: the cu121 index has no aarch64 wheels, and
+# the laptop use this multi-arch build exists for is CPU anyway. Both wheels
+# are the same torch version, so the model code is identical across arches.
+#
+# The smoke test checks the CUDA toolkit version, not torch.cuda.get_arch_list():
+# the arch list is populated from the driver at runtime and is [] on a
+# GPU-less CI runner, so asserting sm_90 in it fails every build. sm_90
+# support arrived in CUDA 11.8; the runtime harness (ml-jobs/harness) does the
+# real arch probe on an H100.
+ARG TARGETARCH
 RUN pip install --upgrade pip wheel \
-    && pip install --index-url https://download.pytorch.org/whl/cpu \
-        torch==2.5.1 torchvision==0.20.1
+    && if [ "$TARGETARCH" = "amd64" ]; then \
+         pip install --index-url https://download.pytorch.org/whl/cu121 \
+             torch==2.5.1 torchvision==0.20.1; \
+       else \
+         pip install --index-url https://download.pytorch.org/whl/cpu \
+             torch==2.5.1 torchvision==0.20.1; \
+       fi
 
 RUN pip install \
         "open-clip-torch>=2.20" \
@@ -56,15 +71,18 @@ RUN mkdir -p /opt/hf-cache
 # Smoke test: import + reach the public OpenCLIP API + huggingface_hub.
 # No weight fetch at build time. importlib.metadata for portable
 # version checks (see ~/.claude/rules/ml-containers.md).
-RUN python -c "import torch, open_clip, huggingface_hub; \
+ARG TARGETARCH
+RUN python -c "import torch, open_clip, huggingface_hub, platform; \
 import importlib.metadata as im; \
-print('open-clip-torch', im.version('open-clip-torch'), '| torch', torch.__version__, '| huggingface_hub', huggingface_hub.__version__); \
+print('open-clip-torch', im.version('open-clip-torch'), '| torch', torch.__version__, '| cuda-build', torch.version.cuda, '| huggingface_hub', huggingface_hub.__version__); \
+assert (torch.version.cuda is not None) == (platform.machine() == 'x86_64'), f'amd64 must carry CUDA torch and arm64 must not: cuda={torch.version.cuda} machine={platform.machine()}'; \
+assert (tuple(map(int, torch.version.cuda.split('.')[:2])) >= (11, 8)) if torch.version.cuda else True, f'sm_90 needs CUDA >= 11.8, wheel is cu{torch.version.cuda}'; \
 assert callable(open_clip.create_model_and_transforms); \
 assert callable(open_clip.get_tokenizer); \
 assert callable(huggingface_hub.hf_hub_download)"
 
 LABEL org.opencontainers.image.title="remoteclip" \
-      org.opencontainers.image.description="RemoteCLIP — CLIP architecture fine-tuned on remote-sensing imagery (RN50 / ViT-B-32 / ViT-L-14); CPU runtime; weights via Hugging Face Hub at chendelong/RemoteCLIP" \
+      org.opencontainers.image.description="RemoteCLIP — CLIP architecture fine-tuned on remote-sensing imagery (RN50 / ViT-B-32 / ViT-L-14); CUDA torch on amd64, CPU torch on arm64; weights via Hugging Face Hub at chendelong/RemoteCLIP" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/remoteclip/README.md" \
       org.opencontainers.image.version="v2" \
@@ -75,6 +93,7 @@ LABEL org.opencontainers.image.title="remoteclip" \
       bradleylab.model.task="remote-sensing image-text retrieval / zero-shot scene classification" \
       bradleylab.model.sensor="image:rgb-satellite (Sentinel-2, NAIP, UAV — anything CLIP ingests as RGB)" \
       bradleylab.model.status="utility" \
+      bradleylab.model.gpu="optional — amd64 image carries CUDA torch (sm_90); arm64 image is CPU-only by design" \
       bradleylab.model.weights.source="huggingface-hub:chendelong/RemoteCLIP (RemoteCLIP-{RN50,ViT-B-32,ViT-L-14}.pt; runtime fetch into HF_HOME=/opt/hf-cache)"
 
 WORKDIR /work
