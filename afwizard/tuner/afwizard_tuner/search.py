@@ -126,12 +126,12 @@ def tune_segment(objective: Objective, segment: Segment, scratch: Path, log) -> 
     first_row.objective = objective_value(objective, first_row.scores) if feasible else float("-inf")
     result.rows.append(first_row)
     log(f"[{segment.name}] reference: " + ", ".join(f"{k}={v:.4g}" for k, v in result.reference_scores.items()))
-    log(f"[{segment.name}] 1/{objective.initial_samples} {first_row.params} -> {'ok' if feasible else 'X'} {first_row.objective:.4g} ({first_row.seconds:.1f}s)")
+    log(f"[{segment.name}] 1/{objective.initial_samples} {first_row.params} -> {'ok' if feasible else 'X'} {first_row.objective:.4g} ({first_row.seconds:.1f}s){'' if feasible else '  <- ' + '; '.join(reasons)}")
 
     for i, params in enumerate(initial[1:], start=2):
         row, _ = _run_one(objective, segment, params, "initial", result.reference_scores, scratch)
         result.rows.append(row)
-        log(f"[{segment.name}] {i}/{objective.initial_samples} {params} -> {'ok' if row.feasible else 'X'} {row.objective:.4g} ({row.seconds:.1f}s)")
+        log(f"[{segment.name}] {i}/{objective.initial_samples} {params} -> {'ok' if row.feasible else 'X'} {row.objective:.4g} ({row.seconds:.1f}s){'' if row.feasible else '  <- ' + '; '.join(row.reasons)}")
 
     seeds = sorted([r for r in result.rows if r.feasible], key=lambda r: -r.objective)[:REFINE_SEEDS]
     if seeds and objective.refine_samples:
@@ -140,10 +140,17 @@ def tune_segment(objective: Objective, segment: Segment, scratch: Path, log) -> 
             for params in _perturb(objective, seed.params, per_seed, rng):
                 row, _ = _run_one(objective, segment, params, "refine", result.reference_scores, scratch)
                 result.rows.append(row)
-                log(f"[{segment.name}] refine {params} -> {'ok' if row.feasible else 'X'} {row.objective:.4g} ({row.seconds:.1f}s)")
+                log(f"[{segment.name}] refine {params} -> {'ok' if row.feasible else 'X'} {row.objective:.4g} ({row.seconds:.1f}s){'' if row.feasible else '  <- ' + '; '.join(row.reasons)}")
 
     feasible_rows = [r for r in result.rows if r.feasible]
     result.pick = max(feasible_rows, key=lambda r: r.objective) if feasible_rows else None
+    # A constraint that is NaN on every candidate cannot be satisfied and says
+    # the objective asked for something the data cannot supply -- recall of a
+    # vendor class the cloud does not carry, or a reference-DEM criterion with
+    # no usable reference. Name it, rather than reporting "no pick".
+    for c in objective.constraints:
+        if all(r.scores[c.ref.key] != r.scores[c.ref.key] for r in result.rows):
+            log(f"[{segment.name}] CONSTRAINT {c.ref.key} is NaN for every candidate: the data cannot supply it; remove it from the objective or fix the input")
     return result
 
 

@@ -73,6 +73,15 @@ class Evaluation:
         return self.vendor_class == GROUND_CLASS
 
 
+def _python_pdal():
+    """PDAL's Python bindings, if this environment has them (the container does)."""
+    try:
+        import pdal  # noqa: F401
+        return pdal
+    except ImportError:
+        return None
+
+
 def run_pdal(stages: list[dict], label: str) -> None:
     """Execute a pipeline given as a list of stage dicts."""
     proc = subprocess.run(
@@ -160,10 +169,20 @@ def evaluate(
             },
         ]
         started = time.perf_counter()
-        run_pdal(stages, label=f"evaluate {segment.name} {filter_stage}")
+        pdal_py = _python_pdal()
+        if pdal_py is not None:
+            # In-process: the point arrays come back as numpy without a CSV
+            # round-trip. On a 30 M-point tile the text write plus np.loadtxt
+            # was most of a 348 s evaluation; the filter itself is ~2 min.
+            stages_np = [st for st in stages if st.get("type") != "writers.text"]
+            pipe = pdal_py.Pipeline(json.dumps(stages_np))
+            pipe.execute()
+            arr = pipe.arrays[0]
+            table = np.column_stack([arr[c].astype(float) for c in CSV_COLUMNS])
+        else:
+            run_pdal(stages, label=f"evaluate {segment.name} {filter_stage}")
+            table = np.loadtxt(csv_path, delimiter=",", skiprows=1, ndmin=2)
         seconds = time.perf_counter() - started
-
-        table = np.loadtxt(csv_path, delimiter=",", skiprows=1, ndmin=2)
         with rasterio.open(dtm_path) as src:
             dtm = src.read(1).astype(float)
             dtm[dtm == src.nodata] = np.nan
