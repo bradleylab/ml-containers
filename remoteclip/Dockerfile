@@ -45,6 +45,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # The arm64 image keeps CPU torch: the cu121 index has no aarch64 wheels, and
 # the laptop use this multi-arch build exists for is CPU anyway. Both wheels
 # are the same torch version, so the model code is identical across arches.
+#
+# The smoke test checks the CUDA toolkit version, not torch.cuda.get_arch_list():
+# the arch list is populated from the driver at runtime and is [] on a
+# GPU-less CI runner, so asserting sm_90 in it fails every build. sm_90
+# support arrived in CUDA 11.8; the runtime harness (ml-jobs/harness) does the
+# real arch probe on an H100.
 ARG TARGETARCH
 RUN pip install --upgrade pip wheel \
     && if [ "$TARGETARCH" = "amd64" ]; then \
@@ -70,7 +76,7 @@ RUN python -c "import torch, open_clip, huggingface_hub, platform; \
 import importlib.metadata as im; \
 print('open-clip-torch', im.version('open-clip-torch'), '| torch', torch.__version__, '| cuda-build', torch.version.cuda, '| huggingface_hub', huggingface_hub.__version__); \
 assert (torch.version.cuda is not None) == (platform.machine() == 'x86_64'), f'amd64 must carry CUDA torch and arm64 must not: cuda={torch.version.cuda} machine={platform.machine()}'; \
-assert 'sm_90' in torch.cuda.get_arch_list() if torch.version.cuda else True, torch.cuda.get_arch_list(); \
+assert (tuple(map(int, torch.version.cuda.split('.')[:2])) >= (11, 8)) if torch.version.cuda else True, f'sm_90 needs CUDA >= 11.8, wheel is cu{torch.version.cuda}'; \
 assert callable(open_clip.create_model_and_transforms); \
 assert callable(open_clip.get_tokenizer); \
 assert callable(huggingface_hub.hf_hub_download)"
