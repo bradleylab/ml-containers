@@ -54,9 +54,19 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/opt/hf-cache \
     PYTHONPATH=/opt/CrossEarth
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        git ca-certificates \
-        libgl1 libglib2.0-0 \
+# apt with retries. Two consecutive CI builds died here on "Connection failed"
+# to three different Ubuntu mirror IPs over ten minutes -- the GitHub-runner to
+# Canonical path, not the package list. The focal base (the only Ubuntu the
+# torch 2.1.0 image ships on) cannot be swapped, so the step is made to
+# survive a flaky mirror instead: Acquire::Retries plus a three-attempt loop.
+RUN for attempt in 1 2 3; do \
+        apt-get update -o Acquire::Retries=5 \
+        && apt-get install -y --no-install-recommends -o Acquire::Retries=5 \
+            git ca-certificates \
+            libgl1 libglib2.0-0 \
+        && break; \
+        echo "apt attempt $attempt failed; retrying in 60 s"; sleep 60; \
+    done \
     && rm -rf /var/lib/apt/lists/*
 
 # Pin to upstream HEAD as of 2026-04-02. No PyPI release; vendor the
