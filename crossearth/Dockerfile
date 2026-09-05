@@ -32,9 +32,11 @@
 #     all present and unchanged through 0.0.22.
 # mmsegmentation and mmdet keep their upstream ranges.
 #
-# The smoke test asserts sm_90 is in torch's compiled arch list. That is a
-# compile-time property of the wheel, so it holds on the GPU-less CI runner
-# and is the regression test for the hang.
+# The smoke test asserts the wheel's CUDA toolkit is >= 11.8, the version
+# that introduced sm_90. It does NOT read torch.cuda.get_arch_list(): that is
+# populated from the driver at runtime and is [] on a GPU-less runner. The
+# real arch probe runs in ml-jobs/harness on an H100 and is the regression
+# test for the hang.
 #
 # Upstream: https://github.com/VisionXLab/CrossEarth (MIT)
 # Paper:    https://arxiv.org/abs/2410.22629
@@ -112,7 +114,7 @@ all_registered = set(MODELS.module_dict).union(*(set(c.module_dict) for c in MOD
 found = [n for n in expected if n in all_registered]; \
 assert len(found) >= 3, f'CrossEarth registry side-effects missing: found={found}, expected at least 3 of {expected}'; \
 assert int(np.__version__.split('.')[0]) < 2, f'numpy must be <2 for the torch 2.1 ABI; got {np.__version__}'; \
-assert 'sm_90' in torch.cuda.get_arch_list(), f'torch must target sm_90 (H100) — this image hung on Compute2 without it; arch_list={torch.cuda.get_arch_list()}'; \
+assert tuple(map(int, torch.version.cuda.split('.')[:2])) >= (11, 8), f'sm_90 (H100) needs CUDA >= 11.8 — v1 was cu117 and hung; this wheel is cu{torch.version.cuda}'; \
 from xformers.ops import memory_efficient_attention, SwiGLU, fmha; \
 print('mmcv', im.version('mmcv'), \
 '| mmsegmentation', im.version('mmsegmentation'), \
