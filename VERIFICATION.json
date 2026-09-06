@@ -2,11 +2,10 @@
   "generated_from": "smoke-all-20260905T050413Z",
   "counts": {
     "torch-free": 9,
-    "gpu-verified": 54,
+    "gpu-verified": 55,
     "cpu-only-torch": 4,
     "arch-unsupported": 1,
-    "no-python": 4,
-    "gpu-not-visible": 1
+    "no-python": 4
   },
   "entries": [
     {
@@ -507,12 +506,12 @@
     },
     {
       "image": "remoteclip+v2",
-      "verdict": "gpu-not-visible",
-      "gpu": null,
+      "verdict": "gpu-verified",
+      "gpu": "NVIDIA H100 80GB HBM3",
       "torch": "2.5.1+cu121",
       "python": "3.11.16",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2977986",
+      "job": "2981102",
       "date": "2026-09-05"
     },
     {
