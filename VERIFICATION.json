@@ -1,11 +1,11 @@
 {
-  "generated_from": "/private/tmp/claude-502/-Users-abradley-Documents-AI-projects-BioAI/5f0cd8be-2655-4d53-a89d-afd2ed07ad3a/scratchpad/harness/run-20260901",
+  "generated_from": "smoke-all-20260905T050413Z",
   "counts": {
-    "torch-free": 8,
-    "gpu-verified": 50,
-    "cpu-only-torch": 5,
-    "no-result": 5,
-    "arch-unsupported": 1
+    "torch-free": 9,
+    "gpu-verified": 55,
+    "cpu-only-torch": 4,
+    "arch-unsupported": 1,
+    "no-python": 4
   },
   "entries": [
     {
@@ -15,24 +15,28 @@
       "torch": null,
       "python": "3.11.15",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "adaf+v1",
       "verdict": "gpu-verified",
       "gpu": "NVIDIA H100 80GB HBM3",
-      "evidence": "plumbing on Tisch Park 0.25 m DTM: SLRM 12 tiles, HRNet segmentation, GPKG, stock label route via backslash symlinks; 36 s",
-      "job": "2957140",
-      "date": "2026-09-01"
+      "torch": "2.5.1+cu121",
+      "python": "3.9.23",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "afwizard+v1",
       "verdict": "torch-free",
       "gpu": null,
-      "evidence": "import verified on general-cpu; afwizard-tune 116-evaluation search + apply_adaptive_pipeline produced filtered LAS/GeoTIFF",
-      "job": "2962524",
-      "date": "2026-09-03"
+      "torch": null,
+      "python": "3.11.16",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "alphafold3+sha256-6c6d8a36f5a9bd20",
@@ -41,8 +45,8 @@
       "torch": null,
       "python": "3.12.3",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "ams3d-crownseg+v1",
@@ -51,8 +55,8 @@
       "torch": null,
       "python": "3.13.12",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "birefnet+v1",
@@ -61,8 +65,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "boltz+v1",
@@ -71,8 +75,8 @@
       "torch": "2.8.0+cu129",
       "python": "3.11.13",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "chai-1+v1",
@@ -81,8 +85,8 @@
       "torch": "2.6.0+cu126",
       "python": "3.11.11",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "clay+latest",
@@ -91,8 +95,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.0rc1",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "clay+v2",
@@ -101,8 +105,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.0rc1",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "clean+v1",
@@ -111,8 +115,8 @@
       "torch": "2.5.1+cpu",
       "python": "3.10.21",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "concerto+v1",
@@ -121,8 +125,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "crater-detection+v1",
@@ -131,8 +135,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "crater-detection+v1",
@@ -146,10 +150,21 @@
       "image": "crossearth+v1",
       "verdict": "arch-unsupported",
       "gpu": "NVIDIA H100 80GB HBM3",
-      "torch": "2.0.1 (cu117)",
-      "evidence": "harness task hung to the 20-min limit; torch warned the H100 capability is not in its compiled arch list (CUDA 11.7 predates sm_90)",
-      "job": "2955548",
-      "date": "2026-09-01"
+      "torch": "2.0.1",
+      "python": "3.10.11",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
+    },
+    {
+      "image": "crossearth+v2",
+      "verdict": "gpu-verified",
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "torch": "2.1.0",
+      "python": "3.10.13",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "depth-anything-3+v1",
@@ -158,8 +173,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "dinov3+v1",
@@ -168,8 +183,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "dinov3-sat+v1",
@@ -178,8 +193,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "dinov3-sat+v1-scipy",
@@ -188,8 +203,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "dnabert-s+v1",
@@ -198,8 +213,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.0rc1",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "esm+v1",
@@ -208,8 +223,8 @@
       "torch": "2.11.0+cu128",
       "python": "3.12.3",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "evo2+v1",
@@ -218,8 +233,8 @@
       "torch": "2.7.0a0+79aa17489c.nv25.04",
       "python": "3.12.3",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "forainet+latest",
@@ -228,8 +243,18 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
+    },
+    {
+      "image": "forainet+v2",
+      "verdict": "gpu-verified",
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "torch": "2.2.2",
+      "python": "3.10.14",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977987",
+      "date": "2026-09-05"
     },
     {
       "image": "forestformer3d+latest",
@@ -238,38 +263,48 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
+    },
+    {
+      "image": "forestformer3d+v1",
+      "verdict": "gpu-verified",
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "torch": "2.2.2",
+      "python": "3.10.14",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "fsct+v1",
       "verdict": "cpu-only-torch",
       "gpu": null,
       "torch": "1.9.0+cpu",
-      "python": "3.9.23",
+      "python": "3.9.25",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "geo-tools+v1",
-      "verdict": "no-result",
+      "verdict": "no-python",
       "gpu": null,
       "torch": null,
       "python": null,
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "geo-tools+v2",
-      "verdict": "no-result",
+      "verdict": "no-python",
       "gpu": null,
       "torch": null,
       "python": null,
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "geolg-3dfaultnet+v1",
@@ -278,8 +313,8 @@
       "torch": "2.8.0+cu128",
       "python": "3.12.3",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "grounding-dino+v1",
@@ -288,8 +323,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "hylite+v1",
@@ -298,8 +333,8 @@
       "torch": null,
       "python": "3.11.16",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "hylite+v1",
@@ -316,18 +351,18 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "isce2-insar+latest",
-      "verdict": "no-result",
+      "verdict": "no-python",
       "gpu": null,
       "torch": null,
       "python": null,
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "kpconv+v1",
@@ -336,8 +371,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "lunarfm+local",
@@ -346,8 +381,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "momo+v1",
@@ -356,8 +391,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.0rc1",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "multispec-species+v1",
@@ -366,8 +401,8 @@
       "torch": null,
       "python": "3.12.13",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "n2n4m+v1",
@@ -376,18 +411,18 @@
       "torch": "2.9.1+cu128",
       "python": "3.11.16",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "neuralhydrology+v2",
       "verdict": "cpu-only-torch",
       "gpu": null,
       "torch": "2.5.1+cpu",
-      "python": "3.11.15",
+      "python": "3.11.16",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977987",
+      "date": "2026-09-05"
     },
     {
       "image": "ntv3+v1",
@@ -396,8 +431,8 @@
       "torch": "2.7.0a0+79aa17489c.nv25.04",
       "python": "3.12.3",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "octformer+v1",
@@ -406,8 +441,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "odm+gpu",
@@ -416,8 +451,8 @@
       "torch": null,
       "python": "3.12.3",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "odm+latest",
@@ -426,18 +461,18 @@
       "torch": null,
       "python": "3.12.3",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "ortho-pipeline+latest",
-      "verdict": "no-result",
+      "verdict": "torch-free",
       "gpu": null,
       "torch": null,
-      "python": null,
+      "python": "3.9.5",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "point-transformer-v3+v1",
@@ -446,8 +481,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "pointstowood+latest",
@@ -456,8 +491,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.10.12",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "prithvi-eo+latest",
@@ -466,18 +501,18 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.0rc1",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "remoteclip+v2",
-      "verdict": "cpu-only-torch",
-      "gpu": null,
-      "torch": "2.5.1+cpu",
-      "python": "3.11.15",
+      "verdict": "gpu-verified",
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "torch": "2.5.1+cu121",
+      "python": "3.11.16",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2981102",
+      "date": "2026-09-05"
     },
     {
       "image": "rf-detr+v1",
@@ -486,8 +521,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "rf-detr+v1",
@@ -504,8 +539,18 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
+    },
+    {
+      "image": "sam2+v1",
+      "verdict": "gpu-verified",
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "torch": "2.5.1+cu121",
+      "python": "3.11.10",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "sam3+v1",
@@ -514,8 +559,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "saprot+v1",
@@ -524,8 +569,8 @@
       "torch": "2.7.0a0+79aa17489c.nv25.04",
       "python": "3.12.3",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "satlas+latest",
@@ -534,8 +579,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.0rc1",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "segment-any-tree-h100+latest",
@@ -544,8 +589,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "segment-any-tree-h100+v2",
@@ -554,8 +599,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "segment-any-tree-h100+v2-defaults",
@@ -564,8 +609,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "seist+v1",
@@ -574,8 +619,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "siglip2+v1",
@@ -584,18 +629,18 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "snap-insar+latest",
-      "verdict": "no-result",
+      "verdict": "no-python",
       "gpu": null,
       "torch": null,
       "python": null,
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "sonata+v1",
@@ -604,8 +649,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "splat-pipeline+latest",
@@ -614,8 +659,8 @@
       "torch": "2.1.2+cu118",
       "python": "3.10.12",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "superpoint-transformer+v1",
@@ -624,8 +669,8 @@
       "torch": "2.2.2",
       "python": "3.10.14",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "terramind+v1",
@@ -634,8 +679,8 @@
       "torch": "2.5.1+cu121",
       "python": "3.11.0rc1",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "treelearn+latest",
@@ -644,8 +689,8 @@
       "torch": "2.0.0+cu118",
       "python": "3.10.12",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "treex+latest",
@@ -654,8 +699,8 @@
       "torch": "2.4.0+cpu",
       "python": "3.11.15",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "trellis2+v1",
@@ -664,8 +709,8 @@
       "torch": "2.6.0+cu124",
       "python": "3.11.11",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "utonia+v1",
@@ -674,8 +719,8 @@
       "torch": "2.5.1+cu124",
       "python": "3.11.10",
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2955536",
-      "date": "2026-09-01"
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "utonia+v1",
