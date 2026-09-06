@@ -376,7 +376,7 @@
       "licence_note": null,
       "status": "utility",
       "upstream": "https://github.com/ChenDelong1999/RemoteCLIP",
-      "gpu": "optional — amd64 image carries CUDA torch (sm_90); arm64 image is CPU-only by design"
+      "gpu": "optional"
     },
     {
       "name": "rf-detr",
