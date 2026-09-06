@@ -34,6 +34,7 @@ from shapely.geometry import shape
 GROUND_CLASS = 2
 CSV_COLUMNS = ("VendorClass", "Classification", "HeightAboveGround", "X", "Y", "Z")
 DTM_NODATA = -9999.0
+HAG_MIN_CLAMP_M = -1000.0  # keeps negative heights; see the hag_dem stage
 
 
 class PdalError(RuntimeError):
@@ -146,7 +147,17 @@ def evaluate(
             {"type": "filters.ferry", "dimensions": "Classification=>VendorClass"},
             *prefilter,
             filter_stage,
-            {"type": "filters.hag_dem", "raster": str(reference_dem), "zero_ground": False},
+            {
+                "type": "filters.hag_dem",
+                "raster": str(reference_dem),
+                "zero_ground": False,
+                # PDAL clamps HeightAboveGround to min_clamp, default the smallest
+                # positive double, so points below the reference all read
+                # 2.2e-308 and a height cap passes vacuously. Seen on Tyson, where
+                # the whole drone cloud sits 18 m under the 2017 3DEP. Any bound
+                # deeper than a real terrain/reference discrepancy keeps the sign.
+                "min_clamp": HAG_MIN_CLAMP_M,
+            },
             {
                 "type": "writers.gdal",
                 "filename": str(dtm_path),
