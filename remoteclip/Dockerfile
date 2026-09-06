@@ -68,6 +68,13 @@ RUN pip install \
 
 RUN mkdir -p /opt/hf-cache
 
+# enroot exposes the GPU only when the image asks for it; without this the
+# cu121 torch below reports cuda_available False on an H100 node (H100 probe,
+# job 2977986, 2026-09-05). On a CPU partition pass
+#     srun --export=ALL,NVIDIA_VISIBLE_DEVICES=void ...
+ENV NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
 # Smoke test: import + reach the public OpenCLIP API + huggingface_hub.
 # No weight fetch at build time. importlib.metadata for portable
 # version checks (see ~/.claude/rules/ml-containers.md).
@@ -81,6 +88,7 @@ assert callable(open_clip.create_model_and_transforms); \
 assert callable(open_clip.get_tokenizer); \
 assert callable(huggingface_hub.hf_hub_download)"
 
+# gpu=optional: the amd64 image carries CUDA torch (sm_90); arm64 stays CPU.
 LABEL org.opencontainers.image.title="remoteclip" \
       org.opencontainers.image.description="RemoteCLIP — CLIP architecture fine-tuned on remote-sensing imagery (RN50 / ViT-B-32 / ViT-L-14); CUDA torch on amd64, CPU torch on arm64; weights via Hugging Face Hub at chendelong/RemoteCLIP" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
@@ -93,7 +101,7 @@ LABEL org.opencontainers.image.title="remoteclip" \
       bradleylab.model.task="remote-sensing image-text retrieval / zero-shot scene classification" \
       bradleylab.model.sensor="image:rgb-satellite (Sentinel-2, NAIP, UAV — anything CLIP ingests as RGB)" \
       bradleylab.model.status="utility" \
-      bradleylab.model.gpu="optional — amd64 image carries CUDA torch (sm_90); arm64 image is CPU-only by design" \
+      bradleylab.model.gpu="optional" \
       bradleylab.model.weights.source="huggingface-hub:chendelong/RemoteCLIP (RemoteCLIP-{RN50,ViT-B-32,ViT-L-14}.pt; runtime fetch into HF_HOME=/opt/hf-cache)"
 
 WORKDIR /work
