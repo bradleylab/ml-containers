@@ -107,6 +107,12 @@ locally.
 | `chai-1` | `chai-1/` | full recipe — **experimental** (GPU sm_90, A100/H100 80 GB; Chai-1 co-folding, MSA-free by default; Apache-2.0 code *and* weights since Nov 2024; weights via `chaiassets.com`) |
 | `dnabert-s` | `dnabert-s/` | full recipe — **experimental** (GPU sm_90; species-aware DNA embeddings for metagenomic binning; `transformers==4.27` pin dictates the whole stack; Apache-2.0 weights) |
 | `ntv3` | `ntv3/` | full recipe — **experimental** (GPU sm_90; Nucleotide Transformer v3 — 1 Mb context, ~16k functional tracks; NGC PyTorch 25.04; **HF-gated, non-commercial weights**) |
+| `point-transformer-v3` | `point-transformer-v3/` | full recipe — **experimental** (GPU sm_90; Point Transformer V3 indoor/outdoor semantic segmentation; Pointcept pinned at v1.5.1 to match the published S3DIS checkpoint, which is baked; MIT) |
+| `superpoint-transformer` | `superpoint-transformer/` | full recipe — **experimental** (GPU sm_90; Superpoint Transformer semantic + SuperCluster panoptic segmentation from one codebase; DALES and S3DIS checkpoints baked from Zenodo; MIT) |
+| `octformer` | `octformer/` | full recipe — **experimental** (GPU sm_90; OctFormer octree-transformer semantic segmentation on ScanNet; weights NOT baked — OneDrive, ScanNet research-only terms; MIT code) |
+| `kpconv` | `kpconv/` | full recipe — **experimental** (GPU; KPConv kernel-point convolution semantic segmentation, S3DIS; no CUDA extension, two CPU C++ wrappers; weights NOT baked — Google Drive, mount at runtime; MIT) |
+| `sonata` | `sonata/` | full recipe — **experimental** (GPU sm_90; Meta's self-supervised Point Transformer V3 encoder — per-point embeddings and a ScanNet-20 linear-probe head, both baked; Apache-2.0 code, **CC-BY-NC-4.0 weights**) |
+| `concerto` | `concerto/` | full recipe — **experimental** (GPU sm_90; Pointcept's joint 2D-3D self-supervised PTv3 encoder — per-point embeddings and a ScanNet-20 linear-probe head, both baked; the paper's language/open-world path is not in the released code; Apache-2.0 code, **CC-BY-NC-4.0 weights**) |
 | `multispec-species` | — | deleted (failed boundary test); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 | `tree-analysis` | — | deleted (kitchen-sink); see [`DEPRECATIONS.md`](DEPRECATIONS.md) |
 
@@ -1061,3 +1067,143 @@ For the post-trained track heads, outputs are cropped to the **middle
 Note also that the GitHub repo is a JAX codebase; this image uses the
 PyTorch checkpoints on the Hub instead, so upstream's JAX install
 instructions do not apply. See `ntv3/README.md`.
+
+### point-transformer-v3
+
+[Point Transformer V3](https://arxiv.org/abs/2312.10035) (PTv3; CVPR
+2024) from the Pointcept framework — indoor and outdoor point-cloud
+semantic segmentation. The baked checkpoint is the S3DIS 13-class model
+(ceiling, floor, wall, beam, column, window, door, ...), the indoor
+scan-to-BIM fit.
+
+- Base: `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` + `spconv-cu121`
+- Stack: Pointcept **pinned at tag v1.5.1**, `ocnn==2.2.1`, and the
+  `pointops` / `pointops2` / `pointgroup_ops` CUDA extensions compiled for
+  sm_90 at build. FlashAttention is off; the S3DIS config runs
+  `enable_flash=False`.
+- Weights baked at build from HF Hub `Pointcept/PointTransformerV3`
+  (v1.5.1 S3DIS checkpoint, MIT).
+
+Pull: `ghcr.io/bradleylab/point-transformer-v3:v1`
+
+The published checkpoints were trained for Pointcept v1.5.1. Loaded
+against current main they run without error and collapse to about 0.2
+mIoU (Pointcept issue #364), so the codebase, not the weights, is what
+this image version-matches. Inference is `python tools/test.py
+--config-file configs/s3dis/semseg-pt-v3m1-0-rpe.py --options
+weight=checkpoints/s3dis-semseg-pt-v3m1-0-rpe.pth ...`; see
+`point-transformer-v3/README.md`. The Compute2 mIoU gate is pending.
+
+### superpoint-transformer
+
+[Superpoint Transformer](https://arxiv.org/abs/2306.08045) (SPT; ICCV
+2023) for large-scale semantic segmentation and
+[SuperCluster](https://arxiv.org/abs/2401.06704) (3DV 2024) for panoptic
+segmentation, from one codebase (`drprojects/superpoint_transformer`).
+They share the install and differ only in the Hydra experiment config
+and checkpoint, so one image carries both.
+
+- Base: `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel`, Python 3.10;
+  torch is **not** reinstalled (the FRNN `_C undefined symbol` failure is
+  torch version skew between build and runtime).
+- Stack: `pgeof`, `pycut-pursuit`, `pygrid-graph` as prebuilt wheels;
+  FRNN is the one CUDA compile, built with an explicit sm_90 arch list
+  because its setup.py adds none and CI has no GPU.
+- Four checkpoints baked from Zenodo records
+  [8042712](https://zenodo.org/records/8042712) (SPT) and
+  [10689038](https://zenodo.org/records/10689038) (SuperCluster): DALES
+  and S3DIS.
+
+Pull: `ghcr.io/bradleylab/superpoint-transformer:v1`
+
+There is no raw-LAS-in, labeled-LAS-out path upstream. Inference runs on
+data preprocessed into a dataset structure, with the superpoint
+partition as a cached pre-transform: `python src/eval.py
+experiment=<semantic|panoptic>/<dataset> ckpt_path=checkpoints/<file>`.
+A dataset reader for arbitrary clouds and the Compute2 mIoU/PQ gate are
+the documented follow-ups; see `superpoint-transformer/README.md`.
+
+### octformer
+
+[OctFormer](https://arxiv.org/abs/2305.03045) (SIGGRAPH 2023) —
+octree-transformer semantic segmentation on ScanNet and ScanNet200. An
+architecture comparison against `point-transformer-v3` and
+`superpoint-transformer` on indoor scans.
+
+- Base: `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel`
+- Stack: `ocnn==2.2.6` (the version OctFormer pins; the pin is
+  load-bearing, since ocnn 2.3 needs a newer Triton than torch 2.2.2
+  bundles), `thsolver==1.2.0`, and the `dwconv` CUDA extension compiled
+  for sm_90.
+- Weights **not baked**. The checkpoints are on OneDrive, which refuses
+  non-interactive downloads, and they fall under the ScanNet Terms of Use
+  (research only, no redistribution). Download interactively, stage to
+  NAS or scratch, mount at runtime.
+
+Pull: `ghcr.io/bradleylab/octformer:v1`
+
+Inference is dataset-batch evaluation, not a single-cloud CLI:
+`python scripts/run_seg_scannet.py --run validate --ckpt
+<mounted>/best_model.pth`. See `octformer/README.md`.
+
+### kpconv
+
+[KPConv](https://arxiv.org/abs/1904.08889) (Thomas et al., ICCV 2019;
+`KPConv-PyTorch`) — kernel-point convolution semantic segmentation on
+S3DIS and SemanticKITTI. The convolutional counterpart to the
+transformer models above.
+
+- Stack: torch 2.2.2 + cu121. KPConv has no CUDA extension; the only
+  compiled code is two CPU C++ modules (grid subsampling, radius
+  neighbors) built with g++. `numpy<1.26` (the wrappers import
+  `numpy.distutils`) and headless matplotlib (a hard import on the
+  inference path).
+- Weights **not baked**. The S3DIS checkpoints (Light, Heavy and Deform
+  KPFCNN) are on Google Drive; fetch once with `gdown` by file ID and
+  mount at runtime. No SemanticKITTI weights exist upstream.
+
+Pull: `ghcr.io/bradleylab/kpconv:v1`
+
+Inference is `test_models.py`, which takes no arguments and reads a
+hard-coded `chosen_log`; point it at a mounted `Log_*` checkpoint folder.
+See `kpconv/README.md`.
+
+### sonata
+
+[Sonata](https://arxiv.org/abs/2503.16429) (Meta; CVPR 2025) — the
+self-supervised Point Transformer V3 encoder that Concerto was derived
+from. The image runs the two released capabilities: per-point feature
+embeddings, and closed-set ScanNet-20 semantic segmentation through the
+shipped linear-probe head.
+
+- Base: `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` + `spconv-cu121` +
+  `torch_scatter`; nothing compiles. FlashAttention is optional upstream
+  and skipped here.
+- Weights baked from HF Hub `facebook/sonata` (encoder + ScanNet probe
+  head). Apache-2.0 code; **CC-BY-NC-4.0 weights**.
+
+Pull: `ghcr.io/bradleylab/sonata:v1`
+
+Encoder-only, no CLI; `sonata/README.md` has the embedding-extraction
+and probe-segmentation snippets. The Compute2 runtime check (embedding
+extraction, ScanNet mIoU through the probe head) is pending.
+
+### concerto
+
+[Concerto](https://arxiv.org/abs/2510.23607) (Pointcept group) — a joint
+2D-3D self-supervised Point Transformer V3 encoder, derived from Sonata.
+The image runs the two released capabilities: per-point feature
+embeddings, and closed-set ScanNet-20 semantic segmentation through the
+shipped linear-probe head (`concerto_large`).
+
+- Base: `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` + `spconv-cu121` +
+  `torch_scatter`; nothing compiles. FlashAttention skipped.
+- Weights baked from HF Hub `Pointcept/Concerto`. Apache-2.0 code;
+  **CC-BY-NC-4.0 weights**.
+
+Pull: `ghcr.io/bradleylab/concerto:v1`
+
+The paper's open-world, language-aligned path is absent from the
+released code and weights (no CLIP or text translator anywhere in the
+repository), so it is not part of this image. Encoder-only, no CLI; see
+`concerto/README.md`. The Compute2 runtime check is pending.
