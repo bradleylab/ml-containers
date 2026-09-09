@@ -127,6 +127,7 @@ print('LayerNormNet', LayerNormNet)"
 
 CMD ["bash"]
 
+# gpu=none: CPU-only by design — upstream's own Dockerfile installs CPU torch and the model is small enough that a GPU buys nothing
 LABEL org.opencontainers.image.title="clean" \
       org.opencontainers.image.description="CLEAN (Yu et al., Science 2023) — enzyme EC-number prediction from amino-acid sequence via contrastive learning over ESM-1b embeddings; CPU-only, >12 GB RAM; weights mounted at runtime, not baked. Research use only." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
@@ -139,7 +140,7 @@ LABEL org.opencontainers.image.title="clean" \
       bradleylab.model.task="enzyme commission (EC) number prediction from protein sequence" \
       bradleylab.model.sensor="protein-sequence" \
       bradleylab.model.status="experimental" \
-      bradleylab.model.gpu="none — CPU-only by design — upstream's own Dockerfile installs CPU torch and the model is small enough that a GPU buys nothing" \
+      bradleylab.model.gpu="none" \
       bradleylab.model.use_restriction="research-only" \
       bradleylab.model.weights.source="NOT baked — CLEAN weights (~141 MB) from Google Drive mounted at /opt/CLEAN/app/data/pretrained; ESM-1b (~7.3 GB) from dl.fbaipublicfiles.com cached under TORCH_HOME" \
       bradleylab.upstream.git_sha="${CLEAN_GIT_SHA}" \

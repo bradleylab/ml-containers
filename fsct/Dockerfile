@@ -113,6 +113,7 @@ RUN python -c "import torch; print('torch:', torch.__version__); \
 
 ENV PYTHONPATH=/opt/FSCT/scripts:/opt/FSCT
 
+# gpu=none: CPU-only — FSCT hard-pins torch==1.9.0+cu111 with matching PyG extension wheels, which cannot target sm_90; an H100 allocation would be wasted
 LABEL org.opencontainers.image.title="fsct" \
       org.opencontainers.image.description="Forest Structural Complexity Tool (Krisanski et al. 2021) — TLS DL stem-point semantic seg + classical cylinder fit for DBH; CPU-only" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
@@ -125,7 +126,7 @@ LABEL org.opencontainers.image.title="fsct" \
       bradleylab.model.task="stem-point semantic segmentation + DBH" \
       bradleylab.model.sensor="lidar:tls" \
       bradleylab.model.status="production" \
-      bradleylab.model.gpu="none — CPU-only — FSCT hard-pins torch==1.9.0+cu111 with matching PyG extension wheels, which cannot target sm_90; an H100 allocation would be wasted" \
+      bradleylab.model.gpu="none" \
       bradleylab.model.weights.source="upstream-repo:in-tree" \
       bradleylab.model.licence.note="GPL-3.0 (upstream LICENSE file, verified 2026-09-04) — copyleft: anything linked into a distributed derivative must be GPL-compatible"
 

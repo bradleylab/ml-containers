@@ -24,7 +24,7 @@
       "licence_note": "MIT throughout. The LAStools and OPALS backends are proprietary and NOT installed; only the open-source PDAL backend is available in this image",
       "status": "experimental",
       "upstream": "https://github.com/ssciwr/afwizard",
-      "gpu": "none — PDAL-based geometric filtering, no neural network and no CUDA path"
+      "gpu": "none"
     },
     {
       "name": "aifs",
@@ -88,7 +88,7 @@
       "licence_note": null,
       "status": "experimental",
       "upstream": "https://github.com/tttianhao/CLEAN",
-      "gpu": "none — CPU-only by design — upstream's own Dockerfile installs CPU torch and the model is small enough that a GPU buys nothing"
+      "gpu": "none"
     },
     {
       "name": "concerto",
@@ -128,7 +128,7 @@
       "licence_note": null,
       "status": "utility",
       "upstream": "https://github.com/VisionXLab/CrossEarth",
-      "gpu": "required — torch 2.1.0 cu121 with sm_90; v1 (cu117) could not target the H100 and hung"
+      "gpu": "required"
     },
     {
       "name": "dbloops",
@@ -240,7 +240,7 @@
       "licence_note": "GPL-3.0 (upstream LICENSE file, verified 2026-09-04) — copyleft: anything linked into a distributed derivative must be GPL-compatible",
       "status": "production",
       "upstream": "https://github.com/SKrisanski/FSCT",
-      "gpu": "none — CPU-only — FSCT hard-pins torch==1.9.0+cu111 with matching PyG extension wheels, which cannot target sm_90; an H100 allocation would be wasted"
+      "gpu": "none"
     },
     {
       "name": "geoclip",
@@ -320,7 +320,7 @@
       "licence_note": null,
       "status": "utility",
       "upstream": "https://github.com/neuralhydrology/neuralhydrology",
-      "gpu": "none — CPU torch by design: CAMELS-scale LSTM inference is not GPU-bound and this image targets inference, not training"
+      "gpu": "none"
     },
     {
       "name": "ntv3",
@@ -504,7 +504,7 @@
       "licence_note": null,
       "status": "experimental",
       "upstream": "https://github.com/ai4trees/pointtree",
-      "gpu": "none — CPU-only — torch is a transitive import for pointtree.instance_segmentation, never a compute path; nothing here executes torch ops"
+      "gpu": "none"
     },
     {
       "name": "trellis2",
@@ -512,7 +512,7 @@
       "licence_note": "generative reconstruction — not a measurement; do not substitute for photogrammetry in analysis",
       "status": "experimental",
       "upstream": "https://github.com/microsoft/TRELLIS.2",
-      "gpu": "required — CUDA kernels compiled for sm_90 only; will not run on pre-H100 GPUs"
+      "gpu": "required"
     },
     {
       "name": "utonia",

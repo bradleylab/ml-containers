@@ -134,6 +134,7 @@ assert os.path.isdir('/opt/trellis2/trellis2'), 'trellis2 source not in place'; 
 print('NOTE: trellis2 import and forward pass are proven in SMOKE.md, not here'); \
 print('SMOKE OK')"
 
+# gpu=required: CUDA kernels compiled for sm_90 only; will not run on pre-H100 GPUs
 LABEL org.opencontainers.image.title="trellis2" \
       org.opencontainers.image.description="TRELLIS.2-4B — single image to textured 3D mesh with PBR materials, GLB export. For XR asset generation, not photogrammetric measurement. Compiled for sm_90 (H100) only" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
@@ -145,7 +146,7 @@ LABEL org.opencontainers.image.title="trellis2" \
       bradleylab.model.task="image-to-3D asset generation (mesh + PBR textures)" \
       bradleylab.model.sensor="image:rgb single view" \
       bradleylab.model.status="experimental" \
-      bradleylab.model.gpu="required — CUDA kernels compiled for sm_90 only; will not run on pre-H100 GPUs" \
+      bradleylab.model.gpu="required" \
       bradleylab.model.weights.source="huggingface-hub:microsoft/TRELLIS.2-4B (MIT; baked at build into HF_HOME=/opt/hf-cache)" \
       bradleylab.model.licence.note="generative reconstruction — not a measurement; do not substitute for photogrammetry in analysis"
 

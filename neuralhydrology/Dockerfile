@@ -66,6 +66,7 @@ print('neuralhydrology', im.version('neuralhydrology'), '| torch', torch.__versi
 assert CudaLSTM is not None" \
     && nh-run --help > /dev/null
 
+# gpu=none: CPU torch by design: CAMELS-scale LSTM inference is not GPU-bound and this image targets inference, not training
 LABEL org.opencontainers.image.title="neuralhydrology" \
       org.opencontainers.image.description="NeuralHydrology — Python library for training and running deep-learning hydrology models (LSTM rainfall-runoff, streamflow prediction); CPU runtime; CAMELS-style inputs supplied at runtime." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
@@ -78,7 +79,7 @@ LABEL org.opencontainers.image.title="neuralhydrology" \
       bradleylab.model.task="rainfall-runoff / streamflow prediction (LSTM)" \
       bradleylab.model.sensor="time-series:meteorological-forcing+streamflow" \
       bradleylab.model.status="utility" \
-      bradleylab.model.gpu="none — CPU torch by design: CAMELS-scale LSTM inference is not GPU-bound and this image targets inference, not training" \
+      bradleylab.model.gpu="none" \
       bradleylab.model.weights.source="user-supplied (checkpoint directory bind-mounted at runtime; pretrained CAMELS checkpoints from the NeuralHydrology research blog)"
 
 WORKDIR /work

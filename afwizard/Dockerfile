@@ -184,6 +184,7 @@ print('pdal stderr on startup:', repr(res.stderr[:200])); \
 assert 'load library' not in res.stderr, 'PDAL plugin failed to load - a shared library dependency is missing; see the hdf5 note above'; \
 print('SMOKE OK')"
 
+# gpu=none: PDAL-based geometric filtering, no neural network and no CUDA path
 LABEL org.opencontainers.image.title="afwizard" \
       org.opencontainers.image.description="AFwizard — spatially adaptive ground-point filtering, applying a different filter per terrain segment to preserve archaeological micro-relief a single global filter would smooth away" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
@@ -196,7 +197,7 @@ LABEL org.opencontainers.image.title="afwizard" \
       bradleylab.model.task="spatially adaptive ground-point filtering for bare-earth DTM generation" \
       bradleylab.model.sensor="lidar:point cloud (LAS/LAZ)" \
       bradleylab.model.status="experimental" \
-      bradleylab.model.gpu="none — PDAL-based geometric filtering, no neural network and no CUDA path" \
+      bradleylab.model.gpu="none" \
       bradleylab.model.weights.source="none — this is software, not a trained model" \
       bradleylab.model.api="afwizard-tune list-criteria | tune --objective F --outdir D | wire; objective is YAML the caller composes (constraints, maximize, report); every evaluation is returned" \
       bradleylab.model.pins="geojson<3 until afwizard>1.0.1 ships the 8fdbc5f fix" \

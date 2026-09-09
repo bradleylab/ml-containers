@@ -18,7 +18,7 @@ throughput matters); a CUDA variant can be added then.
 
 ## Image tag
 
-`ghcr.io/bradleylab/remoteclip:v2` (also `:latest`, `:torch2.5-cpu`).
+`ghcr.io/bradleylab/remoteclip:v2` (also `:latest`, `:torch2.5`).
 
 Multi-arch: `linux/amd64` + `linux/arm64`. Pull on Apple Silicon hosts
 runs natively without QEMU emulation.
