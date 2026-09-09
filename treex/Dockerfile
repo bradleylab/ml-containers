@@ -140,6 +140,7 @@ print('pointtree', im.version('pointtree'), \
 '| torch-scatter', im.version('torch-scatter')); \
 assert TreeXAlgorithm is not None and algo is not None"
 
+# gpu=none: CPU-only — torch is a transitive import for pointtree.instance_segmentation, never a compute path; nothing here executes torch ops
 LABEL org.opencontainers.image.title="treex" \
       org.opencontainers.image.description="treeX (Burmeister et al. 2025) unsupervised tree instance segmentation for dense forest point clouds (TLS/PLS/ULS); CPU classical, no learned components." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
@@ -152,7 +153,7 @@ LABEL org.opencontainers.image.title="treex" \
       bradleylab.model.task="tree-instance segmentation, point cloud (classical, unsupervised)" \
       bradleylab.model.sensor="lidar:tls,pls,uls" \
       bradleylab.model.status="experimental" \
-      bradleylab.model.gpu="none — CPU-only — torch is a transitive import for pointtree.instance_segmentation, never a compute path; nothing here executes torch ops" \
+      bradleylab.model.gpu="none" \
       bradleylab.model.weights.source="none (classical algorithm)"
 
 WORKDIR /work

@@ -137,6 +137,7 @@ print('mmcv', im.version('mmcv'), \
 '| cuda-build', torch.version.cuda); \
 print('CrossEarth-specific classes registered:', found)"
 
+# gpu=required: torch 2.1.0 cu121 with sm_90; v1 (cu117) could not target the H100 and hung
 LABEL org.opencontainers.image.title="crossearth" \
       org.opencontainers.image.description="CrossEarth (TPAMI 2025) — vision foundation model for cross-domain remote sensing semantic segmentation. Frozen DINOv2 backbone + Earth-Style Injection + multi-task training; targets Remote Sensing Domain Generalization (RSDG). Container vendors the upstream repo + mmcv/mmseg stack; weights via Hugging Face Hub at runtime." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
@@ -149,7 +150,7 @@ LABEL org.opencontainers.image.title="crossearth" \
       bradleylab.model.task="cross-domain semantic segmentation — domain-generalizable RSDG; frozen DINOv2 backbone + Mask2Former head + Earth-Style Injection" \
       bradleylab.model.sensor="image:multi (optical RS, region/resolution/spectral domain transfer)" \
       bradleylab.model.status="utility" \
-      bradleylab.model.gpu="required — torch 2.1.0 cu121 with sm_90; v1 (cu117) could not target the H100 and hung" \
+      bradleylab.model.gpu="required" \
       bradleylab.model.weights.source="huggingface-hub:Cusyoung/CrossEarth (runtime fetch into HF_HOME=/opt/hf-cache)"
 
 WORKDIR /work
