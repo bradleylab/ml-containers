@@ -698,6 +698,114 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest`, `:torch2.7-cu129`); weights NOT baked |
 | Notes | **Three input rules produce wrong output rather than an error.** (1) Input length must be a **multiple of 128 bp** — the tokenization depends on it. (2) Pad with the character **`N`**, appended to the string before tokenization — not the tokenizer's `[PAD]` token, which is the reflex from every other HF model and which the model has no representation for. (3) Post-trained track outputs are cropped to the **middle 62.5%** of the window, so a 131,072 bp window yields 81,920 bp of usable track and tiling a chromosome steps by that 81,920 bp, not by the full window, or gaps appear. **The HF token is never baked and never passed into a job** — stage weights on a login node, then the job needs no credential. **This model cannot share a container with `dnabert-s`** (transformers `>=4.55` vs `==4.27`; see that card). **HF PyTorch route, not the GitHub repo** — `instadeepai/nucleotide-transformer` is a JAX codebase, and its install instructions do not apply here. The transformers pin is a range rather than a SHA, so two builds months apart can differ; pin the exact version if a result must be reproducible to the byte. Remote code fetched at `from_pretrained` time may want packages this image does not ship — run one load on a login node before submitting a batch, and add any missing package to the Dockerfile rather than pip-installing inside a job. No track-writer library (`pyBigWig`) is installed |
 
+## point-transformer-v3
+
+| | |
+|--|--|
+| Task | Point-cloud semantic segmentation (Point Transformer V3); baked S3DIS 13-class indoor model (ceiling/floor/wall/beam/column/window/door/...) |
+| Sensor | Terrestrial / aerial lidar (`lidar:terrestrial/aerial`); indoor scans for the baked checkpoint |
+| Upstream repo | [Pointcept/Pointcept](https://github.com/Pointcept/Pointcept), checked out at tag **v1.5.1** |
+| Upstream license | MIT |
+| Paper | PTv3 — [arXiv:2312.10035](https://arxiv.org/abs/2312.10035) (CVPR 2024, oral) |
+| Weights source | HF Hub [`Pointcept/PointTransformerV3`](https://huggingface.co/Pointcept/PointTransformerV3), v1.5.1 S3DIS checkpoint `s3dis-semseg-pt-v3m1-0-rpe.pth`, baked at build |
+| Weights license | MIT (HF repo metadata) |
+| Container stack | `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` + `spconv-cu121` + `ocnn==2.2.1` + `pointops` / `pointops2` / `pointgroup_ops` compiled from `libs/` with `TORCH_CUDA_ARCH_LIST` incl. 9.0; FlashAttention off (`enable_flash=False` in the baked config) |
+| H100 status | Native sm_90 cubins for the compiled libs. Uniform H100 probe 2026-09-05 (job 2977843): torch 2.2.2 sees the GPU and a matmul executes; no model run yet |
+| Lab status | **experimental** — first end-to-end run pending; the Compute2 mIoU gate against v1.5.1's documented numbers is the next step |
+| First-run / current behavior | Build smoke test only: imports, compiled libs load, checkpoint present |
+| Tags | `:v1` (= `:latest` = `:torch2.2-cu121`) |
+| Notes | Why v1.5.1: the only published PTv3 checkpoints were trained for Pointcept v1.5.1; against current main (model structure and preprocessing redesigned in v1.5.2) they load cleanly and collapse to ~0.198 mIoU (Pointcept issue #364). Inference: `python tools/test.py --config-file configs/s3dis/semseg-pt-v3m1-0-rpe.py --options weight=checkpoints/s3dis-semseg-pt-v3m1-0-rpe.pth ...` |
+
+## superpoint-transformer
+
+| | |
+|--|--|
+| Task | Point-cloud semantic segmentation (Superpoint Transformer, SPT) and panoptic segmentation (SuperCluster) — one codebase, two checkpoints (the one-model-per-container rule's variant clause) |
+| Sensor | Terrestrial / aerial lidar (`lidar:terrestrial/aerial`) |
+| Upstream repo | [drprojects/superpoint_transformer](https://github.com/drprojects/superpoint_transformer) |
+| Upstream license | MIT |
+| Paper | SPT — [arXiv:2306.08045](https://arxiv.org/abs/2306.08045) (ICCV 2023); SuperCluster — [arXiv:2401.06704](https://arxiv.org/abs/2401.06704) (3DV 2024) |
+| Weights source | Zenodo [8042712](https://zenodo.org/records/8042712) (SPT) and [10689038](https://zenodo.org/records/10689038) (SuperCluster); four checkpoints (DALES, S3DIS) baked at build |
+| Weights license | Not recorded in this repo; see the Zenodo records before redistributing |
+| Container stack | `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel`, Python 3.10, torch left at the base's 2.2.2 (not reinstalled — FRNN ABI); `pgeof` / `pycut-pursuit` / `pygrid-graph` prebuilt wheels; FRNN compiled with `TORCH_CUDA_ARCH_LIST` incl. 9.0 + `FORCE_CUDA=1` |
+| H100 status | Native sm_90 (FRNN is the only compiled CUDA op). Uniform H100 probe 2026-09-05 (job 2977843): torch 2.2.2 sees the GPU and a matmul executes; no model run yet |
+| Lab status | **experimental** — first end-to-end run pending; a `BaseDataset` reader for arbitrary clouds and the Compute2 mIoU/PQ gate are the documented follow-ups |
+| First-run / current behavior | Build smoke test: `import frnn` loads the .so (cannot launch an sm_90 kernel without a GPU at build) |
+| Tags | `:v1` (= `:latest` = `:torch2.2-cu121`) |
+| Notes | No turnkey raw-LAS path: inference is `python src/eval.py experiment=<semantic|panoptic>/<dataset> ckpt_path=checkpoints/<file>` on data preprocessed into the repo's dataset structure, with the superpoint partition as a cached pre-transform |
+
+## octformer
+
+| | |
+|--|--|
+| Task | Point-cloud semantic segmentation on an octree transformer (ScanNet / ScanNet200) |
+| Sensor | Indoor lidar / RGB-D scans (`lidar:indoor`) |
+| Upstream repo | [octree-nn/octformer](https://github.com/octree-nn/octformer) |
+| Upstream license | MIT |
+| Paper | [arXiv:2305.03045](https://arxiv.org/abs/2305.03045) (SIGGRAPH 2023) |
+| Weights source | **Not baked.** ScanNet / ScanNet200 checkpoints on OneDrive, which returns 403 to every non-interactive download; download interactively, stage to NAS or Compute2 scratch, mount at runtime |
+| Weights license | Unstated upstream; bound by the ScanNet Terms of Use (research only, no redistribution), so they cannot be re-hosted |
+| Container stack | `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` + `ocnn==2.2.6` (pinned — 2.3 needs a newer Triton than torch 2.2.2 bundles) + `thsolver==1.2.0` + `dwconv` CUDA extension built with `TORCH_CUDA_ARCH_LIST` incl. 9.0 + `FORCE_CUDA` |
+| H100 status | Native sm_90 (`cuobjdump`-verified at build). Uniform H100 probe 2026-09-05 (job 2977843): torch 2.2.2 sees the GPU and a matmul executes; no model run yet |
+| Lab status | **experimental** — environment only; runtime validation (ScanNet mIoU) needs mounted weights and preprocessed data on Compute2 |
+| First-run / current behavior | Build smoke test: `import ocnn`, `import dwconv` (exercises the compiled .so), model class reachable |
+| Tags | `:v1` (= `:latest` = `:torch2.2-cu121`) |
+| Notes | Inference is dataset-batch evaluation, no single-cloud CLI: `python scripts/run_seg_scannet.py --run validate --ckpt <mounted>/best_model.pth` |
+
+## kpconv
+
+| | |
+|--|--|
+| Task | Point-cloud semantic segmentation by kernel-point convolution (S3DIS / SemanticKITTI); the convolutional comparison to the transformer models |
+| Sensor | Indoor / outdoor lidar (`lidar:indoor/outdoor`) |
+| Upstream repo | [HuguesTHOMAS/KPConv-PyTorch](https://github.com/HuguesTHOMAS/KPConv-PyTorch) |
+| Upstream license | MIT |
+| Paper | Thomas et al. — [arXiv:1904.08889](https://arxiv.org/abs/1904.08889) (ICCV 2019) |
+| Weights source | **Not baked.** S3DIS pretrained checkpoints (Light / Heavy / Deform KPFCNN) on Google Drive; fetch once with `gdown` by file ID and mount at runtime. No SemanticKITTI pretrained weights exist upstream (train-only) |
+| Weights license | Not recorded in this repo; check the upstream release before redistributing |
+| Container stack | torch 2.2.2 + cu121; no CUDA extension — two CPU C++11 modules (grid subsampling, radius neighbors via nanoflann) built with g++; `numpy<1.26` (the wrappers import `numpy.distutils`, and `np.bool` is patched); `MPLBACKEND=Agg` because matplotlib is a hard import on the inference path |
+| H100 status | sm_90 handled at runtime by stock torch 2.2.2. Uniform H100 probe 2026-09-05 (job 2977843): torch 2.2.2 sees the GPU and a matmul executes; no model run yet |
+| Lab status | **experimental** — environment only; runtime validation (S3DIS mIoU) needs mounted weights and the S3DIS dataset on Compute2 |
+| First-run / current behavior | Build smoke test: numpy pin, headless matplotlib, both compiled wrappers import, KPFCNN model class reachable |
+| Tags | `:v1` (= `:latest` = `:torch2.2-cu121`) |
+| Notes | Inference is `test_models.py` with a hard-coded `chosen_log` and no CLI arguments; point it at a mounted `Log_*` checkpoint folder. torch 2.2.2 is a deliberate ceiling: bare `torch.load` in this 2019-era code relies on `weights_only=False` remaining the default |
+
+## sonata
+
+| | |
+|--|--|
+| Task | Self-supervised Point Transformer V3 encoder (Meta): per-point feature embeddings, and closed-set ScanNet-20 semantic segmentation via the shipped linear-probe head `sonata_linear_prob_head_sc.pth` |
+| Sensor | Terrestrial / aerial lidar (`lidar:terrestrial/aerial`) |
+| Upstream repo | [facebookresearch/sonata](https://github.com/facebookresearch/sonata) |
+| Upstream license | Apache-2.0 (code); image label `Apache-2.0 AND CC-BY-NC-4.0` |
+| Paper | [arXiv:2503.16429](https://arxiv.org/abs/2503.16429) (CVPR 2025) |
+| Weights source | HF Hub [`facebook/sonata`](https://huggingface.co/facebook/sonata) — encoder + ScanNet probe head, baked at build |
+| Weights license | **CC-BY-NC-4.0** per the recipe; the Hub repo metadata carries no license tag, so the model card is the reference |
+| Container stack | `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` + `spconv-cu121` + `torch_scatter` (prebuilt wheels, nothing compiles); FlashAttention optional upstream and skipped (`enable_flash=False`, upcast attention); `numpy<2`. Upstream tests torch 2.5.0/cu124; documented fallback `pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel` + `spconv-cu124` |
+| H100 status | sm_90 via spconv-cu121 kernels and stock torch. Uniform H100 probe 2026-09-05 (job 2977843): torch 2.2.2 sees the GPU and a matmul executes; no model run yet |
+| Lab status | **experimental** — pending a Compute2 runtime check (embedding extraction, ScanNet mIoU through the probe head) |
+| First-run / current behavior | Build smoke test builds the model from the baked checkpoint |
+| Tags | `:v1` (= `:latest` = `:torch2.2-cu121`) |
+| Notes | Encoder-only backbone, no turnkey CLI; snippets in `sonata/README.md` |
+
+## concerto
+
+| | |
+|--|--|
+| Task | Joint 2D-3D self-supervised Point Transformer V3 encoder (Pointcept, Sonata-derived): per-point feature embeddings, and closed-set ScanNet-20 semantic segmentation via the shipped linear-probe head `concerto_large_linear_prob_head_sc.pth` |
+| Sensor | Terrestrial / aerial lidar (`lidar:terrestrial/aerial`) |
+| Upstream repo | [Pointcept/Concerto](https://github.com/Pointcept/Concerto) |
+| Upstream license | Apache-2.0 (code); image label `Apache-2.0 AND CC-BY-NC-4.0` |
+| Paper | [arXiv:2510.23607](https://arxiv.org/abs/2510.23607) |
+| Weights source | HF Hub [`Pointcept/Concerto`](https://huggingface.co/Pointcept/Concerto) — `concerto_large` + ScanNet probe head, baked at build |
+| Weights license | **CC-BY-NC-4.0** (Hub repo metadata) |
+| Container stack | `pytorch/pytorch:2.2.2-cuda12.1-cudnn8-devel` + `spconv-cu121` + `torch_scatter` (prebuilt wheels, nothing compiles); FlashAttention optional upstream and skipped; `numpy<2`. Upstream tests torch 2.5.0/cu124; documented fallback `pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel` + `spconv-cu124` |
+| H100 status | sm_90 via spconv-cu121 kernels and stock torch. Uniform H100 probe 2026-09-05 (job 2977843): torch 2.2.2 sees the GPU and a matmul executes; no model run yet |
+| Lab status | **experimental** — pending a Compute2 runtime check (embedding extraction, ScanNet mIoU through the probe head) |
+| First-run / current behavior | Build smoke test builds the model from the baked checkpoint |
+| Tags | `:v1` (= `:latest` = `:torch2.2-cu121`) |
+| Notes | The paper's open-world / CLIP-language path is absent from the released code and weights (no `clip`, `open_clip` or text translator in the repository) and is not part of this image. Encoder-only, no turnkey CLI; snippets in `concerto/README.md` |
+
 ---
 
 ## Deprecated images
