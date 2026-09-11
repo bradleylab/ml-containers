@@ -2,7 +2,7 @@
   "generated_from": "smoke-all-20260905T050413Z",
   "counts": {
     "torch-free": 9,
-    "gpu-verified": 55,
+    "gpu-verified": 56,
     "cpu-only-torch": 4,
     "arch-unsupported": 1,
     "no-python": 4
@@ -132,19 +132,19 @@
       "image": "crater-detection+v1",
       "verdict": "gpu-verified",
       "gpu": "NVIDIA H100 80GB HBM3",
-      "torch": "2.5.1+cu121",
-      "python": "3.11.10",
-      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2977843",
-      "date": "2026-09-05"
+      "evidence": "model-specific smoke: 303 tensors, 0 missing/0 unexpected, 55,190,628 params, boxes/ellipses/labels/scores",
+      "job": "2947891",
+      "date": "2026-08-30"
     },
     {
       "image": "crater-detection+v1",
       "verdict": "gpu-verified",
       "gpu": "NVIDIA H100 80GB HBM3",
-      "evidence": "model-specific smoke: 303 tensors, 0 missing/0 unexpected, 55,190,628 params, boxes/ellipses/labels/scores",
-      "job": "2947891",
-      "date": "2026-08-30"
+      "torch": "2.5.1+cu121",
+      "python": "3.11.10",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "crossearth+v1",
@@ -165,6 +165,16 @@
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
       "job": "2977843",
       "date": "2026-09-05"
+    },
+    {
+      "image": "depth-anything-3+v1",
+      "verdict": "gpu-verified",
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "torch": "2.5.1+cu121",
+      "python": "3.11.10",
+      "evidence": "model-specific smoke: two images, one forward pass in 1.94 s; depth and conf (2, 378, 504), extrinsics (2, 3, 4), intrinsics (2, 3, 3)",
+      "job": "3009949",
+      "date": "2026-09-11"
     },
     {
       "image": "depth-anything-3+v1",
@@ -328,6 +338,14 @@
     },
     {
       "image": "hylite+v1",
+      "verdict": "gpu-verified",
+      "gpu": "NVIDIA H100 80GB HBM3",
+      "evidence": "model-specific smoke: recovered a planted absorption feature at 2201.7 nm (planted 2200.0)",
+      "job": "2947891",
+      "date": "2026-08-30"
+    },
+    {
+      "image": "hylite+v1",
       "verdict": "torch-free",
       "gpu": null,
       "torch": null,
@@ -335,14 +353,6 @@
       "evidence": "uniform probe: real GPU matmul, arch-list precheck",
       "job": "2977843",
       "date": "2026-09-05"
-    },
-    {
-      "image": "hylite+v1",
-      "verdict": "gpu-verified",
-      "gpu": "NVIDIA H100 80GB HBM3",
-      "evidence": "model-specific smoke: recovered a planted absorption feature at 2201.7 nm (planted 2200.0)",
-      "job": "2947891",
-      "date": "2026-08-30"
     },
     {
       "image": "insar-unwrap+v1",
@@ -518,19 +528,19 @@
       "image": "rf-detr+v1",
       "verdict": "gpu-verified",
       "gpu": "NVIDIA H100 80GB HBM3",
-      "torch": "2.5.1+cu121",
-      "python": "3.11.10",
-      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2977843",
-      "date": "2026-09-05"
+      "evidence": "model-specific smoke: 5 detections on a real photo, both cats class 17 at 0.948/0.942",
+      "job": "2947891",
+      "date": "2026-08-30"
     },
     {
       "image": "rf-detr+v1",
       "verdict": "gpu-verified",
       "gpu": "NVIDIA H100 80GB HBM3",
-      "evidence": "model-specific smoke: 5 detections on a real photo, both cats class 17 at 0.948/0.942",
-      "job": "2947891",
-      "date": "2026-08-30"
+      "torch": "2.5.1+cu121",
+      "python": "3.11.10",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
     },
     {
       "image": "sam2+latest",
@@ -716,19 +726,19 @@
       "image": "utonia+v1",
       "verdict": "gpu-verified",
       "gpu": "NVIDIA H100 80GB HBM3",
-      "torch": "2.5.1+cu124",
-      "python": "3.11.10",
-      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
-      "job": "2977843",
-      "date": "2026-09-05"
+      "evidence": "model-specific smoke: utonia.load() config (54,108,216,432,576)/(3,6,12,24,32), 137,253,744 params, forward (2194,576) finite",
+      "job": "2950544",
+      "date": "2026-08-31"
     },
     {
       "image": "utonia+v1",
       "verdict": "gpu-verified",
       "gpu": "NVIDIA H100 80GB HBM3",
-      "evidence": "model-specific smoke: utonia.load() config (54,108,216,432,576)/(3,6,12,24,32), 137,253,744 params, forward (2194,576) finite",
-      "job": "2950544",
-      "date": "2026-08-31"
+      "torch": "2.5.1+cu124",
+      "python": "3.11.10",
+      "evidence": "uniform probe: real GPU matmul, arch-list precheck",
+      "job": "2977843",
+      "date": "2026-09-05"
     }
   ]
 }

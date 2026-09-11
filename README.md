@@ -109,6 +109,30 @@ locally.
 | `ntv3` | `ntv3/` | full recipe — **experimental** (GPU sm_90; Nucleotide Transformer v3 — 1 Mb context, ~16k functional tracks; NGC PyTorch 25.04; **HF-gated, non-commercial weights**) |
 | `point-transformer-v3` | `point-transformer-v3/` | full recipe — **experimental** (GPU sm_90; Point Transformer V3 indoor/outdoor semantic segmentation; Pointcept pinned at v1.5.1 to match the published S3DIS checkpoint, which is baked; MIT) |
 | `superpoint-transformer` | `superpoint-transformer/` | full recipe — **experimental** (GPU sm_90; Superpoint Transformer semantic + SuperCluster panoptic segmentation from one codebase; DALES and S3DIS checkpoints baked from Zenodo; MIT) |
+| `adaf` | `adaf/` | full recipe — **experimental** (GPU sm_90; ADAF archaeological feature detection in lidar terrain models — barrows, ringforts, enclosures; HRNet segmentation + Faster R-CNN over SLRM relief; Apache-2.0 code, **CC-BY-SA-4.0 weights baked**) |
+| `afwizard` | `afwizard/` | full recipe — **experimental** (CPU; AFwizard spatially adaptive ground-point filtering for archaeological micro-relief, plus the lab's objective-driven tuner; software, no weights; MIT) |
+| `aifs` | `aifs/` | full recipe — **experimental** (GPU; ECMWF AIFS Single 2.0 global medium-range forecasting, 6-hourly N320 (~31 km) to 15 days; Apache-2.0 code, CC-BY-4.0 weights fetched at runtime) |
+| `birefnet` | `birefnet/` | full recipe (GPU sm_90; BiRefNet high-resolution foreground segmentation, unprompted, one mask per image; weights baked at a pinned revision; MIT) |
+| `corrdiff` | `corrdiff/` | full recipe — **experimental** (GPU; CorrDiff km-scale generative downscaling of ERA5 to COSMO-REA over Europe; Apache-2.0 code, OpenMDW-1.1 weights fetched at runtime) |
+| `crater-detection` | `crater-detection/` | full recipe — **experimental** (GPU sm_90; lunar crater detection and catalog matching for absolute position fixing; the only containerizable lunar model in the catalog; MIT) |
+| `depth-anything-3` | `depth-anything-3/` | full recipe — **experimental** (GPU sm_90; Depth Anything 3 — monocular depth plus multi-view geometry and camera pose from one model; Apache-2.0 code *and* the baked checkpoint) |
+| `dinov3` | `dinov3/` | full recipe (GPU sm_90; DINOv3 LVD-1689M ViT-L/16 frozen feature extractor for non-satellite imagery; counterpart to `dinov3-sat`; weights baked; **DINOv3 License — not OSS**) |
+| `grounding-dino` | `grounding-dino/` | full recipe (GPU sm_90; Grounding DINO open-vocabulary detection from free-text prompts, no fixed class list; pairs with `sam2` for masks; weights baked; Apache-2.0) |
+| `hylite` | `hylite/` | full recipe (CPU; hylite + hklearn hyperspectral drillcore and outcrop mineral mapping; a toolkit fitted per scan, ships no pretrained weights; MIT) |
+| `myria3d` | `myria3d/` | full recipe — **experimental** (GPU; myria3d RandLA-Net airborne-lidar semantic segmentation into seven classes; IGN FRACTAL checkpoint fetched at runtime; BSD-3-Clause code, Etalab Open Licence 2.0 weights) |
+| `rf-detr` | `rf-detr/` | full recipe (GPU sm_90; RF-DETR trainable object detector on a DINOv2 backbone, built for fine-tuning on lab annotations; the permissive alternative to AGPL YOLO; Apache-2.0) |
+| `sam3` | `sam3/` | full recipe — **experimental** (GPU sm_90; SAM 3 promptable concept segmentation — masks every instance of a named concept in image or video; **weights gated and NOT baked**, runtime fetch with the caller's token; SAM License) |
+| `siglip2` | `siglip2/` | full recipe (GPU sm_90; SigLIP 2 so400m-patch14-384 zero-shot image-text scoring and retrieval; the general-purpose counterpart to `remoteclip` and `dofa-clip`; weights baked; Apache-2.0) |
+| `trellis2` | `trellis2/` | full recipe — **experimental** (GPU **sm_90 only**; TRELLIS.2-4B single image to textured 3D mesh with PBR materials for XR assets, not measurement; weights baked; MIT) |
+| `utonia` | `utonia/` | full recipe — **experimental** (GPU sm_90; Utonia self-supervised point-cloud encoder, first of the PTv3 line pretrained across remote-sensing clouds; built without flash-attention; Apache-2.0 code, **CC-BY-NC-4.0 weights**) |
+| `dbloops` | `dbloops/` | full recipe — **experimental** (CPU; DBloops density-based 3D point-cloud clustering for grain-size distribution, Jacobson et al. 2025; MATLAB Compiler R2024b against MATLAB Runtime, no learned components; GPL-3.0) |
+| `momo` | `momo/` | full recipe (GPU; MOMO Mars orbital foundation model — pretrained ViT on HiRISE / CTX / THEMIS for downstream crater segmentation, boulder detection, dust devils, landmark classification; weights via HF Hub; MIT code, CC-BY-4.0 weights) |
+| `fourcastnet3` | `fourcastnet3/` | full recipe — **experimental** (GPU; FourCastNet 3 probabilistic global forecast, 0.25° grid, 72 variables, 6 h steps; Apache-2.0 code *and* weights, fetched at runtime) |
+| `geolg-3dfaultnet` | `geolg-3dfaultnet/` | full recipe — **experimental** (GPU; voxelwise fault segmentation of 3D seismic volumes, 3D U-Net with local-global and continuity blocks; MIT; **unpublished manuscript, provenance unconfirmed — benchmark before use**) |
+| `insar-unwrap` | `insar-unwrap/` | full recipe — **experimental** (GPU sm_90; learned InSAR phase unwrapping to line-of-sight displacement, U-Net family; MIT code, CC-BY-4.0 weights fetched at runtime) |
+| `n2n4m` | `n2n4m/` | full recipe — **experimental** (GPU; Noise2Noise denoising of CRISM Mars SWIR hyperspectral data, 350 of 438 channels; MIT code *and* weights, committed upstream) |
+| `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
+| `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
 | `octformer` | `octformer/` | full recipe — **experimental** (GPU sm_90; OctFormer octree-transformer semantic segmentation on ScanNet; weights NOT baked — OneDrive, ScanNet research-only terms; MIT code) |
 | `kpconv` | `kpconv/` | full recipe — **experimental** (GPU; KPConv kernel-point convolution semantic segmentation, S3DIS; no CUDA extension, two CPU C++ wrappers; weights NOT baked — Google Drive, mount at runtime; MIT) |
 | `sonata` | `sonata/` | full recipe — **experimental** (GPU sm_90; Meta's self-supervised Point Transformer V3 encoder — per-point embeddings and a ScanNet-20 linear-probe head, both baked; Apache-2.0 code, **CC-BY-NC-4.0 weights**) |
@@ -1207,3 +1231,490 @@ The paper's open-world, language-aligned path is absent from the
 released code and weights (no CLIP or text translator anywhere in the
 repository), so it is not part of this image. Encoder-only, no CLI; see
 `concerto/README.md`. The Compute2 runtime check is pending.
+
+### adaf
+
+[ADAF](https://doi.org/10.1016/j.jasrep.2026.105733) (ZRC SAZU, Bias Variance
+Labs and The Discovery Programme) — automatic detection of archaeological
+features in lidar terrain models. HRNet semantic segmentation and Faster R-CNN
+object detection run over relief visualizations of a bare-earth DTM, for
+barrows, ringforts, enclosures and an "all archaeology" class. Field-tested on
+a 197 km² Irish infrastructure corridor at 84% recall against known sites,
+where it also flagged 116 candidates manual inspection had missed.
+
+- Base: `condaforge/miniforge3` + torch 2.5.1 / cu121
+- Weights baked at `/opt/adaf-weights` from Zenodo
+  [10.5281/zenodo.15848663](https://doi.org/10.5281/zenodo.15848663), 8 TAR
+  files, 5.52 GB.
+- Trained on about 0.5 m national airborne lidar.
+
+Pull: `ghcr.io/bradleylab/adaf:v1`
+
+**Two licenses, and they differ.** The code is Apache-2.0; the weights are
+CC-BY-SA-4.0. Share-alike makes weights fine-tuned from these an adapted work,
+so the obligation reaches a derivative model, not just redistribution of the
+originals. Read `adaf/LICENSE.weights.md` before fine-tuning.
+
+Run on Cahokia 2026-09-04 against the 2023 1 m quad. The stock barrow weights
+matched 4 of 46 OSM mound features at any radius up to 100 m, which is a
+transfer result and not a like-for-like test: the DTM is 1 m against about
+0.5 m training data, and Cahokia's mounds sit outside the barrow class by size.
+
+### afwizard
+
+[AFwizard](https://doi.org/10.1002/arp.1873) (Heidelberg Scientific Software
+Center) — spatially adaptive ground-point filtering. One ground filter applied
+to a whole survey is wrong when the terrain varies: a setting that works on
+open slope oversmooths under dense vegetation. AFwizard segments the area into
+polygons, applies a different filter and parameter set per segment, and emits
+one coherent DTM together with the pipelines and metadata that produced it.
+
+- Base: `condaforge/miniforge3`, Python 3.11, CPU only. Software, not a trained
+  model, so there are no weights.
+- Also ships `afwizard_tuner`, written here: a caller composes an objective
+  from a criteria vocabulary and the tuner searches filter parameters against
+  it, returning every evaluation and the Pareto front rather than one answer.
+
+Pull: `ghcr.io/bradleylab/afwizard:v1`
+
+The forest point-cloud images are not a substitute. They classify ground too,
+but they were designed around canopy structure, where the ground surface is a
+means to an end. Archaeological prospection wants the opposite emphasis: the
+anthropogenic micro-relief on the ground surface is the signal, and a filter
+tuned for a clean canopy split smooths it away.
+
+### aifs
+
+[AIFS Single 2.0](https://arxiv.org/abs/2406.01465) (ECMWF) — data-driven
+global weather forecasting. An encoder-processor-decoder model, graph-network
+encoder and decoder around a sliding-window transformer processor, producing
+6-hourly global forecasts on the N320 grid, about 31 km, out to 15 days. ECMWF
+runs it operationally four times a day.
+
+- Base: `nvidia/cuda:12.6.3` on Ubuntu 24.04, Python 3.12, torch 2.7.0
+- The anemoi inference stack is pinned to the exact versions in upstream's own
+  lockfile for this checkpoint, which are behind current PyPI deliberately.
+- Weights fetched at runtime from HF Hub `ecmwf/aifs-single-2.0`, CC-BY-4.0 and
+  ungated, about 1 GB.
+
+Pull: `ghcr.io/bradleylab/aifs:v1`
+
+Not in the H100 probe record: the image had not been imported to Compute2 when
+the uniform probe ran, so nothing has been executed here yet.
+
+### birefnet
+
+[BiRefNet](https://arxiv.org/abs/2401.03407) (Zheng et al., 2024) — bilateral
+reference network for dichotomous image segmentation. One high-quality
+foreground mask per image, at full resolution, with clean edges on thin
+structures such as hair, twigs, antennae and grain boundaries that coarser
+segmenters smear.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- Weights baked from HF Hub `ZhengPeng7/BiRefNet` at a pinned commit.
+
+Pull: `ghcr.io/bradleylab/birefnet:v1`
+
+How it differs from `sam2`: SAM 2 segments what you prompt it with and returns
+several candidate masks, while BiRefNet is unprompted and returns one, the
+salient foreground. For cutting a specimen out of its background it needs no
+interaction; to segment one particular thing, use `sam2`.
+
+The checkpoint is `custom_code`, so loading it executes Python fetched from the
+model repository. Pinning the transformers version does not pin that code,
+which is why the revision is pinned to an exact commit.
+
+### corrdiff
+
+[CorrDiff](https://arxiv.org/abs/2309.15214) (NVIDIA Earth-2) — km-scale
+generative downscaling. Takes 0.25° ERA5 onto the rotated-pole COSMO-REA grids
+over Europe: REA6 at 6 km with 45 output variables, and REA2 at 2.2 km with 22.
+Two inference modes from one package, a deterministic regression transformer of
+98M parameters and an EDM-preconditioned diffusion transformer of 174M sampled
+in 18 steps.
+
+- Base: `nvidia/cuda:12.8.1` on Ubuntu 24.04, torch 2.11.0 / cu128, with
+  earth2studio and physicsnemo.
+- Weights fetched at runtime from HF Hub `nvidia/corrdiff-cosmo-era5`,
+  OpenMDW-1.1 and ungated, 2.33 GB across 19 files.
+
+Pull: `ghcr.io/bradleylab/corrdiff:v1`
+
+One licensing detail is not Apache-shaped: the two `invariants_*_ext.nc` files
+are separately CC BY 4.0. See `corrdiff/README.md`.
+
+Not in the H100 probe record, for the same reason as `aifs`.
+
+### crater-detection
+
+Lunar crater detection and crater-based navigation, from Doppenberg's 2021 MSc
+work at TU Delft. A Mask R-CNN variant detects crater rims in lunar imagery,
+and a matching stage identifies detected craters against a catalog for absolute
+position fixing.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- Weights fetched at build over HTTPS from the upstream Git-LFS blob, 221 MB,
+  with a pointer-size guard so a stray LFS pointer cannot pass as a checkpoint.
+
+Pull: `ghcr.io/bradleylab/crater-detection:v1`
+
+Why this and not LunarFM: LunarFM is the stronger lunar model and the lab has
+access, but it is PolyForm Strict 1.0.0, which forbids redistribution and
+derivative works, so it cannot be baked into a public image at all. The two do
+different jobs regardless. LunarFM gives surface embeddings; this gives crater
+instances.
+
+**Model verified** on an H100: the checkpoint populates the model with no
+missing or unexpected keys, 55,190,628 parameters, and a real forward pass.
+
+### depth-anything-3
+
+[Depth Anything 3](https://arxiv.org/abs/2511.10647) (Lin, Yang et al., 2025) —
+monocular depth, multi-view geometry and camera pose from one model. One image
+gives metric-relative depth; several images of a scene additionally recover
+camera poses and intrinsics, which is the part that stands in for a separate
+structure-from-motion step when a quick reconstruction is wanted rather than a
+survey-grade one.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- Weights baked from HF Hub `depth-anything/DA3-LARGE-1.1`, Apache-2.0.
+
+Pull: `ghcr.io/bradleylab/depth-anything-3:v1`
+
+Why this and not Depth-Anything-V2 or VGGT: DA3 covers both jobs, monocular
+depth and multi-view geometry with pose, and is Apache-2.0 where both of those
+are CC-BY-NC-4.0. One permissive image instead of two restricted ones.
+
+**The checkpoint trap.** The code is Apache-2.0 but the weights are not
+uniformly so. `DA3-LARGE-1.1`, `DA3MONO-LARGE`, `DA3METRIC-LARGE` and
+`DA3-BASE` are Apache-2.0; `DA3-LARGE` and `DA3NESTED-GIANT-LARGE-1.1` are
+CC-BY-NC-4.0. Upstream's own README example loads `depth-anything/da3-large`,
+which redirects to the non-commercial one. This image bakes `DA3-LARGE-1.1`;
+if you swap the checkpoint, check what you swapped to and update the image
+label to match.
+
+**Model verified** on an H100 2026-09-11 (SLURM 3009949): two images through
+one forward pass in 1.94 s returned depth and confidence at 2 × 378 × 504,
+camera pose at 2 × 3 × 4 and intrinsics at 2 × 3 × 3, so the batch survived and
+the multi-view path produced poses rather than depth alone.
+
+### dinov3
+
+DINOv3 (Siméoni, Vo, Oquab et al., 2025) as a frozen feature extractor. A
+self-supervised vision transformer; this image ships the LVD-1689M variant,
+pretrained on 1.689 billion curated web images, giving 1024-D dense patch
+tokens for a downstream head. ViT-L/16, variable input size because the
+position embedding interpolates, so the caller chooses the trade between patch
+density and memory.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- Weights baked from HF Hub `timm/vit_large_patch16_dinov3.lvd1689m`.
+
+Pull: `ghcr.io/bradleylab/dinov3:v1`
+
+**Which of the two DINOv3 images to use.** They are the same architecture with
+different priors, and picking the wrong one degrades features silently rather
+than failing. `dinov3-sat` carries satellite priors and belongs on nadir RGB
+aerial and satellite orthoimagery. This one belongs on everything else: field
+photographs, thin sections, microscopy, close-range and oblique drone, lab
+imagery. Before this image existed, non-satellite imagery was being fed
+satellite priors.
+
+**License: not open source.** The DINOv3 License is a vendor license with its
+own terms, reproduced in `dinov3/LICENSE.dinov3.md`. Read it before offering
+the model to anyone outside the lab.
+
+### grounding-dino
+
+[Grounding DINO](https://arxiv.org/abs/2303.05499) (Liu et al., 2023) —
+open-vocabulary object detection from a text prompt. Detects objects named in
+free text with no training and no fixed class list: pass "boulder. fracture.
+tree." and get boxes back.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- Weights baked from HF Hub `IDEA-Research/grounding-dino-base`.
+
+Pull: `ghcr.io/bradleylab/grounding-dino:v1`
+
+That is the difference from `deepforest`, which detects the one class it was
+trained for, and from `sam2`, which segments what you point at but cannot find
+it from a description. The natural pairing is grounding-dino to locate and
+`sam2` to mask.
+
+**Prompt format is load-bearing.** Upstream expects lower-case phrases
+separated by periods, with a trailing period. Capitalized text or comma
+separators silently reduce recall, with no error raised. The build smoke test
+pins this by asserting a well-formed prompt round-trips through the processor.
+
+### hylite
+
+hylite (Thiele et al., Helmholtz Institute Freiberg) with hklearn —
+hyperspectral drillcore and hand-specimen mineral mapping. Correction, hull
+removal, minimum-wavelength mapping and mineral index calculation on drillcore
+and outcrop scans, with hklearn adding the machine-learning layer on top.
+
+- Base: `python:3.11-slim`, CPU.
+- No weights. Minimum-wavelength mapping is fitted per scan, and hklearn's
+  classifiers train on your own labeled core.
+
+Pull: `ghcr.io/bradleylab/hylite:v1`
+
+**This is a toolkit, not a pretrained model.** Every other image in this
+catalog ships weights and answers a question out of the box. Running this one
+means fitting on your data, not inference against a checkpoint. That reflects
+the field: the 2026-08 coverage triage found no pretrained hyperspectral
+mineral model with released weights anywhere, and it is filed under genuine
+voids for that reason.
+
+**Model verified** on an H100: recovered a planted absorption feature at
+2201.7 nm against 2200.0 nm planted.
+
+### myria3d
+
+myria3d (IGN) with the FRACTAL-LidarHD RandLA-Net checkpoint — airborne lidar
+semantic segmentation into seven classes: other, ground, vegetation, building,
+water, bridge and permanent structure. This is the lab's first general-purpose
+airborne-lidar semantic segmenter; every other point-cloud image here is
+forestry-specific, covering tree instances, leaf and wood, or crowns.
+
+- Base: `condaforge/miniforge3`, torch 2.4.1 / cu124, PyTorch Geometric,
+  PDAL 2.10. Conda-forge rather than an NVIDIA base because myria3d imports the
+  PDAL Python bindings and GDAL's `osgeo.osr` at module load.
+- Weights fetched at runtime from HF Hub
+  `IGNF/FRACTAL-LidarHD_7cl_randlanet`, Etalab Open Licence 2.0, ungated, 13 MB.
+
+Pull: `ghcr.io/bradleylab/myria3d:v1`
+
+The `bradleylab.model.paper` label points at the Hugging Face model page rather
+than a paper, because no paper is recorded upstream for this checkpoint.
+
+Not in the H100 probe record: the image had not been imported to Compute2 when
+the uniform probe ran.
+
+### rf-detr
+
+[RF-DETR](https://arxiv.org/abs/2511.09554) (Roboflow, ICLR 2026) — real-time
+object detection on a DINOv2 backbone, built for fine-tuning on your own
+annotations. That is the gap it fills here: `deepforest` detects the one class
+it was trained for, and `grounding-dino` finds what you can describe but cannot
+learn from your labels. Neither answers "I annotated 500 drone frames, give me
+a detector".
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- RFDETRMedium COCO checkpoint baked at build, Apache-2.0.
+
+Pull: `ghcr.io/bradleylab/rf-detr:v1`
+
+**Why not YOLO.** Ultralytics YOLO is the obvious choice and is AGPL-3.0.
+Images here are published to a public registry, so an AGPL model would
+encumber the image and anything built from it, and the AGPL network clause
+would reach any service that ever served its predictions.
+
+**Model verified** on an H100: 5 detections on a real photograph, both cats
+class 17.
+
+### sam3
+
+SAM 3 (Meta, 2025) — promptable concept segmentation. SAM 2 segments what you
+point at, a click or box or mask. SAM 3 segments what you describe: give it
+"tree" and it finds and masks every tree in the image or video, with no
+exemplar and no training. For "every crown", "every crater", "every fracture"
+that is the difference between a prompt and a labeling campaign.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- **Weights are gated and NOT baked.** They are fetched at runtime from HF Hub
+  `facebook/sam3` with the caller's own token. This is deliberate: the license
+  does not permit redistribution inside a public image.
+
+Pull: `ghcr.io/bradleylab/sam3:v1`
+
+`sam2` stays in the catalog and is not deprecated by this. Point-prompt
+segmentation remains the right tool when you know where the object is and want
+one mask, and existing work references the published image.
+
+**License: not open source.** The SAM License is a vendor license, reproduced
+in `sam3/LICENSE.sam3.md`. Read it before offering the model to anyone outside
+the lab.
+
+### siglip2
+
+[SigLIP 2](https://arxiv.org/abs/2502.14786) (Tschannen et al., 2025) — general
+image-text scoring with a sigmoid-loss CLIP. Encodes images and text into one
+space, so an image can be scored against arbitrary text prompts with no
+training. so400m-patch14-384: 1.14 B parameters, 384 × 384 input, patch 14.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- Weights baked from HF Hub `google/siglip2-so400m-patch14-384`.
+
+Pull: `ghcr.io/bradleylab/siglip2:v1`
+
+This is the general-purpose counterpart to `remoteclip` and `dofa-clip`, both
+of which are remote-sensing specific and score poorly on anything that is not
+overhead imagery. What it is for here is zero-shot triage of image collections:
+sorting field photographs, flagging frames that contain a given feature,
+building a text-searchable index over a photo archive. It gives a similarity
+score, not a detection. For where in the image, use `grounding-dino`; for a
+mask, use `sam2`.
+
+### trellis2
+
+TRELLIS.2-4B (Microsoft, 2025) — single image to textured 3D mesh. Generates a
+3D asset with PBR materials from one image, exportable to GLB with textures up
+to 4096.
+
+- Base: `pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel`
+- Five CUDA extensions compile from source (nvdiffrast, nvdiffrec, CuMesh,
+  FlexGEMM and o-voxel), **for sm_90 only**. The image will not run on a
+  pre-H100 GPU.
+- Weights baked from HF Hub `microsoft/TRELLIS.2-4B`, MIT.
+
+Pull: `ghcr.io/bradleylab/trellis2:v1`
+
+**Scope: this is generation, not measurement.** The output is a plausible 3D
+asset, not a survey of a real object. It is here for the lab's XR work, assets
+to put in a scene. For measured geometry use `odm` or `splat-pipeline`, which
+reconstruct from many views, and never substitute a TRELLIS mesh for a
+photogrammetric one in an analysis.
+
+### utonia
+
+[Utonia](https://arxiv.org/abs/2603.03283) (Pointcept, ICML 2026) —
+self-supervised point-cloud encoder, the generation after PTv3, Sonata and
+Concerto, and the first in that line pretrained across remote-sensing point
+clouds rather than indoor scans alone.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel`
+- **Built without flash-attention, deliberately.** Callers must pass
+  `enable_flash=False`.
+- Weights staged at build to `/opt/weights/utonia.pth` from HF Hub
+  `Pointcept/Utonia`. Apache-2.0 code, **CC-BY-NC-4.0 weights**.
+
+Pull: `ghcr.io/bradleylab/utonia:v1`
+
+`point-transformer-v3`, `sonata` and `concerto` stay. They are one generation
+behind, but they are already imported, probed on Compute2 and referenced by
+existing work.
+
+**Model verified** on an H100: `utonia.load()` returns the documented
+configuration and a forward pass runs.
+
+### fourcastnet3
+
+[FourCastNet 3](https://arxiv.org/abs/2507.12144) (NVIDIA Earth-2) —
+probabilistic global medium-range forecast on the 0.25° latitude-longitude grid
+(721 × 1440), 72 surface and pressure-level variables at 6 h steps. A spherical
+neural operator with a stochastic core, so ensembles are what it produces by
+design rather than an add-on.
+
+- Base: `nvidia/cuda:12.8.1` on Ubuntu 24.04, with earth2studio as the framework
+  and makani for the network.
+- Weights fetched at runtime from HF Hub `nvidia/fourcastnet3`, Apache-2.0 and
+  ungated, 2.85 GB including the orography, land mask and normalization arrays.
+
+Pull: `ghcr.io/bradleylab/fourcastnet3:v1`
+
+Not in the H100 probe record, and never executed: its smallest meaningful run
+needs real initial conditions rather than baked weights.
+
+### geolg-3dfaultnet
+
+GeoLG-3DFaultNet — voxelwise fault and non-fault segmentation of a 3D seismic
+amplitude volume. A 3D U-Net (32/64/128/256) with the two additions the model is
+named for: a local-global feature-enhancement block pairing plain and dilated 3D
+convolutions, and an attention-guided continuity block after a windowed 3D
+self-attention layer. 5,956,226 parameters, 23.8 MB in fp32.
+
+- Base: `nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04`, torch 2.8 / cu128
+- Weights fetched at runtime from the upstream GitHub release, tag `v1.0`,
+  asset `best_model.pth`.
+
+Pull: `ghcr.io/bradleylab/geolg-3dfaultnet:v1`
+
+**Provenance warning.** The model rests on an unpublished manuscript whose
+publication status could not be confirmed as of 2026-08-18. It fills a capability
+gap the lab has no other model for, so it is an evaluation candidate rather than
+a validated tool. Benchmark it against known structure before trusting it on a
+real survey.
+
+Validated on an H100 on 2026-08-19: the checkpoint fully populates the model and
+scores Dice 0.9263 against truth, against 0.1153 for a randomly initialized
+control. That proves the weights are real and loaded correctly. It does not
+address the provenance question.
+
+### insar-unwrap
+
+[When Less Is More](https://openreview.net/forum?id=liJldeR5ZX) (Singh & Singh,
+ML4RS at ICLR 2026) — learned InSAR phase unwrapping. Takes a wrapped
+interferogram patch with coherence and the line-of-sight unit vector, and
+regresses unwrapped line-of-sight displacement directly, with no branch cuts, no
+network-flow solver and no residue handling.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- Weights fetched at runtime from HF Hub
+  `Prabhjotschugh/InSAR-Phase-Unwrapping-Models`.
+
+Pull: `ghcr.io/bradleylab/insar-unwrap:v1`
+
+Four architectures were trained under one standardized protocol, and the paper's
+result is that the plainest one wins: the vanilla U-Net, 7.76 M parameters.
+
+Validated on an H100 on 2026-08-19: strict checkpoint load, 534 trained epochs
+recorded, a 128 × 128 patch through the real checkpoint.
+
+### n2n4m
+
+[N2N4M](https://doi.org/10.48550/arXiv.2403.17757) (Platt et al.) — Noise2Noise
+denoising for CRISM Mars SWIR data. CRISM's L detector has degraded badly since
+2006 and a large fraction of the later archive is written off as unusable spike
+and stripe noise. N2N4M is a 1D convolutional U-Net of 1,092,945 parameters,
+trained Noise2Noise-style on 350 of the 438 L-sensor channels, that denoises
+spectra pixel by pixel and leaves the remaining channels untouched.
+
+- Base: `python:3.11-slim`
+- Weights baked: committed upstream at `n2n4m/data/trained_model_weights.pt`,
+  4.4 MB, with the feature scaler, pinned by `N2N4M_REF`.
+
+Pull: `ghcr.io/bradleylab/n2n4m:v1`
+
+The package also ships CoTCAT (Bultel et al. 2015) as a benchmark denoiser,
+Plebani-model image ratioing, and CRISM summary parameters.
+
+Validated on an H100 on 2026-08-19: forward pass verified. GPU access was broken
+at the time and was fixed in ml-containers #70.
+
+### seist
+
+[SeisT](https://doi.org/10.1109/TGRS.2024.3371503) (Li et al., IEEE TGRS 2024) —
+a multi-task seismogram transformer. One backbone with five task heads: event
+detection, P and S phase picking, first-motion polarity, magnitude, back-azimuth
+and epicentral distance.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`
+- 18 checkpoints in the image at the pinned upstream commit, 29.3 MB. No runtime
+  fetch and no network needed.
+
+Pull: `ghcr.io/bradleylab/seist:v1`
+
+**This is not a second phase picker.** The lab already runs `seisbench`, with
+PhaseNet and EQTransformer, and that covers detection and P/S picking well.
+SeisT earns its own image for the four tasks SeisBench does not do: first-motion
+polarity, magnitude, back-azimuth and epicentral distance.
+
+Validated on an H100 on 2026-08-19: all keys matched, finite output.
+
+### stormcast
+
+[StormCast v1](https://arxiv.org/abs/2408.10958) (NVIDIA Earth-2) — a
+convection-allowing regional nowcast. Autoregressive 1 h steps on the HRRR 3 km
+CONUS grid, conditioned on a coarse global forecast, GFS by default. A
+deterministic U-Net predicts the next state and an EDM-preconditioned diffusion
+model sharpens it, sampled in 18 steps.
+
+- Base: `nvidia/cuda:12.8.1` on Ubuntu 24.04, with earth2studio and physicsnemo.
+- Weights fetched at runtime from HF Hub `nvidia/stormcast-v1-era5-hrrr`,
+  Apache-2.0 and ungated, 0.80 GB.
+
+Pull: `ghcr.io/bradleylab/stormcast:v1`
+
+Not in the H100 probe record, and never executed, for the same reason as
+`fourcastnet3`: its smallest meaningful run needs real initial conditions.
