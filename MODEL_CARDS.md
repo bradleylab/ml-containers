@@ -806,6 +806,402 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest` = `:torch2.2-cu121`) |
 | Notes | The paper's open-world / CLIP-language path is absent from the released code and weights (no `clip`, `open_clip` or text translator in the repository) and is not part of this image. Encoder-only, no turnkey CLI; snippets in `concerto/README.md` |
 
+## adaf
+
+| | |
+|--|--|
+| Task | Archaeological feature detection in lidar terrain models — barrows, ringforts, enclosures and an all-archaeology class; HRNet semantic segmentation plus Faster R-CNN detection over SLRM relief visualizations of a bare-earth DTM |
+| Sensor | Airborne lidar DTM (`lidar:airborne DTM`), trained on about 0.5 m national ALS |
+| Upstream repo | [EarthObservation/adaf](https://github.com/EarthObservation/adaf) |
+| Upstream license | Apache-2.0 (code); image label `Apache-2.0 AND CC-BY-SA-4.0` |
+| Paper | [doi:10.1016/j.jasrep.2026.105733](https://doi.org/10.1016/j.jasrep.2026.105733) |
+| Weights source | Zenodo [10.5281/zenodo.15848663](https://doi.org/10.5281/zenodo.15848663) — 8 TAR files, 5.52 GB, baked at `/opt/adaf-weights` |
+| Weights license | **CC-BY-SA-4.0.** Share-alike: weights fine-tuned from these are an adapted work, so the obligation reaches a derivative model. See `adaf/LICENSE.weights.md` |
+| Container stack | `condaforge/miniforge3:24.9.2-0` + torch 2.5.1 / torchvision 0.20.1 (cu121), Python 3.9; `PYTHONNOUSERSITE=1` and `PROJ_LIB` set (the image otherwise imports the host's user-site pyproj and cannot reproject) |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes; a full detection run completed 2026-09-04 |
+| Lab status | **experimental** — published-inventory validation done, lab-data run pending |
+| First-run / current behavior | Cahokia 2023 1 m quad, 2026-09-04 (SLURM 2977567): 70 SLRM tiles, 66 polygons. Scored against the 46-feature OSM mound inventory it matched 4 at any radius up to 100 m. A transfer result, not a like-for-like test — 1 m DTM against ~0.5 m training data, and Cahokia's mounds fall outside the barrow class by size |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121-py39`); weights baked |
+| Notes | Field-tested upstream on a 197 km² Irish infrastructure corridor at 84% recall against known sites, where it also flagged 116 candidates manual inspection had missed |
+
+## afwizard
+
+| | |
+|--|--|
+| Task | Spatially adaptive ground-point filtering for bare-earth DTM generation: a different filter and parameter set per terrain polygon, to preserve archaeological micro-relief a single global filter would smooth away |
+| Sensor | Lidar point clouds (`lidar:point cloud (LAS/LAZ)`) |
+| Upstream repo | [ssciwr/afwizard](https://github.com/ssciwr/afwizard) |
+| Upstream license | MIT |
+| Paper | [doi:10.1002/arp.1873](https://doi.org/10.1002/arp.1873) |
+| Weights source | **None — this is software, not a trained model** |
+| Weights license | Not applicable |
+| Container stack | `condaforge/miniforge3:24.9.2-0`, Python 3.11, CPU; `geojson<3` pinned (upstream's dependency drift breaks the segmentation loader otherwise); ships `afwizard_tuner`, written in this repo |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes — torch-free image, so the probe records that the container runs |
+| Lab status | **experimental** — used for the Greenwood and Tyson tuning runs |
+| First-run / current behavior | Greenwood acceptance run 2026-09-03 (SLURM 2962524): 116 evaluations in 10 min on `general-cpu`, then `wire --apply` produced a filtered cloud and DTM. Tyson calibration 2026-09-05 (SLURM 2977489): 36 evaluations in 3 h 29 min |
+| Tags | `:v1` (= `:latest` = `:py311`); no weights |
+| Notes | The forest point-cloud images are not a substitute: they classify ground, but were designed around canopy structure where the ground surface is a means to an end. `afwizard_tuner` takes an objective composed from a criteria vocabulary and returns every evaluation plus the Pareto front, rather than one answer |
+
+## aifs
+
+| | |
+|--|--|
+| Task | Global medium-range weather forecasting, 6-hourly on the N320 grid (~31 km) out to 15 days; graph-network encoder and decoder around a sliding-window transformer processor |
+| Sensor | Reanalysis and NWP-analysis gridded fields |
+| Upstream repo | [ecmwf/anemoi-inference](https://github.com/ecmwf/anemoi-inference) |
+| Upstream license | Apache-2.0 |
+| Paper | [arXiv:2406.01465](https://arxiv.org/abs/2406.01465) |
+| Weights source | HF Hub [`ecmwf/aifs-single-2.0`](https://huggingface.co/ecmwf/aifs-single-2.0) — runtime fetch, ungated, about 1 GB |
+| Weights license | CC-BY-4.0 |
+| Container stack | `nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04`, Python 3.12, torch 2.7.0 from PyPI, flash-attn from a prebuilt wheel; the anemoi stack pinned to the exact versions in upstream's own lockfile for this checkpoint, which are deliberately behind current PyPI |
+| H100 status | **not in the probe record** — the image had not been imported to Compute2 when the uniform probe ran; nothing has been executed |
+| Lab status | **experimental** — never executed here |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:cu126-py312`); weights NOT baked |
+| Notes | ECMWF runs this model operationally four times a day |
+
+## birefnet
+
+| | |
+|--|--|
+| Task | Dichotomous image segmentation: one high-resolution foreground mask per image, unprompted, with clean edges on thin structures (hair, twigs, antennae, grain boundaries) |
+| Sensor | General RGB imagery (`image:rgb general`) |
+| Upstream repo | [ZhengPeng7/BiRefNet](https://github.com/ZhengPeng7/BiRefNet) |
+| Upstream license | MIT |
+| Paper | [arXiv:2401.03407](https://arxiv.org/abs/2401.03407) |
+| Weights source | HF Hub [`ZhengPeng7/BiRefNet`](https://huggingface.co/ZhengPeng7/BiRefNet) at revision `e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4`, baked at build into `HF_HOME=/opt/hf-cache` |
+| Weights license | MIT |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **utility** — general-purpose, not tied to a specific lab task |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | The checkpoint is `custom_code`: loading it executes Python fetched from the model repository, and pinning the transformers version does not pin that code, which is why the revision is pinned to an exact commit. Differs from `sam2`: BiRefNet is unprompted and returns one salient-foreground mask, where SAM 2 segments what you prompt and returns several candidates |
+
+## corrdiff
+
+| | |
+|--|--|
+| Task | Km-scale generative downscaling of 0.25° ERA5 onto the rotated-pole COSMO-REA grids over Europe: REA6 at 6 km (45 output variables) and REA2 at 2.2 km (22). Deterministic regression transformer (98M) and EDM-preconditioned diffusion transformer (174M, 18-step Heun sampler) |
+| Sensor | ERA5 reanalysis |
+| Upstream repo | [NVIDIA/earth2studio](https://github.com/NVIDIA/earth2studio) (framework) with [NVIDIA/physicsnemo](https://github.com/NVIDIA/physicsnemo) (transformer and diffusion) |
+| Upstream license | Apache-2.0 |
+| Paper | [arXiv:2309.15214](https://arxiv.org/abs/2309.15214) |
+| Weights source | HF Hub [`nvidia/corrdiff-cosmo-era5`](https://huggingface.co/nvidia/corrdiff-cosmo-era5) — runtime fetch, ungated, 2.33 GB across 19 files |
+| Weights license | OpenMDW-1.1, **except** the two `invariants_*_ext.nc` files, which are separately CC BY 4.0 |
+| Container stack | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04`, torch 2.11.0 / torchvision 0.26.0 (cu128), earth2studio + physicsnemo + NATTEN |
+| H100 status | **not in the probe record** — the image had not been imported to Compute2 when the uniform probe ran; nothing has been executed |
+| Lab status | **experimental** — never executed here |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:e2s0.17-cu128`); weights NOT baked |
+| Notes | The invariants licensing split is the one detail that is not Apache-shaped; see `corrdiff/README.md` |
+
+## crater-detection
+
+| | |
+|--|--|
+| Task | Lunar crater instance detection (Mask R-CNN variant) and crater-catalog matching for absolute position fixing |
+| Sensor | Lunar orbital greyscale imagery (`image:lunar orbital greyscale`) |
+| Upstream repo | [wdoppenberg/crater-detection](https://github.com/wdoppenberg/crater-detection) |
+| Upstream license | MIT |
+| Paper | Not recorded in this repo — Doppenberg (2021), MSc thesis, TU Delft |
+| Weights source | Upstream Git-LFS blob `CraterRCNN.pth`, 221 MB, fetched over HTTPS at build with a pointer-size guard so a stray LFS pointer cannot pass as a checkpoint |
+| Weights license | Not recorded in this repo; check upstream before redistributing |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental** — model verified, lab-data run pending |
+| First-run / current behavior | **Model verified** (SLURM 2947891): 303 tensors, 0 missing and 0 unexpected keys, 55,190,628 parameters, real forward pass |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | The only containerizable lunar model in the catalog. LunarFM is stronger and the lab has access, but it is PolyForm Strict 1.0.0, which forbids redistribution and derivative works, so it cannot be baked into a public image. They do different jobs regardless: LunarFM gives surface embeddings, this gives crater instances |
+
+## depth-anything-3
+
+| | |
+|--|--|
+| Task | Monocular depth from one image; multi-view geometry, camera pose and intrinsics from several views of a scene |
+| Sensor | General RGB imagery, single or multi-view (`image:rgb general`) |
+| Upstream repo | [ByteDance-Seed/Depth-Anything-3](https://github.com/ByteDance-Seed/Depth-Anything-3) |
+| Upstream license | Apache-2.0 |
+| Paper | [arXiv:2511.10647](https://arxiv.org/abs/2511.10647) — Lin, Yang et al. (2025) |
+| Weights source | HF Hub [`depth-anything/DA3-LARGE-1.1`](https://huggingface.co/depth-anything/DA3-LARGE-1.1), baked at build into `HF_HOME=/opt/hf-cache` |
+| Weights license | **Apache-2.0 for the baked checkpoint.** Not uniform across the family: `DA3MONO-LARGE`, `DA3METRIC-LARGE` and `DA3-BASE` are Apache-2.0; `DA3-LARGE` and `DA3NESTED-GIANT-LARGE-1.1` are CC-BY-NC-4.0 |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental** — model verified, lab-data run pending |
+| First-run / current behavior | **Model verified** 2026-09-11 (SLURM 3009949): two images through one forward pass in 1.94 s on an H100 returned depth and confidence at 2 × 378 × 504, camera pose at 2 × 3 × 4 and intrinsics at 2 × 3 × 3 — the batch survived and the multi-view path produced poses, not depth alone |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | **Checkpoint trap.** Upstream's own README example loads `depth-anything/da3-large`, which redirects to `DA3-LARGE` — non-commercial. Copying that example would put NC weights inside an image labeled Apache-2.0. If you swap the checkpoint, check its license and update the image label. Replaced two shortlisted candidates: DA3 does both Depth-Anything-V2's job and VGGT's, and is permissive where both are CC-BY-NC-4.0 |
+
+## dinov3
+
+| | |
+|--|--|
+| Task | Dense feature extraction — a frozen backbone giving 1024-D patch tokens for a downstream segmentation or classification head |
+| Sensor | General RGB imagery: field photography, microscopy, thin section, close-range and oblique drone |
+| Upstream repo | [facebookresearch/dinov3](https://github.com/facebookresearch/dinov3) |
+| Upstream license | **LicenseRef-DINOv3 — a vendor license, not open source.** Reproduced in `dinov3/LICENSE.dinov3.md` |
+| Paper | Not recorded in this repo — Siméoni, Vo, Oquab et al. (2025) |
+| Weights source | HF Hub [`timm/vit_large_patch16_dinov3.lvd1689m`](https://huggingface.co/timm/vit_large_patch16_dinov3.lvd1689m), baked at build into `HF_HOME=/opt/hf-cache` |
+| Weights license | DINOv3 License — read before offering the model outside the lab |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`; ViT-L/16, variable input size because the position embedding interpolates |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **utility** — general-purpose, not tied to a specific lab task |
+| First-run / current behavior | Build smoke test only; ships `extract_features.py` |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | **Which DINOv3 to use.** Same architecture, different priors, and the wrong choice degrades features silently rather than failing. `dinov3-sat` belongs on nadir RGB aerial and satellite orthoimagery; this one on everything else. Before this image existed, non-satellite imagery was being fed satellite priors |
+
+## grounding-dino
+
+| | |
+|--|--|
+| Task | Open-vocabulary (zero-shot) object detection — boxes for objects named in free text, with no training and no fixed class list |
+| Sensor | General RGB imagery (`image:rgb general`) |
+| Upstream repo | [IDEA-Research/GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) |
+| Upstream license | Apache-2.0 |
+| Paper | [arXiv:2303.05499](https://arxiv.org/abs/2303.05499) — Liu et al. (2023) |
+| Weights source | HF Hub [`IDEA-Research/grounding-dino-base`](https://huggingface.co/IDEA-Research/grounding-dino-base), baked at build into `HF_HOME=/opt/hf-cache` |
+| Weights license | Apache-2.0 |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **utility** — general-purpose, not tied to a specific lab task |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | **Prompt format is load-bearing.** Upstream expects lower-case phrases separated by periods, with a trailing period. Capitalized text or comma separators reduce recall silently, raising no error; the build smoke test asserts a well-formed prompt round-trips through the processor. Differs from `deepforest` (one trained class) and from `sam2` (segments what you point at, cannot find it from a description). The natural pairing is this to locate and `sam2` to mask |
+
+## hylite
+
+| | |
+|--|--|
+| Task | Hyperspectral mineral mapping on drillcore and outcrop scans: correction, hull removal, minimum-wavelength mapping and mineral indices, with hklearn adding classifiers on top. Fitted per scan, not inference against a checkpoint |
+| Sensor | SWIR/VNIR hyperspectral drillcore and outcrop scans |
+| Upstream repo | [hifexplo/hylite](https://github.com/hifexplo/hylite) |
+| Upstream license | MIT |
+| Paper | Not recorded in this repo — Thiele et al., Helmholtz Institute Freiberg |
+| Weights source | **None — toolkit, no pretrained weights.** hklearn classifiers train on your own labeled core |
+| Weights license | Not applicable |
+| Container stack | `python:3.11-slim`, CPU |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes — torch-free image, so the probe records that the container runs |
+| Lab status | **utility** — general-purpose, not tied to a specific lab task |
+| First-run / current behavior | **Model verified** (SLURM 2947891): recovered a planted absorption feature at 2201.7 nm against 2200.0 nm planted |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); no weights |
+| Notes | **A toolkit, not a pretrained model** — the only image in the catalog of which that is true. Running it means fitting on your data. That reflects the field: the 2026-08 coverage triage found no pretrained hyperspectral mineral model with released weights anywhere, and it is filed under genuine voids for that reason |
+
+## myria3d
+
+| | |
+|--|--|
+| Task | Airborne lidar semantic segmentation into seven classes: other, ground, vegetation, building, water, bridge, permanent structure |
+| Sensor | Airborne lidar (`lidar:airborne`) |
+| Upstream repo | [IGNF/myria3d](https://github.com/IGNF/myria3d) |
+| Upstream license | BSD-3-Clause |
+| Paper | Not recorded in this repo — the `bradleylab.model.paper` label points at the Hugging Face model page, since no paper is recorded upstream for this checkpoint |
+| Weights source | HF Hub [`IGNF/FRACTAL-LidarHD_7cl_randlanet`](https://huggingface.co/IGNF/FRACTAL-LidarHD_7cl_randlanet) — runtime fetch, ungated, 13 MB |
+| Weights license | Etalab Open Licence 2.0 |
+| Container stack | `condaforge/miniforge3:26.1.1-3` + torch 2.4.1 / cu124 + PyTorch Geometric + PDAL 2.10. Conda-forge rather than an NVIDIA base because myria3d imports the PDAL Python bindings and GDAL's `osgeo.osr` at module load |
+| H100 status | **not in the probe record** — the image had not been imported to Compute2 when the uniform probe ran; nothing has been executed |
+| Lab status | **experimental** — never executed here |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:torch2.4-cu124`); weights NOT baked |
+| Notes | The lab's first general-purpose airborne-lidar semantic segmenter; every other point-cloud image here is forestry-specific (tree instances, leaf and wood, crowns) |
+
+## rf-detr
+
+| | |
+|--|--|
+| Task | Object detection, built for fine-tuning on your own annotations; real-time inference on a DINOv2 backbone |
+| Sensor | General RGB imagery (`image:rgb general`) |
+| Upstream repo | [roboflow/rf-detr](https://github.com/roboflow/rf-detr) |
+| Upstream license | Apache-2.0 |
+| Paper | [arXiv:2511.09554](https://arxiv.org/abs/2511.09554) — Roboflow, ICLR 2026 |
+| Weights source | RFDETRMedium COCO checkpoint, baked at build |
+| Weights license | Apache-2.0 |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **utility** — general-purpose, not tied to a specific lab task |
+| First-run / current behavior | **Model verified** (SLURM 2947891): 5 detections on a real photograph, both cats class 17 |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | **Why not YOLO.** Ultralytics YOLO is the obvious choice and is AGPL-3.0. These images are published to a public registry, so an AGPL model would encumber the image and anything built from it, and the AGPL network clause would reach any service that ever served its predictions. Fills the gap between `deepforest` (one trained class) and `grounding-dino` (finds what you can describe, cannot learn from your labels) |
+
+## sam3
+
+| | |
+|--|--|
+| Task | Promptable concept segmentation — masks every instance of a named concept in an image or video, with no exemplar and no training |
+| Sensor | General RGB imagery and video (`image:rgb general; video`) |
+| Upstream repo | [facebookresearch/sam3](https://github.com/facebookresearch/sam3) |
+| Upstream license | **LicenseRef-SAM — a vendor license, not open source.** Reproduced in `sam3/LICENSE.sam3.md` |
+| Paper | Not recorded in this repo — Meta (2025) |
+| Weights source | HF Hub [`facebook/sam3`](https://huggingface.co/facebook/sam3) — **GATED and NOT baked**; runtime fetch with the caller's own `HF_TOKEN` |
+| Weights license | SAM License — read before offering the model outside the lab |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental** — never run on lab data |
+| First-run / current behavior | Build smoke test only (no weights available at build) |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights NOT baked |
+| Notes | Weights are unbaked deliberately: the license does not permit redistribution inside a public image. `sam2` stays and is not deprecated by this — point-prompt segmentation is still right when you know where the object is and want one mask, and existing work references the published image |
+
+## siglip2
+
+| | |
+|--|--|
+| Task | Zero-shot image-text scoring and retrieval — encodes images and text into one space so an image can be scored against arbitrary prompts with no training |
+| Sensor | General RGB imagery (`image:rgb general`) |
+| Upstream repo | [google-research/big_vision](https://github.com/google-research/big_vision) |
+| Upstream license | Apache-2.0 |
+| Paper | [arXiv:2502.14786](https://arxiv.org/abs/2502.14786) — Tschannen et al. (2025) |
+| Weights source | HF Hub [`google/siglip2-so400m-patch14-384`](https://huggingface.co/google/siglip2-so400m-patch14-384), baked at build into `HF_HOME=/opt/hf-cache` |
+| Weights license | Apache-2.0 |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`; so400m-patch14-384, 1.14 B parameters, 384 × 384 input |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **utility** — general-purpose, not tied to a specific lab task |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | The general-purpose counterpart to `remoteclip` and `dofa-clip`, both remote-sensing specific and weak on anything that is not overhead imagery. Gives a similarity score, not a detection: for where in the image use `grounding-dino`, for a mask use `sam2` |
+
+## trellis2
+
+| | |
+|--|--|
+| Task | Image-to-3D asset generation — one image to a textured mesh with PBR materials, exportable to GLB with textures up to 4096 |
+| Sensor | Single-view RGB imagery (`image:rgb single view`) |
+| Upstream repo | [microsoft/TRELLIS.2](https://github.com/microsoft/TRELLIS.2) |
+| Upstream license | MIT |
+| Paper | Not recorded in this repo — Microsoft (2025) |
+| Weights source | HF Hub [`microsoft/TRELLIS.2-4B`](https://huggingface.co/microsoft/TRELLIS.2-4B), baked at build into `HF_HOME=/opt/hf-cache` |
+| Weights license | MIT |
+| Container stack | `pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel`; five CUDA extensions compiled from source (nvdiffrast, nvdiffrec, CuMesh, FlexGEMM, o-voxel) |
+| H100 status | **sm_90 only** — the extensions are compiled for H100 and the image will not run on an earlier GPU. uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental** — never run on lab data |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | **Generation, not measurement.** The output is a plausible 3D asset, not a survey of a real object. It is here for the lab's XR work. For measured geometry use `odm` or `splat-pipeline`, which reconstruct from many views, and never substitute a TRELLIS mesh for a photogrammetric one in an analysis |
+
+## utonia
+
+| | |
+|--|--|
+| Task | Self-supervised point-cloud encoder — per-point embeddings and semantic segmentation; the generation after PTv3, Sonata and Concerto |
+| Sensor | Point clouds, pretrained across indoor, outdoor and remote-sensing data |
+| Upstream repo | [Pointcept/Utonia](https://github.com/Pointcept/Utonia) |
+| Upstream license | Apache-2.0 (code); image label `Apache-2.0 AND CC-BY-NC-4.0` |
+| Paper | [arXiv:2603.03283](https://arxiv.org/abs/2603.03283) — Pointcept, ICML 2026 |
+| Weights source | HF Hub [`Pointcept/Utonia`](https://huggingface.co/Pointcept/Utonia) — `utonia.pth` staged at build to `/opt/weights/utonia.pth` |
+| Weights license | **CC-BY-NC-4.0** — non-commercial, and the weights are what bind a user |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel`; **built without flash-attention deliberately**, so callers must pass `enable_flash=False` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental** — model verified, lab-data run pending |
+| First-run / current behavior | **Model verified** (SLURM 2950544): `utonia.load()` returns the documented configuration and a forward pass runs |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | The first of this encoder line pretrained across remote-sensing point clouds rather than indoor scans alone, which is why it sits alongside the three already in the catalog rather than replacing them. `point-transformer-v3`, `sonata` and `concerto` stay: a generation behind, but imported, probed and referenced by existing work |
+
+## fourcastnet3
+
+| | |
+|--|--|
+| Task | Probabilistic global medium-range weather forecast on the 0.25° grid (721 × 1440), 72 surface and pressure-level variables, 6 h steps; spherical neural operator with a stochastic core |
+| Sensor | ERA5 reanalysis / GFS analysis |
+| Upstream repo | [NVIDIA/earth2studio](https://github.com/NVIDIA/earth2studio) (framework) with [NVIDIA/makani](https://github.com/NVIDIA/makani) (network) |
+| Upstream license | Apache-2.0 |
+| Paper | [arXiv:2507.12144](https://arxiv.org/abs/2507.12144) |
+| Weights source | HF Hub [`nvidia/fourcastnet3`](https://huggingface.co/nvidia/fourcastnet3) — runtime fetch, ungated, 2.85 GB including orography, land mask and normalization arrays |
+| Weights license | Apache-2.0 |
+| Container stack | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04` + earth2studio + makani |
+| H100 status | **not in the probe record** — the image had not been imported to Compute2 when the uniform probe ran |
+| Lab status | **experimental** — never executed |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:e2s0.17-cu128`); weights NOT baked |
+| Notes | Ensembles are what this model produces by design, not an add-on. Its smallest meaningful run needs real initial conditions rather than baked weights, which is why it is still unexecuted |
+
+## geolg-3dfaultnet
+
+| | |
+|--|--|
+| Task | Voxelwise fault / non-fault segmentation of a 3D seismic amplitude volume; 3D U-Net (32/64/128/256) with a local-global feature-enhancement block and an attention-guided continuity block. 5,956,226 parameters, 23.8 MB fp32 |
+| Sensor | 3D reflection seismic amplitude volume |
+| Upstream repo | [letsfly27/GeoLG-3DFaultNet](https://github.com/letsfly27/GeoLG-3DFaultNet) |
+| Upstream license | MIT |
+| Paper | **Unpublished manuscript — publication status unconfirmed as of 2026-08-18** |
+| Weights source | GitHub release `letsfly27/GeoLG-3DFaultNet@v1.0`, asset `best_model.pth`, 71,617,015 bytes; runtime fetch via `scripts/fetch_weights.sh` |
+| Weights license | Not stated separately upstream; the repository is MIT |
+| Container stack | `nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04`, torch 2.8 / cu128 |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental — unvalidated provenance, benchmark before use** |
+| First-run / current behavior | Validated 2026-08-19 on an H100: checkpoint fully populates the model; Dice 0.9263 against truth versus 0.1153 for a randomly initialized control. Not yet recorded as a model-specific entry in `VERIFICATION.json` |
+| Tags | `:v1` (= `:latest` = `:torch2.8-cu128`); weights NOT baked |
+| Notes | **Provenance is the open question, not the weights.** The Dice control proves the checkpoint is real and loads correctly; it says nothing about whether the model is trustworthy on a real survey. It fills a capability gap the lab has no other model for, so it is an evaluation candidate |
+
+## insar-unwrap
+
+| | |
+|--|--|
+| Task | Learned InSAR phase unwrapping — regresses unwrapped line-of-sight displacement from a wrapped interferogram patch plus coherence and the line-of-sight unit vector; no branch cuts, no network-flow solver, no residue handling |
+| Sensor | Sentinel-1 interferograms (LiCSAR frames, C-band, 0.056 m) |
+| Upstream repo | [prabhjotschugh/When-Less-is-More-InSAR-Phase-Unwrapping](https://github.com/prabhjotschugh/When-Less-is-More-InSAR-Phase-Unwrapping) |
+| Upstream license | MIT (code); image label `MIT AND CC-BY-4.0` |
+| Paper | [openreview:liJldeR5ZX](https://openreview.net/forum?id=liJldeR5ZX) — Singh & Singh, ML4RS at ICLR 2026 (oral) |
+| Weights source | HF Hub `Prabhjotschugh/InSAR-Phase-Unwrapping-Models` — runtime fetch |
+| Weights license | CC-BY-4.0 |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental** — validated, lab-data run pending |
+| First-run / current behavior | Validated 2026-08-19 on an H100: strict checkpoint load, 534 trained epochs, a 128 × 128 patch through the real checkpoint. Not yet recorded as a model-specific entry in `VERIFICATION.json` |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights NOT baked |
+| Notes | Four architectures were trained under one standardized protocol and the paper's result is that the plainest wins: the vanilla U-Net, 7.76 M parameters |
+
+## n2n4m
+
+| | |
+|--|--|
+| Task | Noise2Noise denoising of CRISM Mars SWIR spectra — a 1D convolutional U-Net (1,092,945 parameters) over 350 of the 438 L-sensor channels, denoising pixel by pixel and leaving the rest untouched |
+| Sensor | CRISM L (SWIR) hyperspectral, 438 bands, 350 denoised |
+| Upstream repo | [rob-platt/n2n4m](https://github.com/rob-platt/n2n4m) |
+| Upstream license | MIT |
+| Paper | [doi:10.48550/arXiv.2403.17757](https://doi.org/10.48550/arXiv.2403.17757) |
+| Weights source | Baked — committed upstream at `n2n4m/data/trained_model_weights.pt` (4.4 MB) with `n2n4m_feature_scaler.joblib`, pinned by `N2N4M_REF` |
+| Weights license | MIT |
+| Container stack | `python:3.11-slim` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental** — validated, lab-data run pending |
+| First-run / current behavior | Validated 2026-08-19 on an H100: forward pass verified. GPU access was broken at the time and was fixed in ml-containers #70. Not yet recorded as a model-specific entry in `VERIFICATION.json` |
+| Tags | `:v1` (= `:latest` = `:torch2.9-cu128`); weights baked |
+| Notes | CRISM's L detector has degraded since 2006 and much of the later archive is written off as unusable noise, which is the problem this addresses. The package also ships CoTCAT (Bultel et al. 2015) as a benchmark denoiser, Plebani-model image ratioing, and CRISM summary parameters |
+
+## seist
+
+| | |
+|--|--|
+| Task | Multi-task seismogram analysis from one backbone: event detection, P and S phase picking, first-motion polarity, magnitude, back-azimuth and epicentral distance |
+| Sensor | Seismic waveforms, 3-component, 8192-sample window |
+| Upstream repo | [senli1073/SeisT](https://github.com/senli1073/SeisT) |
+| Upstream license | MIT |
+| Paper | [doi:10.1109/TGRS.2024.3371503](https://doi.org/10.1109/TGRS.2024.3371503) — Li et al., IEEE TGRS 2024 |
+| Weights source | In-repo at the pinned upstream commit: `/opt/seist/pretrained/*.pth`, 18 checkpoints, 29.3 MB. No runtime fetch, no network needed |
+| Weights license | MIT |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
+| H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
+| Lab status | **experimental** — validated, lab-data run pending |
+| First-run / current behavior | Validated 2026-08-19 on an H100: all keys matched, finite output. Not yet recorded as a model-specific entry in `VERIFICATION.json` |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
+| Notes | **Not a second phase picker.** `seisbench` (PhaseNet, EQTransformer) already covers detection and P/S picking. SeisT earns its own image for the four tasks SeisBench does not do: polarity, magnitude, back-azimuth and distance |
+
+## stormcast
+
+| | |
+|--|--|
+| Task | Convection-allowing regional nowcast: autoregressive 1 h steps on the HRRR 3 km CONUS grid, conditioned on a coarse global forecast; deterministic U-Net predicts the next state, EDM-preconditioned diffusion sharpens it in 18 steps |
+| Sensor | HRRR analysis with GFS forecast conditioning |
+| Upstream repo | [NVIDIA/earth2studio](https://github.com/NVIDIA/earth2studio) (framework) with [NVIDIA/physicsnemo](https://github.com/NVIDIA/physicsnemo) (network definitions) |
+| Upstream license | Apache-2.0 |
+| Paper | [arXiv:2408.10958](https://arxiv.org/abs/2408.10958) |
+| Weights source | HF Hub [`nvidia/stormcast-v1-era5-hrrr`](https://huggingface.co/nvidia/stormcast-v1-era5-hrrr) — runtime fetch, ungated, 0.80 GB |
+| Weights license | Apache-2.0 |
+| Container stack | `nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04` + earth2studio + physicsnemo |
+| H100 status | **not in the probe record** — the image had not been imported to Compute2 when the uniform probe ran |
+| Lab status | **experimental** — never executed |
+| First-run / current behavior | Build smoke test only |
+| Tags | `:v1` (= `:latest` = `:e2s0.17-cu128`); weights NOT baked |
+| Notes | Like `fourcastnet3`, its smallest meaningful run needs real initial conditions rather than baked weights |
+
 ---
 
 ## Deprecated images
