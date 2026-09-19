@@ -76,9 +76,19 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # The constraint pins torch to the base image's CUDA build. tabfm's
 # [pytorch] extra requires a bare `torch`, and an unconstrained resolve is
 # how a CPU wheel silently replaces a CUDA one.
+#
+# safetensors is explicit because nothing else here pulls it in. The
+# checkpoints are .safetensors and huggingface_hub imports the reader
+# lazily, inside the weight-loading call, so its absence is invisible
+# until the first real load — the build smoke test cannot reach it, and
+# did not. Found on the H100 (job 3109333): ModuleNotFoundError at
+# hub_mixin._load_as_safetensor. transformers would have supplied it, and
+# this image has no transformers.
 RUN pip install --upgrade pip wheel \
     && printf 'torch==2.5.1\n' > /tmp/constraints.txt \
-    && pip install -c /tmp/constraints.txt "tabfm[pytorch]==1.0.1" \
+    && pip install -c /tmp/constraints.txt \
+        "tabfm[pytorch]==1.0.1" \
+        "safetensors>=0.4" \
     && rm /tmp/constraints.txt
 
 COPY LICENSE.tabfm.md /opt/licenses/LICENSE.tabfm.md
@@ -91,7 +101,8 @@ import importlib.metadata as im; \
 import torch; \
 from tabfm import TabFMClassifier, TabFMRegressor; \
 from tabfm import tabfm_v1_0_0_pytorch as tabfm_v1_0_0; \
-print('tabfm', im.version('tabfm'), '| torch', im.version('torch'), '| scikit-learn', im.version('scikit-learn')); \
+import safetensors; \
+print('tabfm', im.version('tabfm'), '| torch', im.version('torch'), '| scikit-learn', im.version('scikit-learn'), '| safetensors', im.version('safetensors')); \
 print('cuda build:', torch.version.cuda); \
 assert torch.version.cuda is not None, 'CUDA torch was replaced by a CPU wheel'; \
 assert tuple(int(p) for p in torch.version.cuda.split('.')[:2]) >= (11, 8), f'sm_90 needs CUDA >= 11.8, got cu{torch.version.cuda}'; \
