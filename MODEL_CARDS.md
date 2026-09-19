@@ -1202,6 +1202,24 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest` = `:e2s0.17-cu128`); weights NOT baked |
 | Notes | Like `fourcastnet3`, its smallest meaningful run needs real initial conditions rather than baked weights |
 
+## tabfm
+
+| | |
+|--|--|
+| Task | Zero-shot tabular classification and regression by in-context learning — training rows are passed as context and prediction is a single forward pass, with no per-dataset training or hyperparameter search |
+| Sensor | Tabular data, mixed numeric and categorical columns |
+| Upstream repo | [google-research/tabfm](https://github.com/google-research/tabfm) |
+| Upstream license | Apache-2.0 (source code). The weights are **not** Apache-2.0 — see below |
+| Paper | Not recorded in this repo — Google Research announcement, 2026-06-30 |
+| Weights source | HF Hub [`google/tabfm-1.0.0-pytorch`](https://huggingface.co/google/tabfm-1.0.0-pytorch) — ungated but **NOT baked**; runtime fetch, 13.1 GB (`classification/` 6.56 GB, `regression/` 6.59 GB) |
+| Weights license | **TabFM Non-Commercial License v1.0** — non-commercial and non-production; 3(b) forbids redistributing the model or a derivative; 3(a) reaches the Outputs, so predictions may not feed commercial decision-making, client deliverables or paid services; derivatives inherit every term. Full text at `/opt/licenses/LICENSE.tabfm.md` |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` + `tabfm[pytorch]==1.0.1`, installed under a torch constraint so the resolve cannot replace the CUDA wheel with a CPU one; `NVIDIA_VISIBLE_DEVICES=all` and `PYTHONNOUSERSITE=1` set |
+| H100 status | Not yet probed — built but not imported to Compute2 at the time of writing |
+| Lab status | **experimental** — never run on lab data |
+| First-run / current behavior | Build smoke test only: package imports offline, both estimator classes resolve, torch is still the CUDA build with CUDA >= 11.8, and a guard fails the build if anything large landed in the image cache. `SMOKE.md` carries the Compute2 fit-and-predict test |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights NOT baked |
+| Notes | Weights are unbaked because the license forbids redistribution, not merely because they are large — the same reasoning as `sam3`, reached from a stricter clause. `fit` stores the context rather than training parameters, so it returns immediately and the size of the training table drives inference cost instead |
+
 ---
 
 ## Deprecated images

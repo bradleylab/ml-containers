@@ -133,6 +133,7 @@ locally.
 | `n2n4m` | `n2n4m/` | full recipe — **experimental** (GPU; Noise2Noise denoising of CRISM Mars SWIR hyperspectral data, 350 of 438 channels; MIT code *and* weights, committed upstream) |
 | `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
+| `tabfm` | `tabfm/` | full recipe — **experimental** (GPU optional; TabFM zero-shot tabular classification and regression by in-context learning, scikit-learn API; Apache-2.0 code, **weights non-commercial AND non-production, NOT baked** — the license forbids redistribution) |
 | `octformer` | `octformer/` | full recipe — **experimental** (GPU sm_90; OctFormer octree-transformer semantic segmentation on ScanNet; weights NOT baked — OneDrive, ScanNet research-only terms; MIT code) |
 | `kpconv` | `kpconv/` | full recipe — **experimental** (GPU; KPConv kernel-point convolution semantic segmentation, S3DIS; no CUDA extension, two CPU C++ wrappers; weights NOT baked — Google Drive, mount at runtime; MIT) |
 | `sonata` | `sonata/` | full recipe — **experimental** (GPU sm_90; Meta's self-supervised Point Transformer V3 encoder — per-point embeddings and a ScanNet-20 linear-probe head, both baked; Apache-2.0 code, **CC-BY-NC-4.0 weights**) |
@@ -1718,3 +1719,38 @@ Pull: `ghcr.io/bradleylab/stormcast:v1`
 
 Not in the H100 probe record, and never executed, for the same reason as
 `fourcastnet3`: its smallest meaningful run needs real initial conditions.
+
+### tabfm
+
+[TabFM](https://research.google/blog/introducing-tabfm-a-zero-shot-foundation-model-for-tabular-data/)
+(Google Research, 2026) — zero-shot classification and regression on tabular
+data. TabFM reads your training rows as context and predicts on new rows in a
+single forward pass: no per-dataset training, no hyperparameter search. It was
+pretrained on synthetic datasets generated from structural causal models and
+takes mixed numeric and categorical columns as they come. The API is
+scikit-learn shaped, so it drops in beside a tuned gradient-boosted tree.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` (Python 3.11; tabfm
+  requires 3.11 or newer)
+- `tabfm[pytorch]==1.0.1` installed under a constraint pinning torch to the
+  base image's CUDA build, so the resolve cannot swap in a CPU wheel.
+- GPU optional: it runs on CPU, but a 6.5 GB checkpoint doing in-context
+  learning over a large table is what the H100 is for.
+- Two checkpoints: `classification/` (up to 10 classes) and `regression/`.
+
+Pull: `ghcr.io/bradleylab/tabfm:v1`
+
+**Weights are not baked, and here the license leaves no choice.** Restriction
+3(b) of the TabFM Non-Commercial License v1.0 is flat: you will not "Distribute
+the TabFM Model or a Derivative". Publishing the checkpoints inside an image on
+a public registry is distribution. They are also 13.1 GB across the two
+checkpoints, which would be reason enough on its own. The repository is ungated,
+so the runtime fetch needs no token — unlike `sam3`.
+
+**The license restricts more than redistribution.** Non-commercial *and*
+non-production. Academic research, internal benchmarking and experimentation are
+expressly permitted. Restriction 3(a) reaches the Outputs as well, so predictions
+may not be used "in commercial decision-making, client deliverables, or paid
+products/services" — contract and consulting work is out, not only selling the
+model. Derivatives inherit every term. Full text ships at
+`/opt/licenses/LICENSE.tabfm.md`.
