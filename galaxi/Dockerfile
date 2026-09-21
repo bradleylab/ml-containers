@@ -40,6 +40,13 @@
 # anything staged. GALAXI_COD_DIR and GALAXI_BG_PROFILES are therefore set
 # to mount points below, and the README says what to mount onto them.
 #
+# Note the asymmetry, which cost a staging run: GALAXI_COD_DIR names a
+# DIRECTORY, GALAXI_BG_PROFILES names the HDF5 FILE itself
+# (public_phase_profile_50000.h5, 702,781,444 bytes). Pointing the latter at
+# a directory makes the setup script conclude the library is already
+# installed and then fail to open it -- so the build test asserts the
+# extension, not just the prefix.
+#
 # The COD download runs through gdown against Google Drive, which throttles
 # non-interactive clients -- the same failure `kpconv` documents for its
 # weights. Stage it once from a login node, not from a job.
@@ -69,7 +76,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     MPLBACKEND=Agg \
     GALAXI_COD_DIR=/data/cod \
-    GALAXI_BG_PROFILES=/data/bg_profiles
+    GALAXI_BG_PROFILES=/data/bg_profiles/public_phase_profile_50000.h5
 
 # git for the pinned DARA fork below; build-essential because that fork is
 # a source install rather than a wheel.
@@ -108,6 +115,7 @@ cod = get_default_cod_dir(); bg = get_default_bg_profiles_path(); \
 print('COD dir:', cod, '| bg profiles:', bg); \
 assert cod.startswith('/data'), cod; \
 assert bg.startswith('/data'), bg; \
+assert bg.endswith('.h5'), f'GALAXI_BG_PROFILES names the HDF5 library itself, not a directory: {bg}'; \
 cif = sorted(glob.glob('/opt/galaxi/tutorials/data/cif_files/*.cif'))[0]; \
 s = pmg.Structure.from_file(cif); \
 p = XRDCalculator().get_pattern(s); \
