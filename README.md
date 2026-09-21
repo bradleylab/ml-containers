@@ -74,6 +74,7 @@ locally.
 | `segment-any-tree-h100` | `segment-any-tree-h100/` | full recipe + 2 Dockerfiles (v2 + v2-defaults) |
 | `ams3d-crownseg` | `ams3d-crownseg/` | full recipe |
 | `fsct` | `fsct/` | full recipe |
+| `galaxi` | `galaxi/` | full recipe — **experimental** (GPU optional; GALAXI multiphase powder-XRD identification — one independent binary classifier per phase plus Rietveld refinement, so new phases train without retraining existing ones; MIT code *and* weights; COD structures, background profiles and the pretrained example catalog all staged separately) |
 | `sam2` | `sam2/` | full recipe |
 | `treelearn` | `treelearn/` | full recipe |
 | `pointstowood` | `pointstowood/` | full recipe |
@@ -1803,3 +1804,52 @@ reason. Revisit both if a LICENSE appears.
 The pretrained checkpoints learned on PDEgym, a synthetic benchmark collection.
 Solute transport, groundwater flow and heat flow all sit in the families
 covered, but applying them to real lab data means finetuning.
+
+### galaxi
+
+[GALAXI](https://arxiv.org/abs/2609.06908) (Tong, Jin, Xu, Rao, Jiang and
+Szymanski, 2026) — multiphase identification from powder X-ray diffraction.
+Trains one independent binary classifier per phase rather than a single
+multi-class model; the classifiers narrow a pattern to a few plausible phases
+and Rietveld refinement settles which combination explains it. Reported
+micro-F1 0.935 on experimental patterns, holding up under low impurity
+fractions, small crystallite size, peak shifts, sample displacement and
+texture.
+
+Because the per-phase models are independent, **adding a phase means training
+one more classifier and leaving the rest alone** — which is why this is here:
+building a catalog for the minerals the lab actually encounters.
+
+- Base: `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` (Python 3.11)
+- `pymatgen`, `pyxtal`, `scikit-image`, `zarr`, `adabelief-pytorch`; DARA (the
+  refinement engine) pinned by SHA to a **fork**, `cuzno200161/dara`, because
+  GALAXI's config uses a phase-grouping metric only that fork provides
+- GPU optional: the detection models are small 1D CNNs that run on CPU, but
+  training a catalog of many phases is where a GPU earns its place
+
+Pull: `ghcr.io/bradleylab/galaxi:v1`
+
+**The image is code only; three assets stage beside it.** COD reference
+structures (~5.5 GB) and background/negative profiles (~670 MB) are needed to
+generate training data, and neither is needed to evaluate a pattern against
+models you already have. The 365-phase pretrained catalog (618 MB, MIT, on
+[figshare](https://doi.org/10.6084/m9.figshare.33360183)) is upstream's worked
+example, and its chemistry is batteries and oxides rather than rock-forming
+minerals.
+
+**The 64,594-structure library is not distributed.** `galaxi-xrd.com` serves
+it; using it means sending patterns to a third-party service. Only the
+365-phase example ships as files.
+
+**Where the data goes matters.** GALAXI resolves its data paths from the
+environment before falling back to `~/.local/share/galaxi`, and that fallback
+is a trap under enroot, which bind-mounts `$HOME` — a host directory would
+silently shadow anything staged. The image sets `GALAXI_COD_DIR=/data/cod` and
+`GALAXI_BG_PROFILES=/data/bg_profiles`; mount the staged directories there.
+Stage from a login node: the COD download runs through `gdown` against Google
+Drive, which throttles non-interactive clients, the same failure `kpconv`
+documents.
+
+`xrd-classifier` (autoXRD) does the same job by the older single-model route
+and GALAXI's paper benchmarks against that lineage. Both stay; run them on the
+same patterns before retiring anything.

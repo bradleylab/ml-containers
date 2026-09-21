@@ -1238,6 +1238,24 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest` = `:torch2.0-cu118`); Poseidon-T baked, B and L not |
 | Notes | **The upstream torch pin is an H100 trap.** scOT pins `torch == 2.0.1`, whose default wheel is cu117 and predates sm_90 — `crossearth` shipped that way and hung rather than failing. `torch 2.0.1+cu118` honors the pin and reaches Hopper; scOT is installed `--no-deps` so its bare `torch == 2.0.1` cannot pull cu117 back over it. **Not listed on the public catalog** while the code is unlicensed, as with `forainet` and `backman-thermal-deer`; the project page's "We encourage using our pretrained models on your own datasets" is why it was built, but it is not a license. Pretrained on PDEgym synthetic benchmarks, so lab use means finetuning |
 
+## galaxi
+
+| | |
+|--|--|
+| Task | Powder-XRD multiphase identification — one independent binary detection model per phase, shortlisted then settled by Rietveld refinement; also generates training data and trains new phase classifiers |
+| Sensor | Powder X-ray diffraction patterns (2θ, intensity) |
+| Upstream repo | [Szymanski-Group/galaxi](https://github.com/Szymanski-Group/galaxi) @ `eb88287` |
+| Upstream license | MIT |
+| Paper | [arXiv:2609.06908](https://arxiv.org/abs/2609.06908) — Tong, Jin, Xu, Rao, Jiang, Szymanski (2026) |
+| Weights source | **Not baked.** 365-phase pretrained catalog at [figshare 10.6084/m9.figshare.33360183](https://doi.org/10.6084/m9.figshare.33360183), 618 MB, sha256-verified fetch script. The 64,594-structure library behind `galaxi-xrd.com` is **not distributed** |
+| Weights license | MIT (figshare item "Pretrained GALAXI models") |
+| Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`, Python 3.11, `pymatgen` + `pyxtal` + `scikit-image` + `zarr` + `adabelief-pytorch`; DARA pinned by SHA to the `cuzno200161/dara` fork, which supplies the phase-grouping metric GALAXI's config uses |
+| H100 status | **Not yet probed** — built but not run on Compute2 at the time of writing. GPU optional: small 1D CNNs run on CPU; training many phases is what wants a GPU |
+| Lab status | **experimental** — never run on lab data |
+| First-run / current behavior | Build smoke test only: simulates a diffraction pattern from a CIF the repository ships (exercising pymatgen and the crystallography stack) and asserts both data paths resolve to the image's mount points rather than to `$HOME`. `SMOKE.md` carries a two-stage Compute2 test |
+| Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); no weights or data baked |
+| Notes | **Training data needs ~6.2 GB staged**: COD structures (~5.5 GB) and background profiles (~670 MB), fetched by `galaxi-setup-cod` / `galaxi-setup-bg-profiles`. Stage from a login node — the COD fetch uses `gdown` against Google Drive, which throttles non-interactive clients. `GALAXI_COD_DIR` and `GALAXI_BG_PROFILES` are set to `/data/...` mount points precisely because the upstream fallback is `~/.local/share/galaxi`, which enroot's `$HOME` bind-mount would shadow. Sits alongside `xrd-classifier` (autoXRD), the older single-model route that GALAXI's paper benchmarks against; neither retires the other without a side-by-side run |
+
 ---
 
 ## Deprecated images
