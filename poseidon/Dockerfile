@@ -26,7 +26,7 @@
 # plug your dataset into our code and then finetune using our scripts." The
 # paper describes the models and datasets as open sourced, and the weights
 # carry a deliberate license tag. The missing file reads as an oversight
-# rather than a withholding -- which is the operator's judgment, recorded
+# rather than a withholding. That is a judgment this lab made, written down
 # here so the next reader inherits the reasoning and not just the outcome.
 #
 # Consequences, standing until upstream adds a license:
