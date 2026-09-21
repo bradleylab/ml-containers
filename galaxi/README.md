@@ -48,19 +48,29 @@ So the image sets
 
 ```
 GALAXI_COD_DIR=/data/cod
-GALAXI_BG_PROFILES=/data/bg_profiles
+GALAXI_BG_PROFILES=/data/bg_profiles/public_phase_profile_50000.h5
 ```
 
-and you mount the staged directories onto those paths. Stage once to Storage3
+and you mount the staged directory onto `/data`.
+
+**Note the asymmetry — it costs a staging run to learn.** `GALAXI_COD_DIR`
+names a *directory*; `GALAXI_BG_PROFILES` names the HDF5 *file* itself,
+702,781,444 bytes. Point the second at a directory and the setup script decides
+the library is already installed, then fails to open it as HDF5. Stage once to Storage3
 from a **login node** — the COD download runs through `gdown` against Google
 Drive, which throttles non-interactive clients, the same failure `kpconv`
 documents for its weights.
 
 ```bash
 GALAXI_COD_DIR=/storage3/.../galaxi/cod \
-GALAXI_BG_PROFILES=/storage3/.../galaxi/bg_profiles \
-  galaxi-setup-cod && galaxi-setup-bg-profiles
+GALAXI_BG_PROFILES=/storage3/.../galaxi/bg_profiles/public_phase_profile_50000.h5 \
+  galaxi-setup-cod --temp-dir /storage3/.../galaxi/tmp && galaxi-setup-bg-profiles
 ```
+
+`galaxi-setup-cod` needs `--temp-dir` on a path with room for 5.5 GB; a
+container's default temp has nowhere near that. `galaxi-setup-bg-profiles`
+takes no such flag — it writes beside its destination, which is already on
+Storage3.
 
 Verify either later with `--verify-only`.
 
