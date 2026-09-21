@@ -131,6 +131,7 @@ locally.
 | `geolg-3dfaultnet` | `geolg-3dfaultnet/` | full recipe — **experimental** (GPU; voxelwise fault segmentation of 3D seismic volumes, 3D U-Net with local-global and continuity blocks; MIT; **unpublished manuscript, provenance unconfirmed — benchmark before use**) |
 | `insar-unwrap` | `insar-unwrap/` | full recipe — **experimental** (GPU sm_90; learned InSAR phase unwrapping to line-of-sight displacement, U-Net family; MIT code, CC-BY-4.0 weights fetched at runtime) |
 | `n2n4m` | `n2n4m/` | full recipe — **experimental** (GPU; Noise2Noise denoising of CRISM Mars SWIR hyperspectral data, 350 of 438 channels; MIT code *and* weights, committed upstream) |
+| `poseidon` | `poseidon/` | full recipe — **experimental** (GPU sm_90; Poseidon PDE foundation models (scOT) — solution-operator learning for Euler/Navier-Stokes/wave/Poisson/Helmholtz, finetunable onto a downstream operator; Poseidon-T baked, B and L at runtime; **code carries NO license upstream, weights CC-BY-NC-4.0 — not listed on the public catalog**) |
 | `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
 | `tabfm` | `tabfm/` | full recipe — **experimental** (GPU optional; TabFM zero-shot tabular classification and regression by in-context learning, scikit-learn API; Apache-2.0 code, **weights non-commercial AND non-production, NOT baked** — the license forbids redistribution) |
@@ -1754,3 +1755,51 @@ may not be used "in commercial decision-making, client deliverables, or paid
 products/services" — contract and consulting work is out, not only selling the
 model. Derivatives inherit every term. Full text ships at
 `/opt/licenses/LICENSE.tabfm.md`.
+
+### poseidon
+
+[Poseidon](https://arxiv.org/abs/2405.19101) (Herde, Raonić, Rohner et al.,
+NeurIPS 2024; ETH Zurich CAMLab) — foundation models for partial differential
+equations. A scalable Operator Transformer with time-conditioned layer
+normalization, pretrained across families of PDEs (compressible Euler,
+Navier-Stokes, wave, Poisson, Helmholtz) and designed to be finetuned onto a
+downstream operator with far fewer samples than training from scratch. Given an
+input state, and a time for time-dependent problems, it returns the solved
+field.
+
+- Base: `nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04`, Python 3.10
+- `torch 2.0.1+cu118` / `torchvision 0.15.2+cu118`, `transformers==4.29.2`,
+  `accelerate==0.31.0`, `numpy<2`; scOT installed `--no-deps` from commit
+  `b8fa28f`
+- `Poseidon-T` (83 MB) baked; `Poseidon-B` (1.26 GB) and `Poseidon-L`
+  (5.03 GB) fetched at runtime from the same ungated repository
+
+Pull: `ghcr.io/bradleylab/poseidon:v1`
+
+**The upstream torch pin is an H100 trap, and this image works around it.**
+scOT pins `torch == 2.0.1`, whose default wheel is cu117 — which predates
+sm_90. `crossearth` shipped exactly that way and hung on an H100 rather than
+failing. CUDA 11.8 is the first release with Hopper support and
+`torch 2.0.1+cu118` exists, so the pin is honored and the GPU is still
+reachable. scOT is installed `--no-deps` because its bare `torch == 2.0.1`
+requirement would otherwise pull the cu117 wheel over the cu118 one.
+
+**The code carries no license.** There is no LICENSE file anywhere in
+`camlab-ethz/poseidon` (whole tree checked at `b8fa28f`, 2026-09-21) and the
+README states no terms, so no permission to use, modify or redistribute has
+formally been granted — and this image redistributes the code, because scOT has
+to be installed to run. Against that, the project page states under "Usage":
+"We encourage using our pretrained models on your own datasets. To that end,
+you can directly plug your dataset into our code and then finetune using our
+scripts." The paper calls the models and datasets open sourced, and the weights
+carry a deliberate CC-BY-NC-4.0 tag, so the missing file reads as an oversight.
+That is a judgment rather than a license.
+
+Two consequences stand until upstream adds one: **non-commercial only**, from
+the weights, and **this image is not listed on the public model catalog** — the
+same treatment `forainet` and `backman-thermal-deer` receive for the same
+reason. Revisit both if a LICENSE appears.
+
+The pretrained checkpoints learned on PDEgym, a synthetic benchmark collection.
+Solute transport, groundwater flow and heat flow all sit in the families
+covered, but applying them to real lab data means finetuning.

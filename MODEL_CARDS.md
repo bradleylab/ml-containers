@@ -1220,6 +1220,24 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights NOT baked |
 | Notes | Weights are unbaked because the license forbids redistribution, not merely because they are large — the same reasoning as `sam3`, reached from a stricter clause. `fit` stores the context rather than training parameters, so it returns immediately and the size of the training table drives inference cost instead |
 
+## poseidon
+
+| | |
+|--|--|
+| Task | PDE solution-operator learning — predicts a solved field from an input state (and a time, for time-dependent problems); finetunable onto a downstream operator |
+| Sensor | Simulation — gridded PDE solution fields, not a sensor product |
+| Upstream repo | [camlab-ethz/poseidon](https://github.com/camlab-ethz/poseidon) @ `b8fa28f` |
+| Upstream license | **NONE.** No LICENSE file anywhere in the repository tree (checked 2026-09-21) and no terms in the README |
+| Paper | [arXiv:2405.19101](https://arxiv.org/abs/2405.19101) — Herde, Raonić, Rohner et al., NeurIPS 2024 |
+| Weights source | HF Hub [`camlab-ethz/Poseidon-T`](https://huggingface.co/camlab-ethz/Poseidon-T) baked (83 MB); [`-B`](https://huggingface.co/camlab-ethz/Poseidon-B) (1.26 GB) and [`-L`](https://huggingface.co/camlab-ethz/Poseidon-L) (5.03 GB) fetched at runtime. All ungated |
+| Weights license | **CC-BY-NC-4.0** — non-commercial |
+| Container stack | `nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04`, Python 3.10, `torch 2.0.1+cu118` / `torchvision 0.15.2+cu118` from the cu118 index, `transformers==4.29.2`, `accelerate==0.31.0`, `wandb==0.14.2` (disabled at runtime), `numpy<2`; scOT installed `--no-deps` |
+| H100 status | Native sm_90 via cu118. **Not yet probed** — built but not run on Compute2 at the time of writing |
+| Lab status | **experimental** — never run on lab data |
+| First-run / current behavior | Build smoke test loads the baked Poseidon-T checkpoint offline and reports its parameter count; `SMOKE.md` carries the Compute2 forward-pass test |
+| Tags | `:v1` (= `:latest` = `:torch2.0-cu118`); Poseidon-T baked, B and L not |
+| Notes | **The upstream torch pin is an H100 trap.** scOT pins `torch == 2.0.1`, whose default wheel is cu117 and predates sm_90 — `crossearth` shipped that way and hung rather than failing. `torch 2.0.1+cu118` honors the pin and reaches Hopper; scOT is installed `--no-deps` so its bare `torch == 2.0.1` cannot pull cu117 back over it. **Not listed on the public catalog** while the code is unlicensed, as with `forainet` and `backman-thermal-deer`; the project page's "We encourage using our pretrained models on your own datasets" is why it was built, but it is not a license. Pretrained on PDEgym synthetic benchmarks, so lab use means finetuning |
+
 ---
 
 ## Deprecated images
