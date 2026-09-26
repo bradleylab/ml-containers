@@ -1,0 +1,318 @@
+#!/opt/conda/envs/adaf/bin/python -Es
+"""Archaeological feature detection in a lidar DTM, under the executor's contract.
+
+Implements entrypoint contract v1 (fossettlab/geospatial-executor,
+docs/contracts/entrypoint-v1.md): exactly three options, the DTM staged under
+``<input-dir>/primary/``, and every artifact plus ``run.json`` written under
+``<output-dir>``.
+
+The work is ADAF's own ``main_routine`` (adaf/adaf_inference.py at the pinned
+commit), called the way upstream's "ADAF as Python module" notebook calls it:
+from the DTM it computes the SLRM visualization, cuts it into tiles, runs one
+of the baked models and turns the predictions into polygons in a GeoPackage.
+The parameter defaults are those of the ADAF GUI (adaf/adaf_widget.py), which
+the ADAF user manual v1.1 also states.
+
+The interpreter line passes -E and -s. A Compute2 job step runs this program
+with the host's environment, so a PYTHONPATH or user site-packages from the
+host would otherwise reach this Python ahead of the image's own packages.
+"""
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Optional
+
+CONTRACT_VERSION = 1
+PROGRAM = "adaf-contract"
+
+# Where the Dockerfile puts ADAF and the PROJ database; -E drops the
+# Dockerfile's PYTHONPATH, so the program adds the checkout itself.
+ADAF_SOURCE = "/opt/adaf"
+PROJ_DIR = "/opt/conda/envs/adaf/share/proj"
+
+# Parameter value -> ADAF's ml_type, which spells object detection with a space.
+SEGMENTATION = "segmentation"
+OBJECT_DETECTION = "object detection"
+METHODS = {"segmentation": SEGMENTATION, "object_detection": OBJECT_DETECTION}
+# ADAF's labels; AO ("all archaeology") treats the three classes as one.
+FEATURE_CLASSES = ("AO", "barrow", "ringfort", "enclosure")
+
+# The ADAF GUI's defaults and slider ranges (adaf_widget.py: the method radio
+# buttons, the class checkboxes, fs_area and fs_roundness); the manual gives
+# the same 40 m2 and 0.5.
+DEFAULT_METHOD = "segmentation"
+DEFAULT_FEATURE_CLASS = "AO"
+DEFAULT_MIN_AREA_M2 = 40.0
+MIN_AREA_RANGE = (0.0, 100.0)
+DEFAULT_MIN_ROUNDNESS = 0.5
+MIN_ROUNDNESS_RANGE = (0.0, 0.95)
+KNOWN_PARAMS = {"method", "feature_class", "min_area_m2", "min_roundness"}
+
+DTM_SUFFIXES = {".tif", ".tiff"}
+# Manual v1.1: the models were trained on 0.5 m data.
+TRAINING_CELL_SIZE_M = 0.5
+
+# The files main_routine writes into its results folder (adaf_inference.py).
+VECTOR_FILES = {
+    SEGMENTATION: "semantic_segmentation.gpkg",
+    OBJECT_DETECTION: "object_detection.gpkg",
+}
+LOG_FILE = "logfile.txt"
+
+
+class Refused(Exception):
+    """Input or parameters this program will not run on; the message is for the caller."""
+
+
+@dataclass(frozen=True)
+class Params:
+    ml_type: str
+    feature_class: str
+    min_area_m2: float
+    min_roundness: float
+
+
+def parse_args(argv: list) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog=PROGRAM,
+        allow_abbrev=False,
+        description="Run ADAF on one DTM under the geospatial executor's entrypoint contract v1.",
+    )
+    parser.add_argument("--input-dir", required=True, type=Path)
+    parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--params-json", required=True, type=Path)
+    return parser.parse_args(argv)
+
+
+def _number(raw: Any, name: str, bounds: tuple) -> float:
+    # Contract v1 delivers every validated value as a string.
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        raise Refused(f"{name} must be a number, got {raw!r}") from None
+    low, high = bounds
+    if not math.isfinite(value) or not low <= value <= high:
+        raise Refused(f"{name} must be between {low:g} and {high:g}, got {raw!r}")
+    return value
+
+
+def _choice(raw: Any, name: str, choices: Any) -> str:
+    value = str(raw)
+    if value not in choices:
+        raise Refused(f"{name} must be one of {sorted(choices)}, got {raw!r}")
+    return value
+
+
+def read_params(path: Path) -> Params:
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, ValueError) as exc:
+        raise Refused(f"cannot read the parameters file {path}: {exc}") from None
+    if not isinstance(raw, dict):
+        raise Refused("params.json must hold a JSON object")
+    unknown = sorted(set(raw) - KNOWN_PARAMS)
+    if unknown:
+        raise Refused(f"unknown parameters {unknown}; this task takes {sorted(KNOWN_PARAMS)}")
+    method = _choice(raw.get("method", DEFAULT_METHOD), "method", METHODS)
+    return Params(
+        ml_type=METHODS[method],
+        feature_class=_choice(
+            raw.get("feature_class", DEFAULT_FEATURE_CLASS), "feature_class", FEATURE_CLASSES
+        ),
+        min_area_m2=_number(
+            raw.get("min_area_m2", DEFAULT_MIN_AREA_M2), "min_area_m2", MIN_AREA_RANGE
+        ),
+        min_roundness=_number(
+            raw.get("min_roundness", DEFAULT_MIN_ROUNDNESS), "min_roundness", MIN_ROUNDNESS_RANGE
+        ),
+    )
+
+
+def find_dtm(input_dir: Path) -> Path:
+    primary = input_dir / "primary"
+    files = [p for p in primary.rglob("*") if p.is_file()] if primary.is_dir() else []
+    rasters = [p for p in files if p.suffix.lower() in DTM_SUFFIXES]
+    if len(rasters) != 1:
+        raise Refused(f"expected exactly one GeoTIFF DTM under {primary}, found {len(rasters)}")
+    return rasters[0]
+
+
+def load_adaf() -> tuple:
+    """Import ADAF's module API with the image's own paths, whatever the job step carries.
+
+    The import is deferred to here so that ``--help`` and a refused parameter
+    answer without loading torch, and so the pure logic above can be tested
+    outside the image.
+    """
+    # A PROJ_LIB or PROJ_DATA from the host would point PROJ at a database this
+    # image does not hold (the Dockerfile's PROJ_LIB note records the failure).
+    # The image never sets GDAL_DATA, so its GDAL uses its own built-in path;
+    # a host value could only point somewhere else.
+    os.environ["PROJ_DATA"] = PROJ_DIR
+    os.environ["PROJ_LIB"] = PROJ_DIR
+    os.environ.pop("GDAL_DATA", None)
+    if ADAF_SOURCE not in sys.path:
+        sys.path.insert(0, ADAF_SOURCE)
+    from adaf.adaf_inference import main_routine
+    from adaf.adaf_utils import ADAFInput
+
+    return main_routine, ADAFInput
+
+
+def check_dtm(path: Path, params: Params) -> list:
+    """Refuse a raster ADAF would misread, and return warnings about one it will run on."""
+    import rasterio
+    from osgeo import osr
+
+    with rasterio.open(path) as src:
+        bands, crs, (cell_x, _) = src.count, src.crs, src.res
+    if bands != 1:
+        raise Refused(f"{path.name} has {bands} bands; ADAF reads a single-band DTM")
+    if crs is None:
+        raise Refused(f"{path.name} has no CRS; assign one before running ADAF")
+    srs = osr.SpatialReference()
+    srs.ImportFromWkt(crs.to_wkt())
+    # ADAF reads the cell size as meters to set the SLRM radius, and filters by
+    # area in square meters.
+    if not srs.IsProjected() or srs.GetLinearUnits() != 1.0:
+        raise Refused(
+            f"{path.name} is not in a projected CRS measured in meters; reproject it first"
+        )
+    # Object detection records each box's EPSG code and rebuilds the CRS from it.
+    if params.ml_type == OBJECT_DETECTION and crs.to_epsg() is None:
+        raise Refused(f"object detection needs a CRS with an EPSG code, and {path.name}'s has none")
+    if not math.isclose(cell_x, TRAINING_CELL_SIZE_M):
+        return [
+            f"DTM cell size is {cell_x:g} m; ADAF's models were trained on "
+            f"{TRAINING_CELL_SIZE_M:g} m data"
+        ]
+    return []
+
+
+def run_main_routine(
+    main_routine: Any, adaf_input_class: Any, dtm: Path, output_dir: Path, params: Params
+) -> Path:
+    """Run ADAF once and return the results folder it created in ``output_dir``."""
+    before = set(output_dir.iterdir())
+    adaf_input = adaf_input_class()
+    # vis_exist_ok False: the input is a DTM, so ADAF makes the SLRM itself.
+    # save_vis and save_ml_output are the GUI's unticked defaults, so ADAF
+    # deletes its tiles and raw predictions and keeps the polygons and the log.
+    adaf_input.update(
+        dem_path=str(dtm),
+        out_dir=str(output_dir),
+        vis_exist_ok=False,
+        save_vis=False,
+        ml_type=params.ml_type,
+        labels=[params.feature_class],
+        ml_model_custom="ADAF model",
+        roundness=params.min_roundness,
+        min_area=params.min_area_m2,
+        save_ml_output=False,
+    )
+    main_routine(adaf_input)
+    return new_run_dir(output_dir, before)
+
+
+def new_run_dir(output_dir: Path, before: set) -> Path:
+    # main_routine names its folder <DTM stem>_<date>_<time>_seg (or _obj).
+    created = [p for p in output_dir.iterdir() if p.is_dir() and p not in before]
+    if len(created) != 1:
+        raise RuntimeError(
+            f"expected ADAF to create one results folder in {output_dir}, found {len(created)}"
+        )
+    return created[0]
+
+
+def count_features(vector: Path) -> int:
+    import geopandas
+
+    return len(geopandas.read_file(vector))
+
+
+def detection_warning(feature_count: Optional[int], params: Params) -> Optional[str]:
+    """Say why the result holds no polygons; None when it holds some.
+
+    ``feature_count`` is None when ADAF wrote no vector file, which it does only
+    when nothing in any tile passed the model's probability threshold.
+    """
+    if feature_count is None:
+        return f"ADAF detected no {params.feature_class} features, so it wrote no vector file"
+    if feature_count == 0:
+        filters = (
+            "min_area_m2 and min_roundness filters"
+            if params.ml_type == SEGMENTATION
+            else "min_area_m2 filter"
+        )
+        return f"the {filters} removed every {params.feature_class} feature ADAF detected"
+    return None
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def build_manifest(output_dir: Path, run_dir: Path, ml_type: str, warnings: list) -> dict:
+    log = run_dir / LOG_FILE
+    if not log.is_file():
+        raise RuntimeError(f"ADAF finished without writing {LOG_FILE} in {run_dir}")
+    found = [(run_dir / VECTOR_FILES[ml_type], "detections", "GPKG"), (log, "log", None)]
+    outputs = []
+    for path, role, fmt in found:
+        if not path.is_file():
+            continue
+        entry = {"path": path.relative_to(output_dir).as_posix(), "role": role}
+        if fmt:
+            entry["format"] = fmt
+        entry["sha256"] = sha256(path)
+        outputs.append(entry)
+    manifest = {"contract_version": CONTRACT_VERSION, "outputs": outputs}
+    if warnings:
+        manifest["warnings"] = warnings
+    return manifest
+
+
+def run(dtm: Path, output_dir: Path, params: Params) -> None:
+    main_routine, adaf_input_class = load_adaf()
+    warnings = check_dtm(dtm, params)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"{PROGRAM}: ADAF {params.ml_type}, class {params.feature_class}, on {dtm.name}")
+    run_dir = run_main_routine(main_routine, adaf_input_class, dtm, output_dir, params)
+
+    vector = run_dir / VECTOR_FILES[params.ml_type]
+    feature_count = count_features(vector) if vector.is_file() else None
+    print(f"{PROGRAM}: {feature_count or 0} features in {run_dir.name}")
+    warning = detection_warning(feature_count, params)
+    if warning:
+        warnings.append(warning)
+
+    # The manifest goes last: its presence is what says the run finished.
+    manifest = build_manifest(output_dir, run_dir, params.ml_type, warnings)
+    (output_dir / "run.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def main(argv: Optional[list] = None) -> int:
+    # -E ignores PYTHONUNBUFFERED; line buffering keeps the job log current.
+    sys.stdout.reconfigure(line_buffering=True)
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+    try:
+        params = read_params(args.params_json)
+        run(find_dtm(args.input_dir), args.output_dir, params)
+    except Refused as exc:
+        print(f"{PROGRAM}: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
