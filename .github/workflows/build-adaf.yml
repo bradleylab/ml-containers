@@ -51,7 +51,7 @@ jobs:
           platforms: linux/amd64
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v2
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.5-cu121-py39
           cache-from: type=gha
           cache-to: type=gha,mode=max

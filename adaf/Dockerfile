@@ -225,11 +225,29 @@ print('OD_barrow loaded; params', n); \
 assert n > 1_000_000, n; \
 print('SMOKE OK')"
 
+# The ENTRYPOINT is the geospatial executor's contract program (entrypoint
+# contract v1: --input-dir, --output-dir, --params-json; see README.md). It sits
+# after the smoke test so that changing it does not rebuild the weight layers.
+#
+# A Compute2 job step runs it with the host's environment rather than this
+# image's; there the ground-surfaces image's `#!/usr/bin/env python3` entrypoint
+# (bradleylab/geo-pipelines) could not find its interpreter. So the program
+# names its interpreter absolutely and sets its own PYTHONPATH and PROJ paths,
+# and this check proves it under an empty environment: --help parses, and
+# ADAF's module API imports through the program's own loader.
+COPY bin/adaf-contract /usr/local/bin/adaf-contract
+RUN chmod +x /usr/local/bin/adaf-contract \
+    && env -i /usr/local/bin/adaf-contract --help >/dev/null \
+    && env -i /opt/conda/envs/adaf/bin/python -Es -c "\
+import runpy; \
+main_routine, ADAFInput = runpy.run_path('/usr/local/bin/adaf-contract')['load_adaf'](); \
+print('adaf-contract: ADAF API resolves with an empty environment:', main_routine.__name__, ADAFInput.__name__)"
+
 LABEL org.opencontainers.image.title="adaf" \
       org.opencontainers.image.description="ADAF — automatic detection of archaeological features (barrows, ringforts, enclosures) in LiDAR terrain models. HRNet segmentation + Faster R-CNN detection over SLRM relief visualizations" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/adaf/README.md" \
-      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.version="v2" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="Apache-2.0 AND CC-BY-SA-4.0" \
       bradleylab.model.upstream="https://github.com/EarthObservation/adaf" \
@@ -243,4 +261,4 @@ LABEL org.opencontainers.image.title="adaf" \
       bradleylab.model.licence.note="code Apache-2.0; WEIGHTS CC-BY-SA-4.0 — share-alike attaches to fine-tuned derivatives, so releasing derived weights obliges CC-BY-SA-4.0. Notice shipped at /opt/licenses/LICENSE.weights.md"
 
 WORKDIR /work
-CMD ["python", "-c", "print('adaf ready — weights at /opt/adaf-weights, see README.md')"]
+ENTRYPOINT ["/usr/local/bin/adaf-contract"]
