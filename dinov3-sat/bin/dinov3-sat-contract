@@ -1,0 +1,331 @@
+#!/opt/conda/bin/python -s
+"""DINOv3-SAT patch features for a set of RGB images, under entrypoint contract v1.
+
+Implements entrypoint contract v1 (fossettlab/geospatial-executor,
+docs/contracts/entrypoint-v1.md): exactly three options, the images staged
+under ``<input-dir>/primary/``, and every artifact plus ``run.json`` written
+under ``<output-dir>``.
+
+The features come from the image's own extractor, ``extract_features.py``, run
+as its README documents: one ``features/<name>.npz`` per image holding a
+``(grid, grid, 1024)`` array, and ``features/_features_meta.json`` recording
+the checkpoint, input size and normalization used. Raw features mean nothing
+to a person looking at them, so each image also gets ``previews/<name>.png``:
+its patch features projected onto their first three principal components,
+each scaled to 0-255 and written as red, green and blue, one pixel per patch.
+
+The interpreter line names the image's Python with ``-s``, and the extractor
+runs with the weight cache and the offline switch set here, because a Slurm
+job step carries the host's environment rather than the image's, and enroot
+mounts the caller's home directory, whose user site-packages would otherwise
+be imported ahead of the image's.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+
+PROGRAM = "dinov3-sat-contract"
+CONTRACT_VERSION = 1
+
+EXTRACTOR = Path("/opt/dinov3-sat/extract_features.py")
+# Where the Dockerfile bakes the weights. Forced rather than inherited: a host
+# HF_HOME would send the offline loader to a cache with no weights in it.
+HF_CACHE = "/opt/hf-cache"
+# The files extract_features.py encodes (its IMAGE_SUFFIXES); the image build
+# fails if the two sets differ.
+IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".tif", ".tiff"})
+FEATURES_META = "_features_meta.json"  # the sidecar name extract_features.py writes
+# extract_features.py's own device default, asked in a process of its own so
+# that this program never holds the GPU the extractor is about to use.
+DEVICE_PROBE = "import torch; print('cuda' if torch.cuda.is_available() else 'cpu')"
+
+# 512 is extract_features.py's default and the SAT-493M pretraining tile size;
+# 1024 is the README's worked example; 256 is the size the build smoke test
+# encodes. All three are multiples of the 16 px patch.
+INPUT_SIZES = ("256", "512", "1024")
+DEFAULT_INPUT_SIZE = "512"
+KNOWN_PARAMS = frozenset({"input_size"})
+
+FEATURES_DIR, PREVIEWS_DIR = "features", "previews"
+ROLE_FEATURES, ROLE_PREVIEW, ROLE_METADATA = "features", "preview", "feature_metadata"
+FORMATS = {ROLE_FEATURES: "NPZ", ROLE_PREVIEW: "PNG", ROLE_METADATA: "JSON"}
+PREVIEW_COMPONENTS = 3  # red, green, blue
+PIXEL_MAX = 255
+
+EXIT_FAILED, EXIT_REFUSED = 1, 2
+
+
+class Refused(Exception):
+    """Input or parameters this task will not run on; the message is for the caller."""
+
+
+class ExtractorFailed(Exception):
+    """The extractor did not produce what it should have; its own output is in the log."""
+
+
+@dataclass(frozen=True)
+class Params:
+    input_size: int
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog=PROGRAM,
+        allow_abbrev=False,
+        description=(
+            "Dense DINOv3-SAT patch features, and a false-color preview of them, for every "
+            "RGB image under <input-dir>/primary/ (geospatial executor entrypoint contract v1). "
+            f"One parameter: input_size, one of {', '.join(INPUT_SIZES)} "
+            f"(default {DEFAULT_INPUT_SIZE})."
+        ),
+    )
+    parser.add_argument("--input-dir", required=True, type=Path, help="holds primary/, the images")
+    parser.add_argument(
+        "--output-dir", required=True, type=Path, help="receives features/, previews/ and run.json"
+    )
+    parser.add_argument(
+        "--params-json", required=True, type=Path, help='a JSON object, e.g. {"input_size": "512"}'
+    )
+    return parser.parse_args(argv)
+
+
+def read_params(path: Path) -> Params:
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, ValueError) as exc:
+        raise Refused(f"cannot read the parameters file {path}: {exc}") from None
+    if not isinstance(raw, dict):
+        raise Refused("the parameters file must hold a JSON object")
+    unknown = sorted(set(raw) - KNOWN_PARAMS)
+    if unknown:
+        raise Refused(f"unknown parameters {unknown}; this task takes {sorted(KNOWN_PARAMS)}")
+    value = raw.get("input_size", DEFAULT_INPUT_SIZE)
+    # Contract v1 sends every value as a string; a whole number is accepted too,
+    # for a person writing the file by hand.
+    text = str(value) if isinstance(value, int) and not isinstance(value, bool) else value
+    if text not in INPUT_SIZES:
+        raise Refused(f"input_size must be one of {list(INPUT_SIZES)}, got {value!r}")
+    return Params(input_size=int(text))
+
+
+def find_images(primary: Path) -> list[Path]:
+    """Every file extract_features.py will encode, chosen by its own rule, or a refusal."""
+    if not primary.is_dir():
+        raise Refused(f"no input was staged at {primary}")
+    # The extractor's rule exactly, directories included, so the two agree.
+    images = sorted(p for p in primary.rglob("*") if p.suffix.lower() in IMAGE_SUFFIXES)
+    if not images:
+        raise Refused(
+            f"no image under {primary}; this task reads {', '.join(sorted(IMAGE_SUFFIXES))} files"
+        )
+    by_stem: dict[str, list[str]] = defaultdict(list)
+    for image in images:
+        by_stem[image.stem].append(image.relative_to(primary).as_posix())
+    clashes = sorted(names for names in by_stem.values() if len(names) > 1)
+    if clashes:
+        raise Refused(
+            "extract_features.py names each output after its input's file name without the "
+            f"extension, so these inputs would overwrite each other: {clashes}"
+        )
+    return images
+
+
+def inspect_images(images: list[Path], primary: Path, size: int) -> list[str]:
+    """Warnings about what the extractor will do to these images; refuses one it cannot open."""
+    resized, stretched, largest = 0, 0, (0, 0)
+    modes: Counter[str] = Counter()
+    for path in images:
+        try:
+            with Image.open(path) as image:  # reads the header, not the pixels
+                width, height, mode = *image.size, image.mode
+        except (OSError, Image.DecompressionBombError) as exc:
+            raise Refused(f"cannot read {path.relative_to(primary)} as an image: {exc}") from None
+        if (width, height) != (size, size):
+            resized += 1
+            if width != height:
+                stretched += 1
+            largest = max(largest, (width, height), key=lambda wh: wh[0] * wh[1])
+        if mode != "RGB":
+            modes[mode] += 1
+
+    warnings = []
+    if resized:
+        note = (
+            f"{resized} of {len(images)} images were resized to {size}x{size} px (bicubic) "
+            f"before encoding, the largest from {largest[0]}x{largest[1]} px"
+        )
+        if stretched:
+            note += f"; {stretched} of them were not square and were stretched to fit"
+        warnings.append(note)
+    if modes:
+        warnings.append(
+            f"{sum(modes.values())} of {len(images)} images were not stored as 8-bit RGB "
+            f"(Pillow modes {', '.join(sorted(modes))}) and were converted with Pillow's "
+            "convert('RGB') before encoding"
+        )
+    return warnings
+
+
+def extractor_env() -> dict[str, str]:
+    """The caller's environment, with the two settings the extractor must not inherit."""
+    return os.environ | {"HF_HOME": HF_CACHE, "HF_HUB_OFFLINE": "1"}
+
+
+def visible_device() -> str:
+    probe = subprocess.run(
+        [sys.executable, "-s", "-c", DEVICE_PROBE],
+        env=extractor_env(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode != 0:
+        raise ExtractorFailed(f"could not start torch to find the device: {probe.stderr.strip()}")
+    return probe.stdout.strip()
+
+
+def run_extractor(primary: Path, features_dir: Path, size: int, device: str) -> None:
+    command = [
+        sys.executable,
+        "-s",
+        str(EXTRACTOR),
+        "--input",
+        str(primary),
+        "--out",
+        str(features_dir),
+        "--input-size",
+        str(size),
+        "--device",
+        device,
+    ]
+    result = subprocess.run(command, env=extractor_env(), check=False)  # argv list, no shell
+    if result.returncode != 0:
+        raise ExtractorFailed(
+            f"{EXTRACTOR.name} exited with status {result.returncode}; its message is in the log"
+        )
+
+
+def principal_components_rgb(features: np.ndarray) -> np.ndarray:
+    """False color for a ``(rows, cols, channels)`` feature grid, as ``(rows, cols, 3)`` uint8.
+
+    The patch features are centered and projected onto their first three
+    principal components (numpy's SVD), and each component is scaled from its
+    own minimum and maximum to 0-255. SVD fixes a component only up to sign, so
+    each is flipped to make its largest-magnitude score positive (the
+    convention of scikit-learn's ``svd_flip``), and the same features always
+    give the same colors. A component below numpy's ``matrix_rank`` tolerance
+    is noise and stays black.
+    """
+    rows, cols, channels = features.shape
+    patches = features.reshape(rows * cols, channels).astype(np.float64)
+    patches -= patches.mean(axis=0)
+    u, s, _ = np.linalg.svd(patches, full_matrices=False)
+    tolerance = s.max(initial=0.0) * max(patches.shape) * np.finfo(s.dtype).eps
+    count = min(PREVIEW_COMPONENTS, int((s > tolerance).sum()))
+    scores = u[:, :count] * s[:count]
+    peaks = scores[np.argmax(np.abs(scores), axis=0), np.arange(count)]
+    scores *= np.where(peaks < 0, -1.0, 1.0)
+
+    rgb = np.zeros((rows * cols, PREVIEW_COMPONENTS), dtype=np.uint8)
+    for band in range(count):
+        low, high = scores[:, band].min(), scores[:, band].max()
+        rgb[:, band] = np.rint((scores[:, band] - low) / (high - low) * PIXEL_MAX)
+    return rgb.reshape(rows, cols, PREVIEW_COMPONENTS)
+
+
+def write_preview(features_path: Path, preview_path: Path) -> None:
+    with np.load(features_path) as archive:
+        features = archive["features"]
+    if features.ndim != 3 or not np.isfinite(features).all():
+        raise ExtractorFailed(
+            f"{features_path.name} does not hold a finite (rows, cols, channels) feature grid"
+        )
+    Image.fromarray(principal_components_rgb(features)).save(preview_path)
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_manifest(output_dir: Path, outputs: list[tuple[Path, str]], warnings: list[str]) -> None:
+    """Write run.json, last: its presence is what says the run finished."""
+    manifest: dict = {
+        "contract_version": CONTRACT_VERSION,
+        "outputs": [
+            {
+                "path": path.relative_to(output_dir).as_posix(),
+                "role": role,
+                "format": FORMATS[role],
+                "sha256": sha256(path),
+            }
+            for path, role in outputs
+        ],
+    }
+    if warnings:
+        manifest["warnings"] = warnings
+    (output_dir / "run.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def run(input_dir: Path, output_dir: Path, params: Params) -> None:
+    primary = input_dir / "primary"
+    images = find_images(primary)
+    warnings = inspect_images(images, primary, params.input_size)
+    device = visible_device()
+    if device == "cpu":
+        warnings.append("no GPU was visible to the job, so the encoder ran on the CPU")
+
+    features_dir = output_dir / FEATURES_DIR
+    run_extractor(primary, features_dir, params.input_size, device)
+    meta = features_dir / FEATURES_META
+    if not meta.is_file():
+        raise ExtractorFailed(f"{EXTRACTOR.name} wrote no {FEATURES_DIR}/{FEATURES_META}")
+
+    previews_dir = output_dir / PREVIEWS_DIR
+    previews_dir.mkdir(parents=True, exist_ok=True)
+    outputs = [(meta, ROLE_METADATA)]
+    for image in images:
+        features = features_dir / f"{image.stem}.npz"  # the extractor's naming
+        if not features.is_file():
+            raise ExtractorFailed(
+                f"{EXTRACTOR.name} wrote no {FEATURES_DIR}/{features.name} "
+                f"for {image.relative_to(primary)}"
+            )
+        preview = previews_dir / f"{image.stem}.png"
+        write_preview(features, preview)
+        outputs += [(features, ROLE_FEATURES), (preview, ROLE_PREVIEW)]
+    write_manifest(output_dir, outputs, warnings)
+    print(f"{PROGRAM}: wrote {len(images)} feature grids and previews on {device}", flush=True)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+    try:
+        params = read_params(args.params_json)
+        run(args.input_dir, args.output_dir, params)
+    except Refused as exc:
+        print(f"{PROGRAM}: {exc}", file=sys.stderr)
+        return EXIT_REFUSED
+    except ExtractorFailed as exc:
+        print(f"{PROGRAM}: {exc}", file=sys.stderr)
+        return EXIT_FAILED
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
