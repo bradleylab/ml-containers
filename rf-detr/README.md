@@ -28,19 +28,19 @@ services, so that isn't hypothetical.
 RF-DETR does the same job under Apache-2.0. Deliberate substitution, not an
 oversight.
 
-## The licence split inside RF-DETR
+## The license split inside RF-DETR
 
 Upstream ships two packages and **only one is Apache-2.0**:
 
-| Package | Licence | Here? |
+| Package | License | Here? |
 |---|---|---|
 | `rfdetr` — includes RF-DETR-Medium | **Apache-2.0** | installed |
 | `rfdetr_plus` — RF-DETR-XL, -2XL | **PML 1.0** | **not installed** |
 
 Reaching for the bigger model would put PML-licensed weights inside an image
-labelled Apache-2.0. The build **asserts `rfdetr_plus` is absent**, so that
+labeled Apache-2.0. The build **asserts `rfdetr_plus` is absent**, so that
 cannot happen quietly later. Same trap as `depth-anything-3`, where checkpoints
-in one family don't share a licence.
+in one family don't share a license.
 
 ## Usage
 

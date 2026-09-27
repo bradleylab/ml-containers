@@ -7,7 +7,7 @@ HIF Freiberg. MIT.
 
 Every other image in this catalog answers a question out of the box. This one
 does not. Minimum-wavelength mapping is **fitted per scan**, and `hklearn`'s
-classifiers train on your own labelled core. "Running it" means fitting on your
+classifiers train on your own labeled core. "Running it" means fitting on your
 data.
 
 That is the state of the field, not an oversight: the 2026-08 coverage triage

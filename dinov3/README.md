@@ -9,7 +9,7 @@ Siméoni, Vo, Oquab et al. (2025), [DINOv3](https://arxiv.org/abs/2508.10104).
 
 A general-purpose visual backbone. It turns an image into a grid of 1024-D
 patch tokens that a downstream head consumes — a linear probe, a segmentation
-decoder, a nearest-neighbour index. It is not trained for any task, which is
+decoder, a nearest-neighbor index. It is not trained for any task, which is
 the point: the features transfer, and a head on top needs far fewer labels
 than training from scratch.
 
@@ -38,10 +38,10 @@ position embedding interpolates, so any multiple of 16 works. Larger input
 means more tokens and finer spatial detail at proportionally more compute.
 The pretrained configuration is 256×256; the minimum is 128×128.
 
-**Not every DINOv3 checkpoint on the timm mirror carries the same licence.**
+**Not every DINOv3 checkpoint on the timm mirror carries the same license.**
 The `*_qkvb.eupe_lvd1689m` variants are released under
 `fair-noncommercial-research-license`, which is stricter than the DINOv3
-Licence this image ships under. If you swap the weights, re-check the licence
+License this image ships under. If you swap the weights, re-check the license
 of what you swapped to.
 
 ## Usage
@@ -70,9 +70,9 @@ srun -A compute2-alexander.s.bradley -p general-gpu \
 The weights are baked into the image, so `HF_HUB_OFFLINE=1` is safe and the
 job needs no outbound network.
 
-## Licence — read before redistributing
+## License — read before redistributing
 
-The DINOv3 Licence is **not open source**. The full Agreement is shipped
+The DINOv3 License is **not open source**. The full Agreement is shipped
 inside the image at `/opt/licenses/LICENSE.dinov3.md` and mirrored in this
 directory.
 

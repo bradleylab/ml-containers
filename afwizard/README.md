@@ -87,7 +87,7 @@ afwizard --dataset cloud.laz --dataset-crs EPSG:26915          --segmentation se
 ```
 
 `--library` can be given multiple times to add filter-library locations.
-`--resolution` is the GeoTIFF meshing resolution in metres (default 0.5).
+`--resolution` is the GeoTIFF meshing resolution in meters (default 0.5).
 `--opals-dir` and `--lastools-dir` exist but have nothing to point at in this
 image — see below.
 
@@ -140,7 +140,7 @@ to decide whether to use it: what it measures, which direction is better, what
 failure it catches, and what kind of task cares. `list-criteria` prints all of
 it. Read that before writing an objective; the descriptions say which pairings
 are safe and which are traps (maximizing coverage with no commission check is
-satisfied by labelling everything ground).
+satisfied by labeling everything ground).
 
 The one that carries the archaeological concern is `structured_variance`, and
 it is parameterized by scale precisely so it is not archaeology-specific:
@@ -284,7 +284,7 @@ theirs.
 ## GPU
 
 None. This is PDAL-based geometric filtering — no neural network, no CUDA path.
-Labelled `bradleylab.model.gpu="none"` so the Compute2 harness does not report
+Labeled `bradleylab.model.gpu="none"` so the Compute2 harness does not report
 it as a GPU failure. Run it on `general-cpu`.
 
 ## Status
