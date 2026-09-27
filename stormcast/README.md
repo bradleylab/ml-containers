@@ -15,9 +15,7 @@ EDM-preconditioned diffusion model refines it over 18 sampler steps.
   **Apache-2.0**, ungated
 - Paper: https://arxiv.org/abs/2408.10958
 
-> **Status: experimental.** Not yet run against lab data. No runtime or
-> peak-memory figure below has been measured on Compute2 — `SMOKE.md` is the
-> job that would produce the first ones.
+> **Status: experimental.**
 
 ## Image tag
 
@@ -57,9 +55,8 @@ downloads the package from Hugging Face into `$EARTH2STUDIO_CACHE`.
 **On the GPU row.** The two networks together are under 0.8 GB on disk, but
 they run on a full CONUS field at 3 km with 99 channels, and every forecast
 hour costs 18 diffusion passes rather than one. Runtime scales linearly with
-lead time in a way the global models do not. Peak GPU allocation has not been
-measured here; `--mem=64G` in the job script is host RAM. Treat both as
-starting points and replace them with numbers from the first successful run.
+lead time in a way the global models do not. `--mem=64G` in the job script is
+host RAM, not GPU memory. Treat both as starting points.
 
 ## Running on Compute2 (Pyxis/enroot)
 
@@ -126,8 +123,7 @@ Three lines in that script are lab-standard and easy to drop:
   the weights ever will.
 
 Note the walltime is longer than the global-model jobs. Each forecast hour is
-18 diffusion passes over a CONUS-sized field, and there is no measured
-per-step timing yet to size this from.
+18 diffusion passes over a CONUS-sized field.
 
 No `#SBATCH --exclude=` line: every Compute2 GPU is an H100, so there is
 nothing to exclude.

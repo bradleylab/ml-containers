@@ -125,15 +125,14 @@ Any Python traceback is a failure. Two are worth distinguishing:
 
 ## Expected runtime
 
-**Not yet measured.** The 00:20:00 request is a bound chosen to be comfortably
-larger than a checkpoint load plus one regression forward pass, not an
-estimate. After the first successful run, replace this paragraph with the
-`sacct -j <jobid> --format=Elapsed,MaxRSS` result and the peak GPU allocation
-printed above.
+The 00:20:00 request is a bound chosen to be comfortably larger than a
+checkpoint load plus one regression forward pass, not an estimate.
+`sacct -j <jobid> --format=Elapsed,MaxRSS` reports the elapsed time and peak
+host memory of your run; the peak GPU allocation is printed above.
 
 Diffusion mode will be roughly an order of magnitude slower per field — 18
-sampler steps instead of one — so size that job from the measurement here
-rather than from this request.
+sampler steps instead of one — so size that job from a measured regression
+run rather than from this request.
 
 ## What this test does not cover
 

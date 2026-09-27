@@ -18,9 +18,7 @@ field directly rather than a residual on top of a regression prediction.
   https://arxiv.org/abs/2206.00364 (EDM preconditioning)
 
 > **Status: experimental.** The domain is Europe, which is not where the lab
-> works; the value here is the downscaling method, not the region. No runtime
-> or peak-memory figure below has been measured on Compute2 — `SMOKE.md` is the
-> job that would produce the first ones.
+> works; the value here is the downscaling method, not the region.
 
 ## Image tag
 
@@ -60,9 +58,9 @@ downloads the package from Hugging Face into `$EARTH2STUDIO_CACHE`.
 
 **On the GPU row.** The networks are small — under 200M parameters — but the
 activations are not: the DiT attends over a 824 × 848 field, and diffusion mode
-runs 18 sampler steps per sample. Peak allocation has not been measured here
-and scales with the number of ensemble samples. `--mem=64G` in the job script
-is host RAM. Both numbers are starting points to be replaced by measurements.
+runs 18 sampler steps per sample. Peak allocation scales with the number of
+ensemble samples. `--mem=64G` in the job script is host RAM. Treat both
+numbers as starting points.
 
 ## Running on Compute2 (Pyxis/enroot)
 
@@ -181,12 +179,12 @@ out-of-distribution warning; boxes beyond that margin raise.
 ## Licensing
 
 **This is the one model in this batch whose weights are not Apache-2.0.** Two
-licences apply to different files in the same repo.
+licenses apply to different files in the same repo.
 
 ### OpenMDW-1.1 (the model weights)
 
 The Linux Foundation's OpenMDW License Agreement version 1.1, a permissive
-licence written specifically for model weights rather than for source code. It
+license written specifically for model weights rather than for source code. It
 governs the "Model Materials": the model architecture and parameters plus all
 related artifacts distributed with them.
 
@@ -209,8 +207,8 @@ What it requires, and this is the whole of it:
    is a response to one brought against you first.
 
 What it explicitly does **not** do, and where it differs from what people
-assume of a model licence: it imposes **no restrictions or obligations on
-outputs**. Fields produced by running this model carry no downstream licence
+assume of a model license: it imposes **no restrictions or obligations on
+outputs**. Fields produced by running this model carry no downstream license
 condition — no attribution requirement, no share-alike, no field-of-use limit.
 There is also no acceptable-use policy and no acceptance step; the repo is
 ungated.

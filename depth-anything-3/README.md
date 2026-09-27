@@ -27,11 +27,11 @@ The 2026-08 vision sweep shortlisted Depth-Anything-V2 for monocular depth and
 VGGT for multi-view geometry. DA3 does both, and it is Apache-2.0 where both of
 those are CC-BY-NC-4.0. One permissive image instead of two restricted ones.
 
-## The licence trap
+## The license trap
 
 **The code is Apache-2.0. The weights are not uniformly Apache-2.0.**
 
-| Checkpoint | Licence |
+| Checkpoint | License |
 |---|---|
 | `DA3-LARGE-1.1` (baked here) | Apache-2.0 |
 | `DA3MONO-LARGE`, `DA3METRIC-LARGE`, `DA3-BASE` | Apache-2.0 |
@@ -40,10 +40,10 @@ those are CC-BY-NC-4.0. One permissive image instead of two restricted ones.
 
 Upstream's own README example loads `depth-anything/da3-large`, which redirects
 to `DA3-LARGE` — non-commercial. Copying that example would put NC weights
-inside an image labelled Apache-2.0.
+inside an image labeled Apache-2.0.
 
 This container bakes `DA3-LARGE-1.1`. If you swap the checkpoint, check the
-licence of what you swapped to, and update the image label to match.
+license of what you swapped to, and update the image label to match.
 
 ## Usage
 
@@ -82,5 +82,7 @@ The build smoke test runs offline on CPU: it imports the package, loads the
 baked checkpoint with no network, asserts the parameter count and that numpy
 stayed below 2.
 
-**Not yet executed on Compute2.** See `SMOKE.md` for the smallest job that
-would prove a real forward pass on an H100; it has not been run.
+On an H100 (SLURM 3009949, 2026-09-11) two images through one forward pass in
+1.94 s returned depth and confidence at 2 × 378 × 504, camera pose at
+2 × 3 × 4 and intrinsics at 2 × 3 × 3, so the batch survived and the
+multi-view path produced poses rather than depth alone.

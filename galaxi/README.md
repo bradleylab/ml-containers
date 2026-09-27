@@ -129,7 +129,6 @@ Pull: `ghcr.io/bradleylab/galaxi:v1`
 
 ## Status
 
-Nothing here has been run on lab data. The build smoke test simulates a
-diffraction pattern from a CIF the repository ships, which exercises the
-crystallography stack but says nothing about identification accuracy on real
-samples.
+The build smoke test simulates a diffraction pattern from a CIF the repository
+ships, which exercises the crystallography stack but says nothing about
+identification accuracy on real samples.

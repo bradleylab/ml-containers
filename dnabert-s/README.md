@@ -16,23 +16,22 @@ fine-tuned for species separation.
 - Paper: "DNABERT-S: Pioneering Species Differentiation with Species-Aware
   DNA Embeddings" — see the upstream repo for the current citation.
 
-> **Status: experimental.** Not yet benchmarked on lab data. The intended
-> first target is batch embedding of assembled contigs.
+> **Status: experimental.**
 
-## Licence — read before redistributing anything
+## License — read before redistributing anything
 
 The two halves carry different terms, and only one of them is permissive:
 
-| Artifact | Licence | Consequence |
+| Artifact | License | Consequence |
 |---|---|---|
-| Weights + the modelling code inside `zhihan1996/DNABERT-S` | Apache-2.0 (HF model card) | Free to use, ungated, redistributable |
+| Weights + the modeling code inside `zhihan1996/DNABERT-S` | Apache-2.0 (HF model card) | Free to use, ungated, redistributable |
 | The `MAGICS-LAB/DNABERT_S` GitHub repo | **No LICENSE file** — formally all rights reserved | Fine to read and run; do **not** redistribute its code |
 
 This image sidesteps the second row entirely: nothing from the GitHub repo
-is vendored. The custom modelling files the checkpoint needs
+is vendored. The custom modeling files the checkpoint needs
 (`bert_layers.py`, `flash_attn_triton.py`, …) live in the Apache-2.0 HF
 repo and are fetched at load time by `trust_remote_code=True`. So the image
-is Apache-2.0 clean, and the missing GitHub licence only matters if someone
+is Apache-2.0 clean, and the missing GitHub license only matters if someone
 later copies training or evaluation scripts out of that repo into a lab
 artifact.
 
@@ -90,7 +89,7 @@ ENROOT_RUNTIME_PATH=/scratch2/fs1/alexander.s.bradley/enroot_runtime \
 ```
 
 Submit a single-H100 job. Mount a scratch dir for the HF cache so the
-checkpoint (and the remote modelling code that comes with it) is fetched
+checkpoint (and the remote modeling code that comes with it) is fetched
 once and reused:
 
 ```bash

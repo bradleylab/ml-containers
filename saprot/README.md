@@ -17,8 +17,8 @@ checkpoint takes sequence-only input.
 - foldseek: https://github.com/steineggerlab/foldseek (GPL-3.0), release
   `10-941cd33` (2025-01-19), bundled — see below.
 
-> **Status: experimental.** Not yet benchmarked on lab data. The default
-> target is embedding structures with `SaProt_1.3B_AFDB_OMG_NCBI`.
+> **Status: experimental.** The default target is embedding structures with
+> `SaProt_1.3B_AFDB_OMG_NCBI`.
 
 ## Image tag
 
@@ -192,7 +192,7 @@ combined_seq = "".join(aa + "#" for aa in aa_seq)
 predictor was unsure about keep their 3Di state or get masked to `#`. It
 matters for anything AlphaFold-like, and upstream stresses it repeatedly:
 predicted low-confidence regions carry structural states that are noise, and
-feeding them in degrades accuracy. Defaults and behaviour in the vendored
+feeding them in degrades accuracy. Defaults and behavior in the vendored
 helper:
 
 - `plddt_mask="auto"` (the default) reads the file and turns masking on only

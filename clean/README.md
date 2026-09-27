@@ -3,7 +3,7 @@
 Assigns Enzyme Commission (EC) numbers to amino-acid sequences. CLEAN
 (Contrastive Learning–Enabled Enzyme Annotation) embeds a sequence with
 ESM-1b, projects the embedding through a contrastively-trained network, and
-assigns EC numbers by distance to pre-computed EC cluster centres. One
+assigns EC numbers by distance to pre-computed EC cluster centers. One
 sequence can receive several EC numbers.
 
 - Upstream: https://github.com/tttianhao/CLEAN — last commit 2025-04-06, last
@@ -11,25 +11,25 @@ sequence can receive several EC numbers.
 - Paper: Yu et al. (2023), *Science* 379:1358 —
   [doi:10.1126/science.adf2465](https://doi.org/10.1126/science.adf2465)
 
-> **Status: experimental.** Not yet benchmarked on lab data.
+> **Status: experimental.**
 
-## Licence — research use only, and not MIT
+## License — research use only, and not MIT
 
 Read this before using the image for anything.
 
 GitHub's repository metadata advertises MIT. **The tree contains no LICENSE
-file.** The only licence artifact upstream ships is
+file.** The only license artifact upstream ships is
 `NON-EXCLUSIVE RESEARCH USE LICENSE FOR CLEAN SOFTWARE.pdf`. Research-use-only
 is not MIT, and the two cannot both be true.
 
-This image is therefore built and labelled under the research-use reading:
+This image is therefore built and labeled under the research-use reading:
 
 - `org.opencontainers.image.licenses="LicenseRef-CLEAN-Non-Exclusive-Research-Use"`
 - `bradleylab.model.use_restriction="research-only"`
 
-The image is **not** labelled MIT, deliberately. University research use is
+The image is **not** labeled MIT, deliberately. University research use is
 accepted as within terms. Anything outside it — a commercial pipeline, a
-service offered to third parties, redistribution under a permissive licence —
+service offered to third parties, redistribution under a permissive license —
 is not established and needs the authors' written agreement first.
 
 Terms for the *pretrained weights* are stated nowhere at all. They are not
@@ -75,7 +75,7 @@ package registry.
 
 | What | Size | Source | Mount point in container |
 |---|---|---|---|
-| CLEAN pretrained weights + EC cluster centres + GMM | ~141 MB zipped | Google Drive **only** | `/opt/CLEAN/app/data/pretrained` |
+| CLEAN pretrained weights + EC cluster centers + GMM | ~141 MB zipped | Google Drive **only** | `/opt/CLEAN/app/data/pretrained` |
 | ESM-1b checkpoint + contact-regression head | ~7.3 GB | `dl.fbaipublicfiles.com` | `/root/.cache/torch/hub/checkpoints` |
 
 ### CLEAN weights — two conflicting Drive file IDs (unresolved)
@@ -262,7 +262,7 @@ container's site-packages.
 
 - **Sequence length.** ESM-1b has a 1024-token limit. Longer sequences are an
   upstream concern, not something this image changes; check `extract.py`
-  behaviour before feeding it long proteins.
+  behavior before feeding it long proteins.
 
 - **Not build-verified locally.** The image has not been built on this
   machine — Docker was unavailable — so CI is the first real build. The old

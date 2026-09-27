@@ -9,7 +9,7 @@ at a time. SAM 3 segments **what you name**: give it `"tree"` and it finds and
 masks every tree in the image or video, with no exemplar and no training.
 
 For "every crown", "every crater", "every fracture", that is the difference
-between writing a prompt and running a labelling campaign.
+between writing a prompt and running a labeling campaign.
 
 `sam2` stays in the catalog and is not deprecated. Point-prompt segmentation is
 still right when you know where the object is and want one mask, and existing
@@ -19,7 +19,7 @@ work references the published image.
 
 `facebook/sam3` is **manually gated**: Meta grants access per account. The SAM
 License does permit redistribution provided the Agreement travels with the
-materials, so baking the weights would be licence-compliant. This image does not
+materials, so baking the weights would be license-compliant. This image does not
 bake them anyway, because publishing them on a public registry hands them to
 anyone who pulls, bypassing the gate Meta deliberately put in front of them.
 Compliant is not the same as appropriate.
@@ -54,14 +54,14 @@ srun -A compute2-alexander.s.bradley -p general-gpu \
      bash -lc 'export PYTHONNOUSERSITE=1 HF_HOME=/cache HF_HUB_OFFLINE=1; python your_script.py'
 ```
 
-## Licence obligations that bind you, not just us
+## License obligations that bind you, not just us
 
 The Agreement is at `/opt/licenses/LICENSE.sam3.md` inside the image. Two terms
 matter in practice:
 
 1. **Publications must acknowledge SAM Materials.** A condition of use, not a
    courtesy.
-2. **Trade controls.** The licence forbids use for military or warfare purposes,
+2. **Trade controls.** The license forbids use for military or warfare purposes,
    nuclear applications, espionage, and weapons development, and requires
    compliance with ITAR and sanctions law.
 
@@ -73,4 +73,5 @@ architecture and resolves `Sam3VideoModel`, which is what breaks on a
 transformers bump. Weight loading cannot be proven at build time by design — it
 is proven in `SMOKE.md` on Compute2 instead.
 
-**Not yet executed on Compute2.**
+On an H100 (uniform probe 2026-09-05, SLURM 2977843) the container starts,
+torch sees the GPU, and a real matmul executes.

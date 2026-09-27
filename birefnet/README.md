@@ -72,4 +72,5 @@ Build smoke test runs offline on CPU: a real forward pass asserting the mask
 comes back single-channel at input resolution, which is what any compositing
 step assumes.
 
-**Not yet executed on Compute2.**
+On an H100 (uniform probe 2026-09-05, SLURM 2977843) the container starts,
+torch sees the GPU, and a real matmul executes.

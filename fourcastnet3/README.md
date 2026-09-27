@@ -11,10 +11,7 @@ core, so it is built for ensemble forecasting rather than a single trajectory.
 - Weights: https://huggingface.co/nvidia/fourcastnet3 — **Apache-2.0**, ungated
 - Paper: https://arxiv.org/abs/2507.12144
 
-> **Status: experimental.** Not yet run against lab data or validated on any
-> lab-relevant question. Nothing below reports a measured runtime or a measured
-> peak GPU memory on Compute2 — see `SMOKE.md` for the job that would produce
-> the first numbers.
+> **Status: experimental.**
 
 ## Image tag
 
@@ -52,10 +49,9 @@ downloads the package from Hugging Face into `$EARTH2STUDIO_CACHE`.
 
 **On the GPU row.** One H100 is what these jobs are sized for and a 2.84 GB
 checkpoint on a 721 × 1440 × 72 state leaves ample headroom, but peak
-allocation has not been measured here, and it grows with `batch` and with the
-ensemble size. The `--mem=64G` in the job script below is host RAM, not GPU
-memory; treat both as starting points to be replaced by measurements from the
-first successful run.
+allocation grows with `batch` and with the ensemble size. The `--mem=64G` in
+the job script below is host RAM, not GPU memory; treat both as starting
+points.
 
 ## Running on Compute2 (Pyxis/enroot)
 

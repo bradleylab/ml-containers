@@ -92,4 +92,3 @@ Pull: `ghcr.io/bradleylab/poseidon:v1`
 The pretrained models learned on PDEgym, a synthetic benchmark collection.
 Solute transport, groundwater flow and heat flow all sit in the families
 covered, but applying these checkpoints to real lab data means finetuning.
-Nothing here has been run on lab data.

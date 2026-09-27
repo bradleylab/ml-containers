@@ -75,6 +75,3 @@ PY"'
 - A forward pass runs on sm_90.
 - Depth comes back for both images, and the multi-view outputs — pose and
   intrinsics — are present rather than silently absent.
-
-Record the measured wall time here after the first successful run; nothing
-below has been timed on Compute2 yet.

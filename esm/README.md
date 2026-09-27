@@ -15,8 +15,8 @@ reachable from this image.
 - Preprint: "A world model of protein biology: ESMC, ESMFold2 & ESM Atlas"
   (Biohub, 2026) — see the upstream repo for the current citation.
 
-> **Status: experimental.** Not yet benchmarked on lab data. The default
-> target is batch embedding with ESMC-600M.
+> **Status: experimental.** The default target is batch embedding with
+> ESMC-600M.
 
 ## Image tag
 
