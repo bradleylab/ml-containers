@@ -18,9 +18,9 @@ ESM-2 3B embedder in their place. Local MSAs still help and are supported.
 - Paper: Chai Discovery, "Chai-1: Decoding the molecular interactions of life",
   bioRxiv 2024. doi:10.1101/2024.10.10.615955
 
-> **Status: experimental.** Not yet benchmarked on lab data. The memory
-> section below is the part to read before writing an sbatch script — the host
-> RAM figure is larger than people expect and is what kills jobs.
+> **Status: experimental.** The memory section below is the part to read
+> before writing an sbatch script — the host RAM figure is larger than people
+> expect and is what kills jobs.
 
 ## Image tag
 

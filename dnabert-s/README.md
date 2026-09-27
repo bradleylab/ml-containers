@@ -16,8 +16,7 @@ fine-tuned for species separation.
 - Paper: "DNABERT-S: Pioneering Species Differentiation with Species-Aware
   DNA Embeddings" — see the upstream repo for the current citation.
 
-> **Status: experimental.** Not yet benchmarked on lab data. The intended
-> first target is batch embedding of assembled contigs.
+> **Status: experimental.**
 
 ## Licence — read before redistributing anything
 

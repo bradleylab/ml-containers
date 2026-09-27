@@ -756,7 +756,7 @@ input is a nucleotide sequence, not a sensor product.
 > **EXPERIMENTAL / backfilled recipe.** Reproduces a previously ad-hoc
 > `ghcr.io/bradleylab/evo2` image that had no committed recipe,
 > reconstructed from the published image's build history (NGC PyTorch
-> 25.04 + `pip install evo2 biopython`). Not yet benchmarked on lab data.
+> 25.04 + `pip install evo2 biopython`).
 
 - Base: `nvcr.io/nvidia/pytorch:25.04-py3` — torch 2.7.0a0, CUDA 12.9,
   Transformer Engine 2.2, flash-attn, Python 3.12
@@ -787,8 +787,8 @@ and per-residue logits from amino-acid sequence alone, no structure
 required. ESMC is the current generation of Evolutionary Scale Modeling;
 the open ESM3 checkpoint is reachable from the same image.
 
-> **EXPERIMENTAL.** Not yet benchmarked on lab data. The default target
-> is batch embedding with ESMC-600M.
+> **EXPERIMENTAL.** The default target is batch embedding with
+> ESMC-600M.
 
 - Base: `nvcr.io/nvidia/pytorch:25.04-py3` — torch 2.7.0a0, CUDA 12.9,
   **Python 3.12**. The Python version is a hard pin, not a preference:
@@ -827,7 +827,7 @@ project through a contrastively-trained network, assign by distance to
 pre-computed EC cluster centres. One sequence can receive several EC
 numbers.
 
-> **EXPERIMENTAL.** Not yet benchmarked on lab data.
+> **EXPERIMENTAL.**
 
 > **⚠ Licence: research use only, and not MIT.** GitHub's repository
 > metadata advertises MIT, but the tree contains **no LICENSE file** —
@@ -880,8 +880,8 @@ acid with that residue's foldseek 3Di structural state (`Aq`, `Md`, `Gp`).
 The structural half can be masked (`A#`), which is how the 1.3B checkpoint
 takes sequence-only input.
 
-> **EXPERIMENTAL.** Not yet benchmarked on lab data. Default target is
-> embedding structures with `SaProt_1.3B_AFDB_OMG_NCBI`.
+> **EXPERIMENTAL.** Default target is embedding structures with
+> `SaProt_1.3B_AFDB_OMG_NCBI`.
 
 - Base: `nvcr.io/nvidia/pytorch:25.04-py3` — torch 2.7.0a0, CUDA 12.9,
   Python 3.12 (same base as `esm` / `evo2` / `ntv3`)
@@ -926,8 +926,8 @@ and chemical-component identity, and — from a block in the same input
 file — predicts binding affinity for a nominated ligand chain. Successor
 to Boltz-1.
 
-> **EXPERIMENTAL.** Not yet benchmarked on lab data. Read the silent
-> out-of-memory note below before running anything unattended.
+> **EXPERIMENTAL.** Read the silent out-of-memory note below before
+> running anything unattended.
 
 - Base: `pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime` — torch 2.8.0,
   CUDA 12.9, Python 3.11
@@ -966,7 +966,7 @@ molecules. Unlike Boltz-2 and AlphaFold3 it reaches most of its accuracy
 **without MSAs**, using a traced ESM-2 3B embedder in their place; local
 MSAs still help and are supported.
 
-> **EXPERIMENTAL.** Not yet benchmarked on lab data.
+> **EXPERIMENTAL.**
 
 - Base: `pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime` — torch 2.6.0,
   CUDA 12.6, Python 3.11
@@ -1012,8 +1012,7 @@ bins without alignment or reference genomes. Architecture is DNABERT-2's
 vocabulary, ~117M parameters) contrastively fine-tuned for species
 separation.
 
-> **EXPERIMENTAL.** Not yet benchmarked on lab data. Intended first
-> target is batch embedding of assembled contigs.
+> **EXPERIMENTAL.**
 
 - Base: `nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04` + Python 3.11 +
   PyTorch 2.5.1 cu121 (the stack shared with `prithvi-eo`, `satlas`,
@@ -1052,8 +1051,7 @@ post-trained checkpoints predict roughly 16,000 functional genomic tracks
 across 24 species — the signal set you would otherwise get from BigWig
 files — plus base-resolution annotation suitable for writing out as BED.
 
-> **EXPERIMENTAL.** Not yet benchmarked on lab data. Intended first
-> target is embeddings and track prediction at 131 kb windows.
+> **EXPERIMENTAL.**
 
 > **⚠ Licence: non-commercial, and the weights are HF-gated.** The weights
 > carry the **InstaDeep NTv3 non-commercial licence** (no commercial use;

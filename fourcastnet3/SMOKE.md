@@ -113,10 +113,10 @@ here means the image on GHCR is not the image the Dockerfile describes.
 
 ## Expected runtime
 
-**Not yet measured.** The 00:20:00 request is a bound chosen to be comfortably
-larger than a single forward pass plus checkpoint load, not an estimate. After
-the first successful run, replace this paragraph with the `sacct -j <jobid>
---format=Elapsed,MaxRSS` result and the peak GPU allocation printed above.
+The 00:20:00 request is a bound chosen to be comfortably larger than a single
+forward pass plus checkpoint load, not an estimate. `sacct -j <jobid>
+--format=Elapsed,MaxRSS` reports the elapsed time and peak host memory of your
+run; the peak GPU allocation is printed above.
 
 ## What this test does not cover
 

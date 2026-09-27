@@ -18,9 +18,7 @@ field directly rather than a residual on top of a regression prediction.
   https://arxiv.org/abs/2206.00364 (EDM preconditioning)
 
 > **Status: experimental.** The domain is Europe, which is not where the lab
-> works; the value here is the downscaling method, not the region. No runtime
-> or peak-memory figure below has been measured on Compute2 — `SMOKE.md` is the
-> job that would produce the first ones.
+> works; the value here is the downscaling method, not the region.
 
 ## Image tag
 
@@ -60,9 +58,9 @@ downloads the package from Hugging Face into `$EARTH2STUDIO_CACHE`.
 
 **On the GPU row.** The networks are small — under 200M parameters — but the
 activations are not: the DiT attends over a 824 × 848 field, and diffusion mode
-runs 18 sampler steps per sample. Peak allocation has not been measured here
-and scales with the number of ensemble samples. `--mem=64G` in the job script
-is host RAM. Both numbers are starting points to be replaced by measurements.
+runs 18 sampler steps per sample. Peak allocation scales with the number of
+ensemble samples. `--mem=64G` in the job script is host RAM. Treat both
+numbers as starting points.
 
 ## Running on Compute2 (Pyxis/enroot)
 

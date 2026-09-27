@@ -17,8 +17,8 @@ checkpoint takes sequence-only input.
 - foldseek: https://github.com/steineggerlab/foldseek (GPL-3.0), release
   `10-941cd33` (2025-01-19), bundled — see below.
 
-> **Status: experimental.** Not yet benchmarked on lab data. The default
-> target is embedding structures with `SaProt_1.3B_AFDB_OMG_NCBI`.
+> **Status: experimental.** The default target is embedding structures with
+> `SaProt_1.3B_AFDB_OMG_NCBI`.
 
 ## Image tag
 

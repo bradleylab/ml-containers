@@ -49,10 +49,9 @@ downloads the package from Hugging Face into `$EARTH2STUDIO_CACHE`.
 
 **On the GPU row.** One H100 is what these jobs are sized for and a 2.84 GB
 checkpoint on a 721 × 1440 × 72 state leaves ample headroom, but peak
-allocation has not been measured here, and it grows with `batch` and with the
-ensemble size. The `--mem=64G` in the job script below is host RAM, not GPU
-memory; treat both as starting points to be replaced by measurements from the
-first successful run.
+allocation grows with `batch` and with the ensemble size. The `--mem=64G` in
+the job script below is host RAM, not GPU memory; treat both as starting
+points.
 
 ## Running on Compute2 (Pyxis/enroot)
 

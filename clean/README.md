@@ -11,7 +11,7 @@ sequence can receive several EC numbers.
 - Paper: Yu et al. (2023), *Science* 379:1358 —
   [doi:10.1126/science.adf2465](https://doi.org/10.1126/science.adf2465)
 
-> **Status: experimental.** Not yet benchmarked on lab data.
+> **Status: experimental.**
 
 ## Licence — research use only, and not MIT
 

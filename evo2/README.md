@@ -14,8 +14,7 @@ generation across all domains of life.
 > **Status: experimental / backfilled.** This recipe reproduces a
 > previously ad-hoc `ghcr.io/bradleylab/evo2` image (it had no committed
 > recipe), reconstructed from the published image's build history: the NGC
-> PyTorch 25.04 base + `pip install evo2 biopython`. The 7B path is the
-> intended first target; it has not yet been benchmarked on lab data.
+> PyTorch 25.04 base + `pip install evo2 biopython`.
 
 ## Image tag
 

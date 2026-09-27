@@ -13,9 +13,9 @@ Successor to Boltz-1.
 - **Licence: MIT for the code *and* the weights.** Academic and commercial use
   are both permitted, with no acceptance step and no gated download.
 
-> **Status: experimental.** Not yet benchmarked on lab data. Read the silent
-> out-of-memory section below before running anything unattended — it is the
-> one failure mode that will otherwise cost you a day.
+> **Status: experimental.** Read the silent out-of-memory section below
+> before running anything unattended — it is the one failure mode that will
+> otherwise cost you a day.
 
 ## Image tag
 

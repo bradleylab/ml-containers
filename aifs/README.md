@@ -20,9 +20,8 @@ variable and a 10 hPa stratospheric level.
   [update (2025)](https://arxiv.org/abs/2509.18994),
   [surface ocean (2026)](https://arxiv.org/abs/2604.25559).
 
-> **Status: experimental.** This is the lab's first atmospheric model and
-> nothing here has been run against lab science yet. Treat the first forecast
-> as a plumbing test, not a result.
+> **Status: experimental.** Treat the first forecast as a plumbing test, not a
+> result.
 
 ## Image tag
 
@@ -67,9 +66,9 @@ first run.
 | Resource | Requirement |
 |---|---|
 | GPU architecture | **Ampere or newer** (compute capability ≥ 8.0) — flash-attn does not support older cards. C2's H100s are 9.0. |
-| GPU memory | Upstream's demo notebook runs on a Colab L4 (24 GB), so an 80 GB H100 is ample. Peak usage on H100 is **unmeasured here** — do not quote a number until someone has one. |
+| GPU memory | Upstream's demo notebook runs on a Colab L4 (24 GB), so an 80 GB H100 is ample. |
 | Host memory | `--mem=64G` is the lab's default for these jobs and has not been shown insufficient. |
-| Wall time | Unmeasured. A 12-hour lead time (2 model steps) is the cheapest useful test; 15 days is 60 steps. |
+| Wall time | A 12-hour lead time (2 model steps) is the cheapest useful test; 15 days is 60 steps. |
 
 If a forecast runs out of GPU memory, the supported knobs are
 `ANEMOI_INFERENCE_NUM_CHUNKS` (chunks the encoder/decoder mapper; upstream

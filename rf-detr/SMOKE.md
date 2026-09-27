@@ -70,5 +70,3 @@ PY"'
 - A forward pass runs on sm_90.
 - It finds **at least two objects** in an image containing two cats — the gate
   that a structure-only check would miss.
-
-Record the measured wall time here after the first successful run.

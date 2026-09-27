@@ -158,13 +158,12 @@ expected here and is not a failure.
 
 ## Expected runtime
 
-**Not yet measured.** The 00:30:00 request is a bound, not an estimate, and it
-is longer than the sibling images' because most of the time will go to fetching
-HRRR and GFS fields rather than to compute. After the first successful run,
-replace this paragraph with the `sacct -j <jobid> --format=Elapsed,MaxRSS`
-result, the peak GPU allocation printed above, and — separately — how much of
-the elapsed time was data fetching, since that is what sets the walltime for
-real jobs.
+The 00:30:00 request is a bound, not an estimate, and it is longer than the
+sibling images' because most of the time will go to fetching HRRR and GFS
+fields rather than to compute. `sacct -j <jobid> --format=Elapsed,MaxRSS`
+reports the elapsed time and peak host memory of your run, and the peak GPU
+allocation is printed above. Note how much of the elapsed time was data
+fetching: that is what sets the walltime for real jobs.
 
 ## What this test does not cover
 

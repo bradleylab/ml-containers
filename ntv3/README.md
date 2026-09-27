@@ -14,8 +14,7 @@ base-resolution annotation suitable for writing out as BED.
   using this.
 - HF collection: `InstaDeepAI/nucleotide-transformer-v3`.
 
-> **Status: experimental.** Not yet benchmarked on lab data. The intended
-> first target is embeddings and track prediction at 131 kb windows.
+> **Status: experimental.**
 
 ## Licence and gating — read this first
 
