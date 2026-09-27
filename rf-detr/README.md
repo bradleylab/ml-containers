@@ -65,4 +65,5 @@ offline, and asserts the Apache/PML boundary holds. It does **not** prove the
 detections are meaningful — noise has nothing to find. That needs a real
 photograph on a GPU; see `SMOKE.md`.
 
-**Not yet executed on Compute2.**
+On an H100 (SLURM 2947891, 2026-08-30) the model returned 5 detections on a
+real photograph, with both cats labeled class 17 at scores 0.948 and 0.942.

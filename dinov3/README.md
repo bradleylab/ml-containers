@@ -90,4 +90,5 @@ the feature width (1024), the patch size (16×16), and both normalization
 constants, then runs a forward pass. A build that reaches GHCR has passed all
 of it.
 
-Not yet executed on Compute2 — this image has no `SMOKE.md` run recorded.
+On an H100 (uniform probe 2026-09-05, SLURM 2977843) the container starts,
+torch sees the GPU, and a real matmul executes.

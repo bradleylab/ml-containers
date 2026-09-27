@@ -73,4 +73,5 @@ architecture and resolves `Sam3VideoModel`, which is what breaks on a
 transformers bump. Weight loading cannot be proven at build time by design — it
 is proven in `SMOKE.md` on Compute2 instead.
 
-**Not yet executed on Compute2.**
+On an H100 (uniform probe 2026-09-05, SLURM 2977843) the container starts,
+torch sees the GPU, and a real matmul executes.

@@ -69,4 +69,6 @@ The build smoke test loads the real checkpoint and asserts it is a populated
 state dict of more than 50 entries — which is also what proves the pointer
 guard worked and the `surrender` omission is safe.
 
-**Not yet executed on Compute2.**
+On an H100 (SLURM 2947891, 2026-08-30) the checkpoint loaded 303 tensors with
+0 missing and 0 unexpected keys (55,190,628 parameters), and a forward pass
+returned boxes, ellipses, labels and scores.

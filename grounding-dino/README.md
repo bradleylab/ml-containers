@@ -51,4 +51,5 @@ Build smoke test runs offline on CPU with a well-formed prompt and asserts the
 post-processor returns the keys downstream code indexes into, so a transformers
 bump that renames them fails the build.
 
-**Not yet executed on Compute2.**
+On an H100 (uniform probe 2026-09-05, SLURM 2977843) the container starts,
+torch sees the GPU, and a real matmul executes.

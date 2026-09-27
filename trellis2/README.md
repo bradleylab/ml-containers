@@ -82,5 +82,6 @@ Weights are baked; set `HF_HUB_OFFLINE=1` on compute nodes.
 
 ## Verification
 
-**Not yet executed on Compute2.** The build proves the extensions carry kernels
-and the pipeline class resolves; it does not prove a mesh comes out.
+The build proves the extensions carry kernels and the pipeline class resolves.
+On an H100 (uniform probe 2026-09-05, SLURM 2977843) the container starts,
+torch sees the GPU, and a real matmul executes. Neither check produces a mesh.

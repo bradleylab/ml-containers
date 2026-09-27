@@ -82,5 +82,7 @@ The build smoke test runs offline on CPU: it imports the package, loads the
 baked checkpoint with no network, asserts the parameter count and that numpy
 stayed below 2.
 
-**Not yet executed on Compute2.** See `SMOKE.md` for the smallest job that
-would prove a real forward pass on an H100; it has not been run.
+On an H100 (SLURM 3009949, 2026-09-11) two images through one forward pass in
+1.94 s returned depth and confidence at 2 × 378 × 504, camera pose at
+2 × 3 × 4 and intrinsics at 2 × 3 × 3, so the batch survived and the
+multi-view path produced poses rather than depth alone.

@@ -48,4 +48,5 @@ absorption feature and exercises the fitting path, rather than importing the
 package — an import check would not catch a broken scipy/numpy pairing, which
 is where this stack actually breaks.
 
-**Not yet executed on Compute2.**
+On Compute2 (SLURM 2947891, 2026-08-30) the fitting path recovered a planted
+absorption feature at 2201.7 nm against 2200.0 nm planted.

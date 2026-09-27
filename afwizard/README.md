@@ -289,6 +289,9 @@ it as a GPU failure. Run it on `general-cpu`.
 
 ## Status
 
-**Experimental — not yet run on real data by this lab.** The build asserts that
-the batch entry point resolves and that PROJ has a working database behind it,
-but no filtering run has been scored. See `SMOKE.md`.
+**Experimental.** The build asserts that the batch entry point resolves and
+that PROJ has a working database behind it. On Compute2, a Greenwood tuning
+run (2026-09-03, SLURM 2962524) completed 116 evaluations in 10 min on
+`general-cpu`, after which `wire --apply` produced a filtered cloud and DTM;
+a Tyson calibration run (2026-09-05, SLURM 2977489) completed 36 evaluations
+in 3 h 29 min. See `SMOKE.md`.

@@ -15,9 +15,7 @@ EDM-preconditioned diffusion model refines it over 18 sampler steps.
   **Apache-2.0**, ungated
 - Paper: https://arxiv.org/abs/2408.10958
 
-> **Status: experimental.** Not yet run against lab data. No runtime or
-> peak-memory figure below has been measured on Compute2 — `SMOKE.md` is the
-> job that would produce the first ones.
+> **Status: experimental.**
 
 ## Image tag
 

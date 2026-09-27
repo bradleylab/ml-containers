@@ -11,10 +11,7 @@ core, so it is built for ensemble forecasting rather than a single trajectory.
 - Weights: https://huggingface.co/nvidia/fourcastnet3 — **Apache-2.0**, ungated
 - Paper: https://arxiv.org/abs/2507.12144
 
-> **Status: experimental.** Not yet run against lab data or validated on any
-> lab-relevant question. Nothing below reports a measured runtime or a measured
-> peak GPU memory on Compute2 — see `SMOKE.md` for the job that would produce
-> the first numbers.
+> **Status: experimental.**
 
 ## Image tag
 

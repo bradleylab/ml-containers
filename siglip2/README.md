@@ -45,4 +45,5 @@ Build smoke test runs offline on CPU: a real forward pass scoring noise against
 two prompts, asserting one logit per prompt and finite values. A transformers
 bump that breaks the model fails the build.
 
-**Not yet executed on Compute2.**
+On an H100 (uniform probe 2026-09-05, SLURM 2977843) the container starts,
+torch sees the GPU, and a real matmul executes.
