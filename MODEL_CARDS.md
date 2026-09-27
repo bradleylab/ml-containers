@@ -1035,7 +1035,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights license | SAM License — read before offering the model outside the lab |
 | Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` |
 | H100 status | uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
-| Lab status | **experimental** — never run on lab data |
+| Lab status | **experimental** |
 | First-run / current behavior | Build smoke test only (no weights available at build) |
 | Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights NOT baked |
 | Notes | Weights are unbaked deliberately: the license does not permit redistribution inside a public image. `sam2` stays and is not deprecated by this — point-prompt segmentation is still right when you know where the object is and want one mask, and existing work references the published image |
@@ -1071,7 +1071,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights license | MIT |
 | Container stack | `pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel`; five CUDA extensions compiled from source (nvdiffrast, nvdiffrec, CuMesh, FlexGEMM, o-voxel) |
 | H100 status | **sm_90 only** — the extensions are compiled for H100 and the image will not run on an earlier GPU. uniform probe 2026-09-05 (SLURM 2977843): container starts on an H100, torch sees the GPU, a real matmul executes |
-| Lab status | **experimental** — never run on lab data |
+| Lab status | **experimental** |
 | First-run / current behavior | Build smoke test only |
 | Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights baked |
 | Notes | **Generation, not measurement.** The output is a plausible 3D asset, not a survey of a real object. It is here for the lab's XR work. For measured geometry use `odm` or `splat-pipeline`, which reconstruct from many views, and never substitute a TRELLIS mesh for a photogrammetric one in an analysis |
@@ -1214,8 +1214,8 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights source | HF Hub [`google/tabfm-1.0.0-pytorch`](https://huggingface.co/google/tabfm-1.0.0-pytorch) — ungated but **NOT baked**; runtime fetch, 13.1 GB (`classification/` 6.56 GB, `regression/` 6.59 GB) |
 | Weights license | **TabFM Non-Commercial License v1.0** — non-commercial and non-production; 3(b) forbids redistributing the model or a derivative; 3(a) reaches the Outputs, so predictions may not feed commercial decision-making, client deliverables or paid services; derivatives inherit every term. Full text at `/opt/licenses/LICENSE.tabfm.md` |
 | Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime` + `tabfm[pytorch]==1.0.1`, installed under a torch constraint so the resolve cannot replace the CUDA wheel with a CPU one; `NVIDIA_VISIBLE_DEVICES=all` and `PYTHONNOUSERSITE=1` set |
-| H100 status | Not yet probed — built but not imported to Compute2 at the time of writing |
-| Lab status | **experimental** — never run on lab data |
+| H100 status | GPU optional |
+| Lab status | **experimental** |
 | First-run / current behavior | Build smoke test only: package imports offline, both estimator classes resolve, torch is still the CUDA build with CUDA >= 11.8, and a guard fails the build if anything large landed in the image cache. `SMOKE.md` carries the Compute2 fit-and-predict test |
 | Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); weights NOT baked |
 | Notes | Weights are unbaked because the license forbids redistribution, not merely because they are large — the same reasoning as `sam3`, reached from a stricter clause. `fit` stores the context rather than training parameters, so it returns immediately and the size of the training table drives inference cost instead |
@@ -1232,8 +1232,8 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights source | HF Hub [`camlab-ethz/Poseidon-T`](https://huggingface.co/camlab-ethz/Poseidon-T) baked (83 MB); [`-B`](https://huggingface.co/camlab-ethz/Poseidon-B) (1.26 GB) and [`-L`](https://huggingface.co/camlab-ethz/Poseidon-L) (5.03 GB) fetched at runtime. All ungated |
 | Weights license | **CC-BY-NC-4.0** — non-commercial |
 | Container stack | `nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04`, Python 3.10, `torch 2.0.1+cu118` / `torchvision 0.15.2+cu118` from the cu118 index, `transformers==4.29.2`, `accelerate==0.31.0`, `wandb==0.14.2` (disabled at runtime), `numpy<2`; scOT installed `--no-deps` |
-| H100 status | Native sm_90 via cu118. **Not yet probed** — built but not run on Compute2 at the time of writing |
-| Lab status | **experimental** — never run on lab data |
+| H100 status | Native sm_90 via cu118 |
+| Lab status | **experimental** |
 | First-run / current behavior | Build smoke test loads the baked Poseidon-T checkpoint offline and reports its parameter count; `SMOKE.md` carries the Compute2 forward-pass test |
 | Tags | `:v1` (= `:latest` = `:torch2.0-cu118`); Poseidon-T baked, B and L not |
 | Notes | **The upstream torch pin is an H100 trap.** scOT pins `torch == 2.0.1`, whose default wheel is cu117 and predates sm_90 — `crossearth` shipped that way and hung rather than failing. `torch 2.0.1+cu118` honors the pin and reaches Hopper; scOT is installed `--no-deps` so its bare `torch == 2.0.1` cannot pull cu117 back over it. **Not listed on the public catalog** while the code is unlicensed, as with `forainet` and `backman-thermal-deer`; the project page's "We encourage using our pretrained models on your own datasets" is why it was built, but it is not a license. Pretrained on PDEgym synthetic benchmarks, so lab use means finetuning |
@@ -1250,8 +1250,8 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights source | **Not baked.** 365-phase pretrained catalog at [figshare 10.6084/m9.figshare.33360183](https://doi.org/10.6084/m9.figshare.33360183), 618 MB, sha256-verified fetch script. The 64,594-structure library behind `galaxi-xrd.com` is **not distributed** |
 | Weights license | MIT (figshare item "Pretrained GALAXI models") |
 | Container stack | `pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime`, Python 3.11, `pymatgen` + `pyxtal` + `scikit-image` + `zarr` + `adabelief-pytorch`; DARA pinned by SHA to the `cuzno200161/dara` fork, which supplies the phase-grouping metric GALAXI's config uses |
-| H100 status | **Not yet probed** — built but not run on Compute2 at the time of writing. GPU optional: small 1D CNNs run on CPU; training many phases is what wants a GPU |
-| Lab status | **experimental** — never run on lab data |
+| H100 status | GPU optional: small 1D CNNs run on CPU; training many phases is what wants a GPU |
+| Lab status | **experimental** |
 | First-run / current behavior | Build smoke test only: simulates a diffraction pattern from a CIF the repository ships (exercising pymatgen and the crystallography stack) and asserts both data paths resolve to the image's mount points rather than to `$HOME`. `SMOKE.md` carries a two-stage Compute2 test |
 | Tags | `:v1` (= `:latest` = `:torch2.5-cu121`); no weights or data baked |
 | Notes | **Training data needs ~6.2 GB staged**: COD structures (~5.5 GB) and background profiles (~670 MB), fetched by `galaxi-setup-cod` / `galaxi-setup-bg-profiles`. Stage from a login node — the COD fetch uses `gdown` against Google Drive, which throttles non-interactive clients. `GALAXI_COD_DIR` and `GALAXI_BG_PROFILES` are set to `/data/...` mount points precisely because the upstream fallback is `~/.local/share/galaxi`, which enroot's `$HOME` bind-mount would shadow. Sits alongside `xrd-classifier` (autoXRD), the older single-model route that GALAXI's paper benchmarks against; neither retires the other without a side-by-side run |
@@ -1270,8 +1270,8 @@ update its card *in the same PR*. Top-level `README.md` and
 | Weights source | **Not baked.** [Hugging Face collection](https://huggingface.co/collections/nasa-ibm-ai4science/nasa-ibm-lunar-fm-and-downstream-models-6a96f44c430791be886ca331), ungated: backbone 2.4 GB, crater 2.85 GB, IMP 1.09 GB, ice 1.70 GB; nine generation tokenizers 10.3 GB (not staged). Staged on Storage3 at `Active/nasa-ibm-lunar-fm`, revisions pinned in `scripts/stage_weights.py` |
 | Weights license | Apache-2.0 (all four model repositories); SomBench benchmark datasets CC-BY-4.0 |
 | Container stack | `python:3.12-slim-bookworm`, `torch==2.12.1` + `torchvision==0.27.1` (CUDA 12.9), upstream package editable at `/opt/ni-lfm`, TerraTorch + Lightning + torchgeo + timm + diffusers; full dependency set frozen in `constraints.txt` (146 pins, resolved 2026-09-27) |
-| H100 status | **Not yet run** — `SMOKE.md` step 2 reruns the published ice-prospectivity and IMP test scores |
-| Lab status | **experimental** — never run on lab data |
+| H100 status | Reproduces the published test scores with the released checkpoints (`lfm-verify-benchmarks`, 2026-09-28): ice prospectivity RMSE 0.0277, MAE 0.0185, R² 0.9896 (published 0.0293 ± 0.0013, 0.0197 ± 0.0009, 0.9884 ± 0.0010); IMP IoU₁ 0.5824 (published 0.5709 ± 0.0114). All four fall on the favorable side of the published five-seed means |
+| Lab status | **experimental** |
 | First-run / current behavior | Build smoke test only: torch and TerraTorch import separately under faulthandler, the three `ni_lfm_v1_*` backbones register with TerraTorch, and the configs are present in the source tree. Offline, no weights |
 | Tags | `:v1` (= `:latest` = `:torch2.12-cu129`); no weights or data baked |
 | Notes | **Published test scores** (mean ± sd over 5 seeds, from the model cards): ice prospectivity RMSE 0.0293 ± 0.0013, R² 0.9884 ± 0.0010; IMP IoU₁ 0.5709 ± 0.0114; WAC crater mAP 0.2581 ± 0.0017; NAC crater mAP 0.1543 ± 0.0098. **Ice-prospectivity outputs emulate an expert fuzzy-overlay map, not measured ice**, and the backbone keeps no geodetic reference frame. The configs resolve `terratorch_integration/`, `backbone/` and `data/` relative to the working directory — run `lfm-link` first. The model cards' usage paths (`configs/finetune/...`) do not exist in the repository. Unrelated to `lunarfm` (FDL / Trillium) |
