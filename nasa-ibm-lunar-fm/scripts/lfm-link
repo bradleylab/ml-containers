@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Link the three names every upstream config resolves relative to the working
+# directory. The configs say `custom_modules_path: terratorch_integration`,
+# `backbone/checkpoint.pt` and `data/<task>_dataset/...`, so they only run from
+# a directory where those three paths exist.
+#
+#   LFM_BACKBONE_DIR  directory holding checkpoint.pt and config.yaml
+#   LFM_DATA_DIR      directory holding the <task>_dataset folders
+#
+# The defaults are where the lab's staged copy lands when Storage3
+# Active/nasa-ibm-lunar-fm is mounted at /weights.
+set -euo pipefail
+
+backbone=${LFM_BACKBONE_DIR:-/weights/hf/NASA-IBM-Lunar-Foundation-Model/backbone}
+data=${LFM_DATA_DIR:-/weights/downstream_dataset}
+
+ln -sfn /opt/ni-lfm/terratorch_integration terratorch_integration
+ln -sfn "$backbone" backbone
+ln -sfn "$data" data
+
+missing=0
+for f in backbone/config.yaml backbone/checkpoint.pt; do
+    if [ ! -f "$f" ]; then
+        echo "lfm-link: $PWD/$f not found (LFM_BACKBONE_DIR=$backbone)" >&2
+        missing=1
+    fi
+done
+[ -d data ] || { echo "lfm-link: $PWD/data does not resolve (LFM_DATA_DIR=$data)" >&2; missing=1; }
+exit $missing

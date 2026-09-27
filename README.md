@@ -132,6 +132,7 @@ locally.
 | `geolg-3dfaultnet` | `geolg-3dfaultnet/` | full recipe — **experimental** (GPU; voxelwise fault segmentation of 3D seismic volumes, 3D U-Net with local-global and continuity blocks; MIT; **unpublished manuscript, provenance unconfirmed — benchmark before use**) |
 | `insar-unwrap` | `insar-unwrap/` | full recipe — **experimental** (GPU sm_90; learned InSAR phase unwrapping to line-of-sight displacement, U-Net family; MIT code, CC-BY-4.0 weights fetched at runtime) |
 | `n2n4m` | `n2n4m/` | full recipe — **experimental** (GPU; Noise2Noise denoising of CRISM Mars SWIR hyperspectral data, 350 of 438 channels; MIT code *and* weights, committed upstream) |
+| `nasa-ibm-lunar-fm` | `nasa-ibm-lunar-fm/` | full recipe — **experimental** (GPU sm_90; NASA-IBM Lunar Foundation Model — ViT-B multimodal lunar backbone over LROC NAC and WAC, with fine-tuned crater detection, irregular mare patch segmentation and polar ice-prospectivity checkpoints, via TerraTorch; weights NOT baked, staged on Storage3; Apache-2.0 code *and* weights, SomBench benchmarks CC-BY-4.0) |
 | `poseidon` | `poseidon/` | full recipe — **experimental** (GPU sm_90; Poseidon PDE foundation models (scOT) — solution-operator learning for Euler/Navier-Stokes/wave/Poisson/Helmholtz, finetunable onto a downstream operator; Poseidon-T baked, B and L at runtime; **code carries NO license upstream, weights CC-BY-NC-4.0 — not listed on the public catalog**) |
 | `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
@@ -1853,3 +1854,44 @@ documents.
 `xrd-classifier` (autoXRD) does the same job by the older single-model route
 and GALAXI's paper benchmarks against that lineage. Both stay; run them on the
 same patterns before retiring anything.
+
+### nasa-ibm-lunar-fm
+
+The [NASA-IBM Lunar Foundation Model](https://arxiv.org/abs/2609.13283)
+(NASA IMPACT and IBM Research, released 2026-09-10) — a ViT-B encoder–decoder
+pretrained from scratch on SomBench, about two million co-registered lunar tile
+bundles in 11 modalities at LROC NAC (~1 m/px) and WAC (~100 m/px) scales. It
+adapts TerraMind's masked-token recipe with per-tile illumination geometry as an
+encoder input and joint NAC/WAC training, so one set of weights spans both
+resolutions. Upstream released the backbone plus fine-tuned crater detection
+(NAC and WAC), irregular mare patch segmentation and polar ice-prospectivity
+checkpoints.
+
+- Base: `python:3.12-slim-bookworm`, `torch==2.12.1` + `torchvision==0.27.1`
+  from the CUDA 12.9 index — the pair upstream's requirements fix; Compute2's
+  driver 580.105.08 supports 12.9
+- Upstream installed editable at `/opt/ni-lfm` @ `d54c67a`, with TerraTorch,
+  Lightning, torchgeo and timm resolved against that torch
+- `lfm-link` creates the three working-directory paths every upstream config
+  resolves (`terratorch_integration/`, `backbone/`, `data/`);
+  `lfm-verify-benchmarks` reruns the published ice-prospectivity and IMP test
+  scores
+
+Pull: `ghcr.io/bradleylab/nasa-ibm-lunar-fm:v1`
+
+**Weights are staged, not baked.** Backbone 2.4 GB and the three fine-tuned
+repositories 5.6 GB, all Apache-2.0 and ungated, are on Storage3 at
+`Active/nasa-ibm-lunar-fm` with each repository pinned to a Hugging Face
+revision by `nasa-ibm-lunar-fm/scripts/stage_weights.py`; mount it at
+`/weights`. The nine generation tokenizers (10.3 GB) are not staged — no
+downstream task uses them.
+
+**The ice-prospectivity target is a model, not a measurement.** It regresses
+Coyan et al.'s (2025) fuzzy-overlay prospectivity map; its output is not
+measured ice. And the backbone keeps no geodetic reference frame: local
+structure is right, absolute values are not.
+
+Unrelated to `lunarfm` (FDL / Trillium, PolyForm Strict, `ml-jobs` only) beyond
+the subject. Beside `crater-detection`, which matches craters to a catalog for
+position fixing; these crater checkpoints are benchmark detectors without
+catalog matching.
