@@ -109,7 +109,9 @@ The build test is offline and weight-free: it imports torch and TerraTorch
 separately under faulthandler, confirms the three `ni_lfm_v1_*` backbones
 register with TerraTorch, and checks the configs are in the source tree.
 [`SMOKE.md`](SMOKE.md) is the Compute2 test, which reruns two published
-benchmarks on an H100.
+benchmarks on an H100. With the released checkpoints this image gives ice-prospectivity
+RMSE 0.0277 and R² 0.9896 (published 0.0293 ± 0.0013 and 0.9884 ± 0.0010) and IMP
+IoU₁ 0.5824 (published 0.5709 ± 0.0114).
 
 ## Related images
 
