@@ -192,7 +192,7 @@ combined_seq = "".join(aa + "#" for aa in aa_seq)
 predictor was unsure about keep their 3Di state or get masked to `#`. It
 matters for anything AlphaFold-like, and upstream stresses it repeatedly:
 predicted low-confidence regions carry structural states that are noise, and
-feeding them in degrades accuracy. Defaults and behaviour in the vendored
+feeding them in degrades accuracy. Defaults and behavior in the vendored
 helper:
 
 - `plddt_mask="auto"` (the default) reads the file and turns masking on only

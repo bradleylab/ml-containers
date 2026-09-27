@@ -10,17 +10,17 @@ base-resolution annotation suitable for writing out as BED.
   particular `docs/nucleotide_transformer_v3.md`. Released December 2025 and
   actively maintained.
 - Weights: https://huggingface.co/InstaDeepAI/NTv3_650M_post — **gated**,
-  and under a **non-commercial** licence. Read the licence section before
+  and under a **non-commercial** license. Read the license section before
   using this.
 - HF collection: `InstaDeepAI/nucleotide-transformer-v3`.
 
 > **Status: experimental.**
 
-## Licence and gating — read this first
+## License and gating — read this first
 
 | Artifact | Terms |
 |---|---|
-| Weights | **InstaDeep NTv3 non-commercial licence.** No commercial use. No training a competing model on this model's outputs. |
+| Weights | **InstaDeep NTv3 non-commercial license.** No commercial use. No training a competing model on this model's outputs. |
 | Upstream code | CC BY-NC-SA 4.0 |
 | HF repo access | **Gated** — an HF account must accept the terms on the model page before any download works |
 

@@ -179,12 +179,12 @@ out-of-distribution warning; boxes beyond that margin raise.
 ## Licensing
 
 **This is the one model in this batch whose weights are not Apache-2.0.** Two
-licences apply to different files in the same repo.
+licenses apply to different files in the same repo.
 
 ### OpenMDW-1.1 (the model weights)
 
 The Linux Foundation's OpenMDW License Agreement version 1.1, a permissive
-licence written specifically for model weights rather than for source code. It
+license written specifically for model weights rather than for source code. It
 governs the "Model Materials": the model architecture and parameters plus all
 related artifacts distributed with them.
 
@@ -207,8 +207,8 @@ What it requires, and this is the whole of it:
    is a response to one brought against you first.
 
 What it explicitly does **not** do, and where it differs from what people
-assume of a model licence: it imposes **no restrictions or obligations on
-outputs**. Fields produced by running this model carry no downstream licence
+assume of a model license: it imposes **no restrictions or obligations on
+outputs**. Fields produced by running this model carry no downstream license
 condition — no attribution requirement, no share-alike, no field-of-use limit.
 There is also no acceptable-use policy and no acceptance step; the repo is
 ungated.

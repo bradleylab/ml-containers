@@ -10,7 +10,7 @@ Successor to Boltz-1.
   `main` still receives commits but no newer tag has been cut.
 - Weights: https://huggingface.co/boltz-community, with a primary host at
   `model-gateway.boltz.bio`. Ungated.
-- **Licence: MIT for the code *and* the weights.** Academic and commercial use
+- **License: MIT for the code *and* the weights.** Academic and commercial use
   are both permitted, with no acceptance step and no gated download.
 
 > **Status: experimental.** Read the silent out-of-memory section below
@@ -40,7 +40,7 @@ Successor to Boltz-1.
 
 and **continues to exit 0** ([upstream issue #167]). A Slurm job that produced
 no structures at all therefore reports success, and nothing downstream
-notices until someone opens the output directory. This behaviour is in both
+notices until someone opens the output directory. This behavior is in both
 `boltz1.py` and `boltz2.py` in v2.2.1.
 
 **Every job must gate on output files existing, not on the exit status.**

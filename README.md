@@ -102,7 +102,7 @@ locally.
 | `croma` | `croma/` | full recipe (CPU multi-arch; Fuller et al. 2023 NeurIPS Sentinel-1/Sentinel-2-native radar-optical foundation model; SAR + optical + joint embeddings; upstream `use_croma.py` pinned; Base baked at build, Large lazy; MIT) |
 | `evo2` | `evo2/` | full recipe — **experimental**, backfilled from the published image (GPU sm_90; Arc Institute DNA language model; NGC PyTorch 25.04; weights via HF Hub) |
 | `esm` | `esm/` | full recipe — **experimental** (GPU sm_90; Chan Zuckerberg Biohub ESMC protein language model; NGC PyTorch 25.04; both git deps SHA-pinned; weights via HF Hub, MIT + ungated) |
-| `clean` | `clean/` | full recipe — **experimental** (**CPU-only**; CLEAN enzyme EC-number prediction over ESM-1b embeddings; weights mounted at runtime, not baked; **research-use-only licence, not MIT**) |
+| `clean` | `clean/` | full recipe — **experimental** (**CPU-only**; CLEAN enzyme EC-number prediction over ESM-1b embeddings; weights mounted at runtime, not baked; **research-use-only license, not MIT**) |
 | `saprot` | `saprot/` | full recipe — **experimental** (GPU sm_90; SaProt structure-aware protein language model; bundles the foldseek binary, so the image is **MIT AND GPL-3.0**; weights via HF Hub, MIT + ungated) |
 | `boltz` | `boltz/` | full recipe — **experimental** (GPU sm_90; Boltz-2 biomolecular complex structure + binding affinity; MIT code *and* weights; weights via HF Hub / `model-gateway.boltz.bio`) |
 | `chai-1` | `chai-1/` | full recipe — **experimental** (GPU sm_90, A100/H100 80 GB; Chai-1 co-folding, MSA-free by default; Apache-2.0 code *and* weights since Nov 2024; weights via `chaiassets.com`) |
@@ -514,11 +514,11 @@ upstream evaluation).
 ### raman-classifier
 
 Path A of the long-deferred Raman mineral classifier slot. RRUFF
-nearest-neighbour matching via [ramanspy](https://doi.org/10.1021/acs.analchem.4c00383)
+nearest-neighbor matching via [ramanspy](https://doi.org/10.1021/acs.analchem.4c00383)
 (Georgiev et al. 2024, *Anal. Chem.*) — no learned weights,
 deterministic, defensible methodology. The `excellent_unoriented`
 RRUFF archive is pulled at build time, preprocessed (Whitaker-Hayes
-despike → SavGol denoise → ASLS baseline → vector L2-normalisation),
+despike → SavGol denoise → ASLS baseline → vector L2-normalization),
 resampled onto a 100-1500 cm⁻¹ fingerprint grid, and baked as a
 single ~30-50 MB numpy index at `/opt/rruff_index.npz` so runtime
 matching is sub-second cosine over a small npz.
@@ -566,7 +566,7 @@ continent at ~1 km tolerance for street-level scenes.
 Xiong et al. 2024) — multispectral / SAR / optical / hyperspectral
 foundation model with a wavelength-conditioning hypernetwork. A
 single ViT backbone adaptable to arbitrary spectral configurations
-via a per-band wavelength input. Trained with masked image modelling
+via a per-band wavelength input. Trained with masked image modeling
 on SatlasPretrain + Five-Billion-Pixels + HySpecNet-11k.
 
 - Base: `python:3.11-slim`
@@ -632,7 +632,7 @@ downstream head.
 - amd64 only (the CUDA base has no arm64 build)
 - Weights baked at build from the **ungated** `timm/` mirror, so enroot
   images are self-contained on offline compute nodes
-  (`facebook/dinov3-*` is manually gated; same weights, same licence)
+  (`facebook/dinov3-*` is manually gated; same weights, same license)
 
 Pull: `ghcr.io/bradleylab/dinov3-sat:v1`
 
@@ -643,7 +643,7 @@ returns 1029 tokens and a naive reshape scrambles the spatial grid; and the
 0.6 m pretraining GSD may be far from yours, with no input size satisfying both
 a fine patch grid and the pretraining scale.
 
-**Licence: DINOv3 License, not open source.** Redistribution is permitted only
+**License: DINOv3 License, not open source.** Redistribution is permitted only
 with a copy of the Agreement — shipped at `/opt/licenses/LICENSE.dinov3.md`,
 inherited by anything built `FROM` this image; do not delete it. Publications
 reporting results from this model **must acknowledge DINO Materials**.
@@ -824,22 +824,22 @@ fork is what provides the ESMC model class. See `esm/README.md`.
 — Contrastive Learning–Enabled Enzyme Annotation. Assigns Enzyme
 Commission (EC) numbers to an amino-acid sequence: embed with ESM-1b,
 project through a contrastively-trained network, assign by distance to
-pre-computed EC cluster centres. One sequence can receive several EC
+pre-computed EC cluster centers. One sequence can receive several EC
 numbers.
 
 > **EXPERIMENTAL.**
 
-> **⚠ Licence: research use only, and not MIT.** GitHub's repository
+> **⚠ License: research use only, and not MIT.** GitHub's repository
 > metadata advertises MIT, but the tree contains **no LICENSE file** —
-> the only licence artifact upstream ships is a
+> the only license artifact upstream ships is a
 > `NON-EXCLUSIVE RESEARCH USE LICENSE FOR CLEAN SOFTWARE.pdf`.
 > Research-use-only and MIT cannot both be true, so the image is built
-> and labelled under the research-use reading
+> and labeled under the research-use reading
 > (`LicenseRef-CLEAN-Non-Exclusive-Research-Use`), deliberately **not**
 > as MIT. Terms for the pretrained weights are stated nowhere at all;
 > treat them as research-use-only by the same reading. University
 > research is accepted as within terms; a commercial pipeline, a
-> third-party service, or redistribution under a permissive licence is
+> third-party service, or redistribution under a permissive license is
 > not established.
 
 - Base: `python:3.10-slim` (upstream's manuscript environment was 3.10.4)
@@ -889,11 +889,11 @@ takes sequence-only input.
   ESM-architecture HF repos, so `EsmTokenizer` / `EsmForMaskedLM` load
   them directly) + `biopython` + `accelerate`
 - **GPU-primary**, native sm_90
-- **Licence: `MIT AND GPL-3.0`.** SaProt's code and weights are MIT, but
+- **License: `MIT AND GPL-3.0`.** SaProt's code and weights are MIT, but
   this image bundles the **foldseek** binary (release `10-941cd33`), which
   is **GPL-3.0**. The binary is an unmodified upstream release invoked as
   a subprocess — the arrangement foldseek itself documents — but the
-  licence mix matters before this image is redistributed outside the lab.
+  license mix matters before this image is redistributed outside the lab.
 
 Pull: `ghcr.io/bradleylab/saprot:v1`
 
@@ -935,7 +935,7 @@ to Boltz-1.
   0.6.1 (unpinned, 0.11.1 promotes `torch>=2.11` to a hard runtime
   dependency and silently replaces the base image's torch and CUDA stack)
 - **GPU-primary**, sm_90; upstream CLI `boltz predict`
-- **Licence: MIT for the code *and* the weights** — academic and
+- **License: MIT for the code *and* the weights** — academic and
   commercial use both permitted, no acceptance step, no gated download.
 
 Pull: `ghcr.io/bradleylab/boltz:v1`
@@ -973,7 +973,7 @@ MSAs still help and are supported.
 - Stack: `chai_lab==0.6.1` from PyPI, pinned to the release tag
 - **GPU-primary**, sm_90; upstream recommends A100/H100 80 GB or an
   L40S 48 GB. CLI: `chai-lab fold`
-- **Licence: Apache-2.0 for the code *and* the weights.** Chai Discovery
+- **License: Apache-2.0 for the code *and* the weights.** Chai Discovery
   relicensed in **November 2024**; the original September-2024
   research-only terms no longer apply, and academic and commercial use are
   both permitted. Any older lab note describing Chai-1 as restrictively
@@ -1053,8 +1053,8 @@ files — plus base-resolution annotation suitable for writing out as BED.
 
 > **EXPERIMENTAL.**
 
-> **⚠ Licence: non-commercial, and the weights are HF-gated.** The weights
-> carry the **InstaDeep NTv3 non-commercial licence** (no commercial use;
+> **⚠ License: non-commercial, and the weights are HF-gated.** The weights
+> carry the **InstaDeep NTv3 non-commercial license** (no commercial use;
 > no training a competing model on this model's outputs) and upstream code
 > is **CC BY-NC-SA 4.0**. An HF account must accept the terms on the model
 > page before any download works. University research at WashU is in
