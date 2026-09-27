@@ -1258,6 +1258,26 @@ update its card *in the same PR*. Top-level `README.md` and
 
 ---
 
+## nasa-ibm-lunar-fm
+
+| | |
+|--|--|
+| Task | Lunar remote-sensing foundation model (ViT-B, masked-token pretraining over 11 modalities); released fine-tunes for crater detection (NAC, WAC), irregular mare patch segmentation (NAC) and polar ice-prospectivity regression |
+| Sensor | LROC NAC (~1 m/px) and WAC (~100 m/px) imagery with co-registered terrain; Diviner-derived thermophysical and illumination layers for ice prospectivity (240 m/px) |
+| Upstream repo | [NASA-IMPACT/NASA-IBM-Lunar-Foundation-Model](https://github.com/NASA-IMPACT/NASA-IBM-Lunar-Foundation-Model) @ `d54c67a` |
+| Upstream license | Apache-2.0; NOTICE credits 4M/MultiMAE and others, all Apache-2.0 or MIT |
+| Paper | [arXiv:2609.13283](https://arxiv.org/abs/2609.13283) |
+| Weights source | **Not baked.** [Hugging Face collection](https://huggingface.co/collections/nasa-ibm-ai4science/nasa-ibm-lunar-fm-and-downstream-models-6a96f44c430791be886ca331), ungated: backbone 2.4 GB, crater 2.85 GB, IMP 1.09 GB, ice 1.70 GB; nine generation tokenizers 10.3 GB (not staged). Staged on Storage3 at `Active/nasa-ibm-lunar-fm`, revisions pinned in `scripts/stage_weights.py` |
+| Weights license | Apache-2.0 (all four model repositories); SomBench benchmark datasets CC-BY-4.0 |
+| Container stack | `python:3.12-slim-bookworm`, `torch==2.12.1` + `torchvision==0.27.1` (CUDA 12.9), upstream package editable at `/opt/ni-lfm`, TerraTorch + Lightning + torchgeo + timm + diffusers; full dependency set frozen in `constraints.txt` (146 pins, resolved 2026-09-27) |
+| H100 status | **Not yet run** — `SMOKE.md` step 2 reruns the published ice-prospectivity and IMP test scores |
+| Lab status | **experimental** — never run on lab data |
+| First-run / current behavior | Build smoke test only: torch and TerraTorch import separately under faulthandler, the three `ni_lfm_v1_*` backbones register with TerraTorch, and the configs are present in the source tree. Offline, no weights |
+| Tags | `:v1` (= `:latest` = `:torch2.12-cu129`); no weights or data baked |
+| Notes | **Published test scores** (mean ± sd over 5 seeds, from the model cards): ice prospectivity RMSE 0.0293 ± 0.0013, R² 0.9884 ± 0.0010; IMP IoU₁ 0.5709 ± 0.0114; WAC crater mAP 0.2581 ± 0.0017; NAC crater mAP 0.1543 ± 0.0098. **Ice-prospectivity outputs emulate an expert fuzzy-overlay map, not measured ice**, and the backbone keeps no geodetic reference frame. The configs resolve `terratorch_integration/`, `backbone/` and `data/` relative to the working directory — run `lfm-link` first. The model cards' usage paths (`configs/finetune/...`) do not exist in the repository. Unrelated to `lunarfm` (FDL / Trillium) |
+
+---
+
 ## Deprecated images
 
 For history of `bradleylab/multispec-species` and `bradleylab/tree-analysis`, see [`DEPRECATIONS.md`](DEPRECATIONS.md).

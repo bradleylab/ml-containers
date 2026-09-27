@@ -20,6 +20,11 @@
     "reason": "No machine-readable LICENSE upstream, so the API reports NOASSERTION. The non-commercial term comes from the repo text and the paper. Non-commercial either way; do not treat as permissive.",
     "reviewed": "2026-08-19"
   },
+  "nasa-ibm-lunar-fm": {
+    "label": "Apache-2.0",
+    "reason": "The upstream LICENSE is headed Apache License 2.0 but is not the verbatim text, so the API reports NOASSERTION. It departs from the canonical file in wording only: the definition of 'submitted' (sec. 1), the trademark clause (sec. 6), the warranty clause (sec. 9) and the appendix boilerplate. The grant, patent and redistribution sections (2-4) match word for word. The README states Apache 2.0 and all four Hugging Face model repositories are tagged apache-2.0.",
+    "reviewed": "2026-09-27"
+  },
   "raman-classifier": {
     "label": "MIT",
     "reason": "Packages RamanSPy, which is BSD-3-Clause. BSD-3 permits redistribution under other terms provided attribution is kept, so MIT packaging over it is sound — unlike MIT over a copyleft upstream.",

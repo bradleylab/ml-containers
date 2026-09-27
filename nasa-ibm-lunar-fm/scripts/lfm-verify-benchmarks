@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Rerun two of upstream's published SomBench test scores with the released
+# checkpoints, so a stack change is caught as a changed number rather than
+# trusted because it imported. Ice prospectivity and IMP segmentation are the
+# two whose test splits are small enough (25 patches, 10 tiles) to run in
+# minutes; the published values are printed beside each run for comparison.
+#
+#   lfm-verify-benchmarks [workdir]      default: a fresh directory under /tmp
+#
+# Needs the staged copy mounted at /weights (see README.md).
+set -euo pipefail
+
+work=${1:-$(mktemp -d /tmp/lfm-verify.XXXXXX)}
+mkdir -p "$work" && cd "$work"
+lfm-link
+
+hf=${LFM_HF_DIR:-/weights/hf}
+ice=$hf/Ice-Prospectivity-NASA-IBM-Lunar-Foundation-Model
+imp=$hf/IMP-Segmentation-NASA-IBM-Lunar-Foundation-Model
+
+# The configs set `deterministic: true`, and deterministic cuBLAS needs this
+# workspace setting or PyTorch refuses the affected ops.
+export CUBLAS_WORKSPACE_CONFIG=${CUBLAS_WORKSPACE_CONFIG:-:4096:8}
+
+echo "=== ice prospectivity: published RMSE 0.0293 ± 0.0013, MAE 0.0197 ± 0.0009, R² 0.9884 ± 0.0010 (5 seeds) ==="
+terratorch test --config "$ice/config.yaml" --ckpt_path "$ice/ni_lfm_ps8_all_modalities_s42.ckpt"
+
+echo "=== IMP segmentation: published IoU₁ 0.5709 ± 0.0114, F1₁ 0.7268 ± 0.0093 (5 seeds) ==="
+terratorch test --config "$imp/config.yaml" --ckpt_path "$imp/ni_lfm_ps8_frozen_s44.ckpt"
+
+echo "VERIFY DONE (workdir $work)"
