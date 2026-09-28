@@ -45,6 +45,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
     MPLBACKEND=Agg \
     TORCH_HOME=/opt/torch-cache
 
+# libexpat1: rasterio's manylinux wheel, pulled in by TorchGeo, links against the
+# system expat, which python:slim does not ship; without it `import torchgeo`
+# fails with libexpat.so.1 not found.
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # TorchGeo 0.10.0 sets no upper bound on torch. 2.13.0 with torchvision 0.28.0
 # was the newest pair on PyPI when TorchGeo 0.10.0 was released (2026-08-14).
 # The CUDA 12.9 build matches nasa-ibm-lunar-fm, and Compute2's driver

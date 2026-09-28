@@ -58,7 +58,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     MPLBACKEND=Agg \
     TORCH_HOME=/weights/torch-cache
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+# libexpat1: rasterio's manylinux wheel, pulled in by TorchGeo, links against the
+# system expat, which python:slim does not ship; without it `import torchgeo`
+# fails with libexpat.so.1 not found.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 # torch 2.13.0 / torchvision 0.28.0 are the versions TorchGeo 0.10.0's own
