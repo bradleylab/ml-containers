@@ -1,0 +1,238 @@
+#!/usr/bin/env python
+"""One 6-hour Aurora step from an ERA5 or IFS HRES T0 state read anonymously
+from WeatherBench2, scored against the verifying state and against persistence.
+
+    aurora-verify-onestep pretrained|finetuned|small [--weights DIR] [--device DEV]
+                          [--cache DIR [--fetch-only]]
+
+Each case restates one of upstream's worked examples at v2.0.1, with the data
+source swapped for WeatherBench2 on public Google Cloud Storage so the job
+needs no Copernicus account:
+
+  pretrained  Aurora 0.25° Pretrained on ERA5, initial state 2023-01-01 00 and
+              06 UTC, as in docs/example_era5.ipynb (which reads ERA5 from CDS).
+  finetuned   Aurora 0.25° Fine-Tuned on IFS HRES T0, initial state 2022-05-11
+              00 and 06 UTC, as in docs/example_hres_t0.ipynb.
+  small       Aurora 0.25° Small Pretrained on the ERA5 case. Upstream calls this
+              model a debugging aid; here it is a cheap dry run of the data path.
+
+The static fields (lsm, slt, z) come from aurora-0.25-static.pickle rather than
+from CDS; upstream's model docs offer the pickle for this purpose and its own
+Foundry demo pairs it with WeatherBench2 HRES T0 in the same way.
+
+Every score is a cos(latitude)-weighted RMSE over the global grid. Persistence
+is the 06 UTC state carried forward unchanged to 12 UTC. The check passes when
+every score is finite and the model beats persistence on every variable; the
+exit status is non-zero otherwise.
+
+With --cache the three states are written there as netCDF on the first run and
+read back on later ones, so the reads can happen in a CPU job and the GPU job
+needs no network; --fetch-only stops after writing them.
+"""
+
+import argparse
+import math
+import pickle
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+import torch
+import xarray as xr
+
+from aurora import (
+    Aurora,
+    AuroraPretrained,
+    AuroraSmallPretrained,
+    Batch,
+    Metadata,
+    rollout,
+)
+
+STORES = {
+    "era5": "gs://weatherbench2/datasets/era5/1959-2023_01_10-wb13-6h-1440x721.zarr",
+    "hres_t0": "gs://weatherbench2/datasets/hres_t0/2016-2022-6h-1440x721.zarr",
+}
+SURF = {
+    "2t": "2m_temperature",
+    "10u": "10m_u_component_of_wind",
+    "10v": "10m_v_component_of_wind",
+    "msl": "mean_sea_level_pressure",
+}
+ATMOS = {
+    "t": "temperature",
+    "u": "u_component_of_wind",
+    "v": "v_component_of_wind",
+    "q": "specific_humidity",
+    "z": "geopotential",
+}
+# (Aurora name, pressure level in hPa or None for a surface variable, units)
+SCORED = [
+    ("z", 500, "m2 s-2"),
+    ("t", 850, "K"),
+    ("u", 850, "m s-1"),
+    ("2t", None, "K"),
+    ("10u", None, "m s-1"),
+    ("msl", None, "Pa"),
+]
+STEP = np.timedelta64(6, "h")
+
+
+@dataclass(frozen=True)
+class Case:
+    model_cls: type
+    checkpoint: str
+    store: str
+    init: str  # the second history time; the model predicts init + 6 h
+
+
+CASES = {
+    "pretrained": Case(
+        AuroraPretrained, "aurora-0.25-pretrained.ckpt", "era5", "2023-01-01T06"
+    ),
+    "finetuned": Case(Aurora, "aurora-0.25-finetuned.ckpt", "hres_t0", "2022-05-11T06"),
+    "small": Case(
+        AuroraSmallPretrained,
+        "aurora-0.25-small-pretrained.ckpt",
+        "era5",
+        "2023-01-01T06",
+    ),
+}
+
+
+def read_states(store: str, init: np.datetime64) -> xr.Dataset:
+    """Previous, current and verifying states, north-to-south as Aurora requires."""
+    ds = xr.open_zarr(STORES[store], storage_options={"token": "anon"}, chunks=None)
+    times = [init - STEP, init, init + STEP]
+    sub = ds[list(SURF.values()) + list(ATMOS.values())].sel(time=times).load()
+    return sub.sortby("latitude", ascending=False)
+
+
+def load_states(store: str, init: np.datetime64, cache: Path | None) -> xr.Dataset:
+    path = cache / f"{store}-{init}.nc" if cache else None
+    if path and path.exists():
+        return xr.open_dataset(path).load()
+    t = time.time()
+    states = read_states(store, init)
+    print(
+        f"read {STORES[store]} {init - STEP} .. {init + STEP} in {time.time() - t:.0f} s",
+        flush=True,
+    )
+    if path:
+        cache.mkdir(parents=True, exist_ok=True)
+        states.to_netcdf(path)
+        print(f"cached -> {path}")
+    return states
+
+
+def make_batch(states: xr.Dataset, statics: dict[str, np.ndarray]) -> Batch:
+    def history(name: str) -> torch.Tensor:
+        return torch.from_numpy(states[name].values[:2][None].copy())
+
+    init = states.time.values[1].astype("datetime64[s]").item()
+    return Batch(
+        surf_vars={k: history(v) for k, v in SURF.items()},
+        static_vars={k: torch.from_numpy(statics[k]) for k in ("lsm", "slt", "z")},
+        atmos_vars={k: history(v) for k, v in ATMOS.items()},
+        metadata=Metadata(
+            lat=torch.from_numpy(states.latitude.values.copy()),
+            lon=torch.from_numpy(states.longitude.values.copy()),
+            time=(init,),
+            atmos_levels=tuple(int(level) for level in states.level.values),
+        ),
+    )
+
+
+def weighted_rmse(a: np.ndarray, b: np.ndarray, lat: np.ndarray) -> float:
+    w = np.cos(np.deg2rad(lat))[:, None]
+    w = w / w.mean()
+    return float(np.sqrt(np.mean(w * (a - b) ** 2)))
+
+
+def field(
+    states: xr.Dataset, name: str, level: int | None, t: int, nlat: int
+) -> np.ndarray:
+    source = SURF.get(name) or ATMOS[name]
+    da = states[source].isel(time=t)
+    if level is not None:
+        da = da.sel(level=level)
+    return da.values[:nlat]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("case", choices=sorted(CASES))
+    parser.add_argument("--weights", type=Path, default=Path("/weights"))
+    parser.add_argument(
+        "--device", default="cuda" if torch.cuda.is_available() else "cpu"
+    )
+    parser.add_argument("--cache", type=Path)
+    parser.add_argument("--fetch-only", action="store_true")
+    args = parser.parse_args()
+    case = CASES[args.case]
+    init = np.datetime64(case.init, "h")
+
+    states = load_states(case.store, init, args.cache)
+    if args.fetch_only:
+        return 0
+    with open(args.weights / "aurora-0.25-static.pickle", "rb") as f:
+        statics = pickle.load(f)
+    batch = make_batch(states, statics)
+
+    model = case.model_cls()
+    model.load_checkpoint_local(str(args.weights / case.checkpoint))
+    model.eval()
+    model = model.to(args.device)
+
+    t = time.time()
+    with torch.inference_mode():
+        (pred,) = [p.to("cpu") for p in rollout(model, batch, steps=1)]
+    print(
+        f"{case.checkpoint} on {args.device}: one step in {time.time() - t:.1f} s",
+        flush=True,
+    )
+    if args.device.startswith("cuda"):
+        print(
+            f"peak GPU memory allocated: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB"
+        )
+
+    valid = (init + STEP).astype("datetime64[s]").item()
+    assert pred.metadata.time == (valid,), (
+        f"prediction valid at {pred.metadata.time}, expected {valid}"
+    )
+    # Aurora drops the last latitude row (the South Pole) to reach a multiple
+    # of its patch size, so the scores cover the rows the prediction has.
+    lat = pred.metadata.lat.numpy()
+    nlat = lat.size
+    assert np.allclose(lat, states.latitude.values[:nlat]), (
+        "prediction grid differs from input grid"
+    )
+    levels = list(pred.metadata.atmos_levels)
+
+    ok = True
+    print(f"\n{'variable':<10}{'model RMSE':>14}{'persistence':>14}{'ratio':>8}  units")
+    for name, level, units in SCORED:
+        if level is None:
+            p = pred.surf_vars[name][0, 0].numpy()
+        else:
+            p = pred.atmos_vars[name][0, 0, levels.index(level)].numpy()
+        truth = field(states, name, level, 2, nlat)
+        persist = field(states, name, level, 1, nlat)
+        m, r = weighted_rmse(p, truth, lat), weighted_rmse(persist, truth, lat)
+        passed = math.isfinite(m) and m < r
+        ok &= passed
+        label = f"{name}{level or ''}"
+        print(
+            f"{label:<10}{m:>14.4g}{r:>14.4g}{m / r:>8.3f}  {units}{'' if passed else '  FAIL'}"
+        )
+
+    print(
+        f"\n{args.case}: {'PASS' if ok else 'FAIL'} (valid time {valid:%Y-%m-%d %H:%M} UTC)"
+    )
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

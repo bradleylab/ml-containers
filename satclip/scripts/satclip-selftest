@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Check that every baked SatCLIP checkpoint loads and embeds sensibly.
+
+For each checkpoint: the location encoder loads offline, four known places give
+finite 256-dimensional embeddings, and St. Louis is more similar (cosine) to
+Kirkwood, MO, about 20 km away, than to the Sahara or the Amazon basin.
+Coordinates are Wikipedia's for each place.
+
+  satclip-selftest               CPU; the image build runs this
+  satclip-selftest --device cuda on a GPU node; also requires CUDA to be visible
+"""
+
+import argparse
+import importlib.metadata as im
+import os
+import sys
+from pathlib import Path
+
+import torch
+from load_lightweight import get_satclip_loc_encoder
+
+WEIGHTS_DIR = Path(os.environ.get("SATCLIP_WEIGHTS", "/opt/satclip-weights"))
+CHECKPOINTS = (
+    "vit16-l40",
+    "vit16-l10",
+    "resnet50-l40",
+    "resnet50-l10",
+    "resnet18-l40",
+    "resnet18-l10",
+)
+EMBED_DIM = 256
+# (lon, lat), the order SatCLIP's encoder expects
+PLACES = {
+    "St. Louis": (-90.19777778, 38.62722222),
+    "Kirkwood": (-90.42027778, 38.57888889),
+    "Sahara": (13.0, 23.0),
+    "Amazon basin": (-60.0, -3.0),
+}
+PACKAGES = ("torch", "einops", "numpy", "pandas", "pyarrow")
+
+
+def check(name: str, coords: torch.Tensor, device: str) -> str:
+    encoder = get_satclip_loc_encoder(str(WEIGHTS_DIR / f"satclip-{name}.ckpt"), device)
+    with torch.no_grad():
+        emb = encoder(coords.to(device)).cpu()
+    assert emb.shape == (len(PLACES), EMBED_DIM), f"{name}: shape {tuple(emb.shape)}"
+    assert torch.isfinite(emb).all(), f"{name}: non-finite values"
+    unit = torch.nn.functional.normalize(emb, dim=1)
+    near, sahara, amazon = ((unit[0] @ unit[i]).item() for i in (1, 2, 3))
+    assert near > sahara and near > amazon, (
+        f"{name}: {near=:.3f} {sahara=:.3f} {amazon=:.3f}"
+    )
+    return (
+        f"{name:>13}  cos(St. Louis, Kirkwood) {near:.3f}   "
+        f"Sahara {sahara:.3f}   Amazon basin {amazon:.3f}"
+    )
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--device", default="cpu")
+    args = ap.parse_args()
+    if args.device.startswith("cuda"):
+        assert torch.cuda.is_available(), "CUDA requested but no GPU is visible"
+        print("GPU:", torch.cuda.get_device_name(0))
+
+    print(
+        " | ".join(f"{p} {im.version(p)}" for p in PACKAGES),
+        f"| torch CUDA build {torch.version.cuda}",
+    )
+    coords = torch.tensor(list(PLACES.values()), dtype=torch.float64)
+    for name in CHECKPOINTS:
+        print(check(name, coords, args.device))
+    print("SELFTEST OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

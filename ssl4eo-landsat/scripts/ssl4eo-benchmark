@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+"""Reproduce one SSL4EO-L benchmark cell: Landsat 7 ETM+ SR, CDL, ResNet-18 MoCo.
+
+Stewart et al. (2023), Table 2, report 67.30 % overall accuracy and 50.71 mIoU
+for a U-Net on a frozen ResNet-18 MoCo backbone, against 60.70 % and 43.58 for
+the same U-Net on ImageNet weights. That 6.6-point gap is the largest MoCo gain
+in the table, so a run that lands near 67 % shows the SSL4EO-L weights were
+loaded and used, not merely imported.
+
+The training recipe follows the paper (Section 3) and TorchGeo's released
+config for this cell (experiments/ssl4eo/landsat/conf/
+ssl4eo_benchmark_etm_sr_cdl.yaml at releases/v0.5): frozen encoder, U-Net
+decoder, cross-entropy with class 0 ignored, batch 64, 20-100 epochs,
+ReduceLROnPlateau patience 6, and the 18 CDL classes listed there.
+
+    ssl4eo-benchmark stage  ROOT            download + extract the benchmark
+    ssl4eo-benchmark run    ROOT OUT LR     fit, then test the best checkpoint
+"""
+
+import importlib.metadata as im
+import sys
+from pathlib import Path
+
+import torch
+from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import CSVLogger
+from torchgeo.datamodules import SSL4EOLBenchmarkDataModule
+from torchgeo.datasets import SSL4EOLBenchmark
+from torchgeo.models import ResNet18_Weights
+from torchgeo.tasks import SemanticSegmentation
+
+SENSOR = "etm_sr"
+PRODUCT = "cdl"
+WEIGHTS = ResNet18_Weights.LANDSAT_ETM_SR_MOCO
+# From ssl4eo_benchmark_etm_sr_cdl.yaml (TorchGeo releases/v0.5): the CDL
+# classes covering > 1 % of the area, with every other class mapped to 0.
+CLASSES = [0, 1, 5, 24, 36, 37, 61, 111, 121, 122, 131, 141, 142, 143, 152, 176, 190, 195]
+BATCH_SIZE = 64
+MIN_EPOCHS = 20
+MAX_EPOCHS = 100
+LR_PATIENCE = 6
+# torchgeo's LightningCLI seeds with 0 by default (torchgeo/main.py).
+SEED = 0
+NUM_WORKERS = 16
+
+PUBLISHED = {"accuracy": 67.30, "miou": 50.71}
+IMAGENET_BASELINE = {"accuracy": 60.70, "miou": 43.58}
+
+
+def stage(root: Path) -> None:
+    # Instantiating one split downloads both archives (imagery and CDL masks),
+    # checks their SHA-256 and extracts them; the other splits read the same files.
+    ds = SSL4EOLBenchmark(root=root, sensor=SENSOR, product=PRODUCT, split="train",
+                          classes=CLASSES, download=True, checksum=True)
+    print(f"staged {SENSOR}/{PRODUCT} under {root}: {len(ds)} training patches")
+
+
+def run(root: Path, out: Path, lr: float) -> None:
+    assert torch.cuda.is_available(), "no GPU visible"
+    print("torch", torch.__version__, "| cuda build", torch.version.cuda,
+          "| torchgeo", im.version("torchgeo"), "| lightning", im.version("lightning"),
+          "| segmentation-models-pytorch", im.version("segmentation-models-pytorch"))
+    print("device", torch.cuda.get_device_name(0),
+          "| capability", torch.cuda.get_device_capability(0))
+    seed_everything(SEED)
+
+    dm = SSL4EOLBenchmarkDataModule(batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,
+                                    root=root, sensor=SENSOR, product=PRODUCT,
+                                    classes=CLASSES)
+    task = SemanticSegmentation(model="unet", backbone="resnet18", weights=WEIGHTS,
+                                in_channels=WEIGHTS.meta["in_chans"],
+                                num_classes=len(CLASSES), loss="ce", ignore_index=0,
+                                lr=lr, patience=LR_PATIENCE, freeze_backbone=True)
+    # The paper stops early but does not give the stopping patience, so the run
+    # goes to MAX_EPOCHS and tests the epoch with the lowest validation loss,
+    # the model early stopping would have kept.
+    best = ModelCheckpoint(dirpath=out / "checkpoints", filename="best",
+                           monitor="val_loss", mode="min", save_top_k=1)
+    trainer = Trainer(accelerator="gpu", devices=1, min_epochs=MIN_EPOCHS,
+                      max_epochs=MAX_EPOCHS, callbacks=[best],
+                      logger=CSVLogger(out), default_root_dir=out)
+    trainer.fit(task, datamodule=dm)
+    (result,) = trainer.test(task, datamodule=dm, ckpt_path="best")
+
+    # TorchGeo 0.5, the first release with the paper's code, logged
+    # micro-averaged Jaccard as its IoU; in 0.10 that is OverallJaccardIndex,
+    # not the macro AverageJaccardIndex.
+    acc = 100 * result["test_OverallAccuracy"]
+    miou = 100 * result["test_OverallJaccardIndex"]
+    print(f"lr {lr:g} | best epoch val_loss {best.best_model_score:.4f} ({best.best_model_path})")
+    print(f"test overall accuracy {acc:.2f}  (published {PUBLISHED['accuracy']:.2f}, "
+          f"ImageNet baseline {IMAGENET_BASELINE['accuracy']:.2f})")
+    print(f"test mIoU (micro)     {miou:.2f}  (published {PUBLISHED['miou']:.2f}, "
+          f"ImageNet baseline {IMAGENET_BASELINE['miou']:.2f})")
+
+
+def main() -> None:
+    match sys.argv[1:]:
+        case ["stage", root]:
+            stage(Path(root))
+        case ["run", root, out, lr]:
+            run(Path(root), Path(out), float(lr))
+        case _:
+            sys.exit(__doc__)
+
+
+if __name__ == "__main__":
+    main()

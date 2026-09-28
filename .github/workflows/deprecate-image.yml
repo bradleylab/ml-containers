@@ -3,7 +3,7 @@ name: Deprecate image (tag :deprecated)
 # Manually re-tags a superseded image's existing manifest as :deprecated
 # (server-side copy, no rebuild). Use after renaming or replacing an image
 # so the old GHCR package signals "still pullable, do not start new work
-# against it" (per ~/.claude/rules/ml-containers.md tag conventions).
+# against it" (the repository's tag conventions).
 # Runs in CI so nothing is pushed from a laptop.
 
 on:

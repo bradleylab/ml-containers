@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+"""Upstream's reference-output test for Aurora 0.25° Small Pretrained, run
+against the staged files instead of fresh Hugging Face downloads.
+
+    aurora-verify-small [--weights DIR] [--device DEV]
+
+This restates test_aurora_small in tests/test_model.py at microsoft/aurora
+v2.0.1: the small checkpoint, in float64, predicts one step from a saved input
+batch, and each variable's mean absolute error relative to the saved output
+must fall inside upstream's per-variable tolerance. Upstream's CI runs it on
+x86-64 Linux CPUs, so --device cpu on a Compute2 node reproduces that platform;
+--device cuda then checks the image's GPU path against the same reference. It
+needs no network.
+"""
+
+import argparse
+import pickle
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+
+from aurora import AuroraSmallPretrained, Batch, Metadata
+from aurora.batch import interpolate_numpy
+
+# Upstream's tolerances; wind and specific humidity are looser there too.
+TOLERANCES = {
+    "2t": 1e-4,
+    "10u": 5e-3,
+    "10v": 5e-3,
+    "msl": 1e-4,
+    "u": 5e-3,
+    "v": 5e-3,
+    "t": 1e-4,
+    "q": 5e-3,
+}
+
+
+def load(path: Path):
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--weights", type=Path, default=Path("/weights"))
+    parser.add_argument(
+        "--device", default="cuda" if torch.cuda.is_available() else "cpu"
+    )
+    args = parser.parse_args()
+    w = args.weights
+
+    test_input = load(w / "aurora-0.25-small-pretrained-test-input.pickle")
+    test_output = load(w / "aurora-0.25-small-pretrained-test-output.pickle")
+    meta = test_input["metadata"]
+    # The saved batch is on a coarser grid than the 0.25° static fields, so
+    # upstream interpolates them onto it; the same call is repeated here.
+    statics = {
+        k: interpolate_numpy(
+            v,
+            np.linspace(90, -90, v.shape[0]),
+            np.linspace(0, 360, v.shape[1], endpoint=False),
+            meta["lat"],
+            meta["lon"],
+        )
+        for k, v in load(w / "aurora-0.25-static.pickle").items()
+    }
+    batch = Batch(
+        surf_vars={k: torch.from_numpy(v) for k, v in test_input["surf_vars"].items()},
+        static_vars={k: torch.from_numpy(v) for k, v in statics.items()},
+        atmos_vars={
+            k: torch.from_numpy(v) for k, v in test_input["atmos_vars"].items()
+        },
+        metadata=Metadata(
+            lat=torch.from_numpy(meta["lat"]),
+            lon=torch.from_numpy(meta["lon"]),
+            atmos_levels=tuple(meta["atmos_levels"]),
+            time=tuple(meta["time"]),
+        ),
+    )
+
+    # use_lora=True with strict=False mirrors upstream's fixture: the LoRA
+    # layers exist in the model but not in the checkpoint.
+    model = AuroraSmallPretrained(use_lora=True)
+    model.load_checkpoint_local(
+        str(w / "aurora-0.25-small-pretrained.ckpt"), strict=False
+    )
+    model = model.double().eval().to(args.device)
+    with torch.inference_mode():
+        pred = model.forward(batch).to("cpu")
+
+    ok = True
+    print(f"{'variable':<10}{'rel. MAE':>12}{'tolerance':>12}  (device {args.device})")
+    groups = (("surf_vars", pred.surf_vars), ("atmos_vars", pred.atmos_vars))
+    for group, values in groups:
+        for k, v in values.items():
+            ref = test_output[group][k]
+            rel = float(np.abs(v.numpy() - ref).mean() / np.abs(ref).mean())
+            passed = rel <= TOLERANCES[k]
+            ok &= passed
+            print(
+                f"{k:<10}{rel:>12.2e}{TOLERANCES[k]:>12.0e}{'' if passed else '  FAIL'}"
+            )
+    assert pred.metadata.time == tuple(test_output["metadata"]["time"]), (
+        "valid time differs"
+    )
+
+    print(f"\nsmall-model reference test: {'PASS' if ok else 'FAIL'}")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

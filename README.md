@@ -133,6 +133,13 @@ locally.
 | `insar-unwrap` | `insar-unwrap/` | full recipe — **experimental** (GPU sm_90; learned InSAR phase unwrapping to line-of-sight displacement, U-Net family; MIT code, CC-BY-4.0 weights fetched at runtime) |
 | `n2n4m` | `n2n4m/` | full recipe — **experimental** (GPU; Noise2Noise denoising of CRISM Mars SWIR hyperspectral data, 350 of 438 channels; MIT code *and* weights, committed upstream) |
 | `nasa-ibm-lunar-fm` | `nasa-ibm-lunar-fm/` | full recipe — **experimental** (GPU sm_90; NASA-IBM Lunar Foundation Model — ViT-B multimodal lunar backbone over LROC NAC and WAC, with fine-tuned crater detection, irregular mare patch segmentation and polar ice-prospectivity checkpoints, via TerraTorch; weights NOT baked, staged on Storage3; Apache-2.0 code *and* weights, SomBench benchmarks CC-BY-4.0) |
+| `copernicus-fm` | `copernicus-fm/` | full recipe — **experimental** (GPU sm_90; Copernicus-FM — DOFA's successor from zhu-xlab: one ViT-B/16 for any spectral sensor by wavelength and bandwidth plus Sentinel-5P and DEM variables by name, via TorchGeo; weights NOT baked, staged on Storage3 (trained on Llama 3.2 outputs); MIT code, **CC-BY-4.0 weights**) |
+| `ssl4eo-landsat` | `ssl4eo-landsat/` | full recipe — **experimental** (GPU sm_90; SSL4EO-L self-supervised ResNet-18/50 and ViT-S/16 encoders for Landsat 4–5 TM, 7 ETM+ and 8–9 OLI/TIRS, TOA and SR, via TorchGeo; all 30 checkpoints baked; MIT code, CC0 weights) |
+| `satclip` | `satclip/` | full recipe — **experimental** (GPU optional; SatCLIP location encoder — longitude/latitude to a 256-d embedding for geospatial regression covariates; all six checkpoints baked; image encoder not included; MIT) |
+| `anysat` | `anysat/` | full recipe — **experimental** (GPU sm_90; AnySat — one JEPA encoder over any mix of 11 sensors, VHR aerial/NAIP with Sentinel-1/2, Landsat and MODIS time series; tile, patch and dense features; weights baked; MIT) |
+| `panopticon` | `panopticon/` | full recipe — **experimental** (GPU sm_90; Panopticon — any-sensor DINOv2 ViT-B/14 taking each band by center wavelength, SAR by category; cost grows steeply with band count; teacher weights baked; Apache-2.0 code, **CC-BY-4.0 weights**) |
+| `fraxtex` | `fraxtex/` | full recipe — **experimental** (GPU optional; fraXteX fracture segmentation of outcrop orthomosaics — four ONNX models on RGB or RGB+DEM, run with the lab's own tiled GeoTIFF inference; weights baked; MIT weights, Apache-2.0 SAM 2 encoder; upstream code unlicensed and not included) |
+| `aurora` | `aurora/` | full recipe — **experimental** (GPU sm_90; Microsoft Aurora — 1.3B-parameter Earth-system model, 0.25° global weather in 6 h steps from ERA5 or IFS HRES; weights NOT baked, staged on Storage3; MIT code *and* weights) |
 | `poseidon` | `poseidon/` | full recipe — **experimental** (GPU sm_90; Poseidon PDE foundation models (scOT) — solution-operator learning for Euler/Navier-Stokes/wave/Poisson/Helmholtz, finetunable onto a downstream operator; Poseidon-T baked, B and L at runtime; **code carries NO license upstream, weights CC-BY-NC-4.0 — not listed on the public catalog**) |
 | `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
@@ -1893,3 +1900,91 @@ Unrelated to `lunarfm` (FDL / Trillium, PolyForm Strict, `ml-jobs` only) beyond
 the subject. Beside `crater-detection`, which matches craters to a catalog for
 position fixing; these crater checkpoints are benchmark detectors without
 catalog matching.
+
+### copernicus-fm
+
+Copernicus-FM ([Wang et al. 2025](https://arxiv.org/abs/2503.11849)), the
+successor to `dofa` from the same group: a ViT-B/16 that takes any spectral
+sensor by wavelength and bandwidth, and Sentinel-5P trace gases or the
+Copernicus DEM by an embedding of the variable's name, with optional location,
+time and pixel-area metadata. It runs through TorchGeo 0.10.0.
+
+Wavelengths here are in nanometers; `dofa` takes micrometers. The variable-name
+embeddings needed for Sentinel-5P and DEM input are Llama 3.2 encodings under
+the Llama 3.2 Community License and are fetched separately. The model weights
+are staged on Storage3 rather than baked: they were pretrained on those Llama
+encodings, and the lab does not redistribute them.
+
+Pull: `ghcr.io/bradleylab/copernicus-fm:v1` · details in [`copernicus-fm/README.md`](copernicus-fm/README.md)
+
+### ssl4eo-landsat
+
+SSL4EO-L ([Stewart et al. 2023](https://arxiv.org/abs/2306.09424)):
+self-supervised MoCo v2 and SimCLR encoders (ResNet-18, ResNet-50, ViT-S/16)
+for each Landsat sensor and processing level — Landsat 4–5 TM TOA, Landsat 7
+ETM+ TOA and SR, Landsat 8–9 OLI/TIRS TOA and OLI SR. The TM and ETM+ weights
+are what `clay` and `prithvi-eo`, trained on Landsat 8–9, do not cover: they
+reach back to the 1980s. All 30 checkpoints TorchGeo references are baked
+(2.28 GB).
+
+Pull: `ghcr.io/bradleylab/ssl4eo-landsat:v1` · details in [`ssl4eo-landsat/README.md`](ssl4eo-landsat/README.md)
+
+### satclip
+
+SatCLIP ([Klemmer et al.](https://arxiv.org/abs/2311.17179)) maps a
+longitude and latitude to a 256-d embedding learned by matching 100,000
+Sentinel-2 scenes to their locations, for use as a covariate in geospatial
+regression or classification. The image carries the location encoder only,
+loaded offline with upstream's lightweight loader, and a `satclip-embed` CLI
+for tables of coordinates. It is a global-scale model: weak at separating
+nearby sites, and it captures landscape-scale structure seen at 10 m. It
+complements `geoclip`, which maps an image to a location.
+
+Pull: `ghcr.io/bradleylab/satclip:v1` · details in [`satclip/README.md`](satclip/README.md)
+
+### anysat
+
+AnySat ([Astruc et al., CVPR 2025](https://arxiv.org/abs/2412.14123)): one
+JEPA encoder over any combination of 11 sensors covering the same extent —
+aerial RGBN at 0.2 m, SPOT, NAIP, and Sentinel-1/2, ALOS-2, Landsat 7/8 and
+MODIS time series. It returns features, not labels; heads are trained
+separately. Per-location work should use the sub-patch half of the `dense`
+output: the fused `patch` output is nearly constant within a tile.
+
+Pull: `ghcr.io/bradleylab/anysat:v1` · details in [`anysat/README.md`](anysat/README.md)
+
+### panopticon
+
+Panopticon ([Waldmann, Shah et al. 2025](https://arxiv.org/abs/2503.10845);
+CVPR 2025 EarthVision best paper): DINOv2 ViT-B/14 with a channel-attention
+patch embedding that takes each band by its center wavelength in nm and SAR
+channels by category, so one model accepts RGB, multispectral, hyperspectral
+or SAR input. Compute and memory in the patch embedding grow linearly and
+steeply with band count, and pretraining views held at most 13 channels, so
+full hyperspectral cubes are outside what it was trained on.
+
+Pull: `ghcr.io/bradleylab/panopticon:v1` · details in [`panopticon/README.md`](panopticon/README.md)
+
+### fraxtex
+
+fraXteX ([Fatihi et al., EGUsphere preprint](https://doi.org/10.5194/egusphere-2026-1097)):
+pixel-wise fracture-trace probability on outcrop orthomosaics, from four ONNX
+models trained on FraXet — U-Net and SAM 2 on RGB, U-Net and SegFormer on
+RGB+DEM, each with its own input contract embedded in the file. The upstream
+code has no license, so the image carries the lab's own inference CLI,
+`fraxtex-predict`, which enforces each contract and tiles and stitches large
+georeferenced mosaics. Output is an aid to interpretation, not a substitute.
+
+Pull: `ghcr.io/bradleylab/fraxtex:v1` · details in [`fraxtex/README.md`](fraxtex/README.md)
+
+### aurora
+
+Aurora ([Bodnar et al., Nature 2025](https://doi.org/10.1038/s41586-025-09005-y)):
+Microsoft's 1.3-billion-parameter Earth-system model, run here for 0.25°
+global weather in 6-hour steps — the pretrained model from ERA5 and the
+fine-tuned model from IFS HRES analysis. Weights (10.8 GB) are staged on
+Storage3, not baked. The 0.1°, Aurora 1.5, wave and air-pollution fine-tunes
+need initial conditions the lab does not hold; the air-pollution model's CAMS
+inputs come from the Copernicus Atmosphere Data Store, which needs an account.
+
+Pull: `ghcr.io/bradleylab/aurora:v1` · details in [`aurora/README.md`](aurora/README.md)

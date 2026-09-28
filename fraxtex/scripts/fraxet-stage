@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""Download FraXet v0.1 from Zenodo, check it, and unpack it.
+
+    fraxet-stage DEST        ->  DEST/FraXet_v0.1.zip and DEST/FraXet_v0.1/
+
+FraXet (Fatihi et al., doi:10.5281/zenodo.17069947, CC-BY-4.0) is one 2.64 GB
+zip. The md5 and size are the ones the Zenodo record publishes; a mismatch
+stops before anything is unpacked. The archive also carries macOS metadata
+(__MACOSX/, .DS_Store), which is left out.
+"""
+
+import hashlib
+import sys
+import urllib.request
+import zipfile
+from pathlib import Path
+
+URL = "https://zenodo.org/records/17069947/files/FraXet_v0.1.zip?download=1"
+NAME = "FraXet_v0.1.zip"
+SIZE = 2636267401
+MD5 = "dcbf17aedca42f2b7dd766af9f02c5fe"
+CHUNK = 1 << 20
+SKIP = ("__MACOSX/", ".DS_Store")
+
+
+def download(dest: Path) -> Path:
+    archive = dest / NAME
+    if archive.exists() and archive.stat().st_size == SIZE:
+        print(f"{archive} already present")
+        return archive
+    partial = archive.with_suffix(".part")
+    with urllib.request.urlopen(URL) as response, partial.open("wb") as out:
+        while block := response.read(CHUNK):
+            out.write(block)
+    partial.rename(archive)
+    return archive
+
+
+def verify(archive: Path) -> None:
+    digest = hashlib.md5()
+    with archive.open("rb") as f:
+        while block := f.read(CHUNK):
+            digest.update(block)
+    size = archive.stat().st_size
+    if size != SIZE or digest.hexdigest() != MD5:
+        raise SystemExit(f"{archive}: size {size}, md5 {digest.hexdigest()}; Zenodo lists {SIZE}, {MD5}")
+    print(f"{archive}: size and md5 match the Zenodo record")
+
+
+def extract(archive: Path, dest: Path) -> None:
+    with zipfile.ZipFile(archive) as z:
+        members = [m for m in z.namelist() if not any(s in m for s in SKIP)]
+        z.extractall(dest, members)
+    print(f"unpacked {len(members)} entries into {dest / 'FraXet_v0.1'}")
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 1:
+        raise SystemExit(__doc__)
+    dest = Path(argv[0])
+    dest.mkdir(parents=True, exist_ok=True)
+    archive = download(dest)
+    verify(archive)
+    extract(archive, dest)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
