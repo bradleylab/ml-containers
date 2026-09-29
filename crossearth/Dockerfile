@@ -8,9 +8,17 @@
 # and zero-shot inference on unseen target domains.
 #
 # This container vendors the upstream `VisionXLab/CrossEarth` repo at a
-# pinned commit (no PyPI release; not pip-installable). Pretrained
-# DINOv2-converted weights are NOT baked — they download from HF Hub
-# `Cusyoung/CrossEarth` on first call.
+# pinned commit (no PyPI release; not pip-installable).
+#
+# v3 adds one runnable task, `crossearth-land-cover` (the ENTRYPOINT): a
+# six-class land-cover map of an RGB orthophoto from the Potsdam RGB source
+# model, under the geospatial executor's entrypoint contract v1. That model's
+# weights are baked in, converted at build time by scripts/convert_checkpoint.py
+# from the published checkpoint at a pinned revision and checksum, so the task
+# runs offline. The conversion reads the checkpoint's pickle through an
+# allowlist and keeps only the inference tensors; see the script's docstring.
+# Every other checkpoint in `Cusyoung/CrossEarth` still downloads from the Hub
+# on first call. For a shell, run with `--entrypoint bash`.
 #
 # ---------------------------------------------------------------------
 # WHY THIS IS NOT ON UPSTREAM'S TORCH 2.0.1 / CUDA 11.7 ANY MORE.
@@ -101,7 +109,29 @@ RUN pip install --upgrade pip wheel \
     && pip install -r /opt/CrossEarth/requirements.txt \
     && pip install future tensorboard "huggingface_hub>=0.20.0" "numpy<2"
 
+# GeoTIFF reading and writing for the land-cover entrypoint. The rasterio wheel
+# bundles its own GDAL; numpy<2 again, for the torch 2.1 ABI above.
+RUN pip install "rasterio==1.4.3" "safetensors==0.8.0" "numpy<2"
+
 RUN mkdir -p /opt/hf-cache
+
+# The Potsdam RGB source model, converted to safetensors in one layer so the
+# 1.7 GB training checkpoint never lands in the image. The revision pins the
+# Hub commit and the checksum pins the file (the Hub's LFS oid for it).
+ARG WEIGHTS_REVISION=fd54d96bd12765e73f8c228d5bec6c25012a1845
+ARG WEIGHTS_FILE="Potsdam(r)-source.pth"
+ARG WEIGHTS_SHA256=2bdf5bfe2e25dbb1c1a339212183a31c4a5e9979ce93111f4dbdd4d9f73755b2
+COPY scripts/convert_checkpoint.py /opt/crossearth-tools/convert_checkpoint.py
+RUN mkdir -p /opt/weights /tmp/checkpoint \
+    && python -c "from huggingface_hub import hf_hub_download; \
+hf_hub_download('Cusyoung/CrossEarth', '${WEIGHTS_FILE}', revision='${WEIGHTS_REVISION}', local_dir='/tmp/checkpoint')" \
+    && python /opt/crossearth-tools/convert_checkpoint.py \
+        "/tmp/checkpoint/${WEIGHTS_FILE}" /opt/weights/crossearth_potsdam_rgb.safetensors \
+        --expect-sha256 "${WEIGHTS_SHA256}" \
+        --source "huggingface.co/Cusyoung/CrossEarth@${WEIGHTS_REVISION}/${WEIGHTS_FILE}" \
+    && rm -rf /tmp/checkpoint
+
+COPY bin/crossearth-land-cover /usr/local/bin/crossearth-land-cover
 
 # Smoke test — imports clean, registry side-effects fire, the
 # CrossEarth-specific classes (Reins, LoRAReins, ReinMask2FormerHead,
@@ -137,12 +167,27 @@ print('mmcv', im.version('mmcv'), \
 '| cuda-build', torch.version.cuda); \
 print('CrossEarth-specific classes registered:', found)"
 
+# The land-cover model builds from upstream's config and takes the baked
+# weights with no key missing or left over, on CPU (no GPU on the runner), and
+# the entrypoint's GeoTIFF stack imports.
+RUN python -c "import importlib.machinery, importlib.util, torch, rasterio; \
+import importlib.metadata as im; \
+loader = importlib.machinery.SourceFileLoader('land_cover', '/usr/local/bin/crossearth-land-cover'); \
+spec = importlib.util.spec_from_loader('land_cover', loader); \
+import sys; land_cover = importlib.util.module_from_spec(spec); sys.modules['land_cover'] = land_cover; \
+loader.exec_module(land_cover); \
+model = land_cover.build_model(torch.device('cpu')); \
+params = sum(p.numel() for p in model.parameters()); \
+print('land-cover model:', params, 'parameters;', land_cover.weights_provenance()); \
+print('rasterio', im.version('rasterio'), '| gdal', rasterio.__gdal_version__, \
+'| safetensors', im.version('safetensors'))"
+
 # gpu=required: torch 2.1.0 cu121 with sm_90; v1 (cu117) could not target the H100 and hung
 LABEL org.opencontainers.image.title="crossearth" \
-      org.opencontainers.image.description="CrossEarth (TPAMI 2025) — vision foundation model for cross-domain remote sensing semantic segmentation. Frozen DINOv2 backbone + Earth-Style Injection + multi-task training; targets Remote Sensing Domain Generalization (RSDG). Container vendors the upstream repo + mmcv/mmseg stack; weights via Hugging Face Hub at runtime." \
+      org.opencontainers.image.description="CrossEarth (TPAMI 2025) — vision foundation model for cross-domain remote sensing semantic segmentation. Frozen DINOv2 backbone + Earth-Style Injection + multi-task training; targets Remote Sensing Domain Generalization (RSDG). Container vendors the upstream repo + mmcv/mmseg stack; ENTRYPOINT: a land-cover map of an RGB orthophoto (Potsdam RGB model, weights baked in, geospatial executor contract v1); other checkpoints via Hugging Face Hub at runtime." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/crossearth/README.md" \
-      org.opencontainers.image.version="v2" \
+      org.opencontainers.image.version="v3" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="MIT" \
       bradleylab.model.upstream="https://github.com/VisionXLab/CrossEarth" \
@@ -151,7 +196,7 @@ LABEL org.opencontainers.image.title="crossearth" \
       bradleylab.model.sensor="image:multi (optical RS, region/resolution/spectral domain transfer)" \
       bradleylab.model.status="utility" \
       bradleylab.model.gpu="required" \
-      bradleylab.model.weights.source="huggingface-hub:Cusyoung/CrossEarth (runtime fetch into HF_HOME=/opt/hf-cache)"
+      bradleylab.model.weights.source="huggingface-hub:Cusyoung/CrossEarth; Potsdam(r)-source.pth baked at /opt/weights (converted to safetensors), others fetched at runtime into HF_HOME=/opt/hf-cache"
 
 WORKDIR /work
-CMD ["bash"]
+ENTRYPOINT ["/usr/local/bin/crossearth-land-cover"]
