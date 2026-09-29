@@ -39,8 +39,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONNOUSERSITE=1 \
     PIP_NO_CACHE_DIR=1
 
+# libexpat1: the rasterio manylinux wheel that fraxtex-eval-fraxet imports links
+# against the system expat, which python:slim does not ship.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl \
+        ca-certificates curl libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 # onnxruntime-gpu 1.26.0 is the last PyPI release whose default wheel targets

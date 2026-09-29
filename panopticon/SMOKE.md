@@ -31,9 +31,10 @@ so the copy runs from pliny over its `c2` ControlMaster alias, the route
 TanagerFM's `scripts/stage_to_c2.sh` uses. Two files, about 2 GB for the EMIT
 granule plus one Tanager scene:
 
-- Tanager `20241121_183741_33_4001` (2024-11-21, southern Arizona), the
-  desert/mineral scene of TanagerFM's C3 probe pairs, from
-  `/mnt/nas/geospatial_data/2026-04-18_tanager/ortho_sr_hdf5/`. Planet Open Data
+- Tanager `20250829_093133_42_4001` (2025-08-29), from
+  `/mnt/nas/geospatial_data/2026-04-18_tanager/ortho_sr_hdf5/`. Its 224-pixel
+  grid holds four windows free of nodata, cloud and cirrus; the 2024-11-21
+  southern-Arizona scene holds none, with half its pixels cirrus-flagged. Planet Open Data
   ortho surface reflectance, HDF-EOS5; band centers, band widths and the
   `good_wavelengths` flags are attributes of the reflectance dataset.
 - EMIT `EMIT_L2A_RFL_001_20240926T104903_2427007_029`, from
@@ -47,7 +48,7 @@ ssh pliny
 D=/scratch2/fs1/alexander.s.bradley/panopticon_smoke
 ssh c2 "mkdir -p $D"
 rsync -av \
-  /mnt/nas/geospatial_data/2026-04-18_tanager/ortho_sr_hdf5/20241121_183741_33_4001_ortho_sr_hdf5.h5 \
+  /mnt/nas/geospatial_data/2026-04-18_tanager/ortho_sr_hdf5/20250829_093133_42_4001_ortho_sr_hdf5.h5 \
   "c2:$D/"
 rsync -av \
   /mnt/nas/geospatial_data/2026-04-20_emit_l2a/EMIT_L2A_RFL_001_20240926T104903_2427007_029/EMIT_L2A_RFL_001_20240926T104903_2427007_029.nc \
@@ -80,7 +81,7 @@ srun --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleyl
 python -c \"import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0), torch.version.cuda)\" &&
 for dtype in fp32 bf16; do
   python /opt/scripts/panopticon_band_scaling.py --sensor tanager \
-    --path /data/20241121_183741_33_4001_ortho_sr_hdf5.h5 \
+    --path /data/20250829_093133_42_4001_ortho_sr_hdf5.h5 \
     --dtype \$dtype --out /data/results/tanager_\${dtype}_\$SLURM_JOB_ID.jsonl &&
   python /opt/scripts/panopticon_band_scaling.py --sensor emit \
     --path /data/EMIT_L2A_RFL_001_20240926T104903_2427007_029.nc \

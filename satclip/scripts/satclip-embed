@@ -65,7 +65,8 @@ def checkpoint_path(name: str) -> Path:
 
 
 def embed(coords: np.ndarray, ckpt: Path, device: str, batch: int) -> np.ndarray:
-    encoder = get_satclip_loc_encoder(str(ckpt), device)
+    # get_satclip_loc_encoder leaves the module on the CPU whatever device it is given
+    encoder = get_satclip_loc_encoder(str(ckpt), device).to(device)
     parts = []
     with torch.no_grad():
         for start in range(0, len(coords), batch):

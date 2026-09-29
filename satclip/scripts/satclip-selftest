@@ -40,7 +40,8 @@ PACKAGES = ("torch", "einops", "numpy", "pandas", "pyarrow")
 
 
 def check(name: str, coords: torch.Tensor, device: str) -> str:
-    encoder = get_satclip_loc_encoder(str(WEIGHTS_DIR / f"satclip-{name}.ckpt"), device)
+    # get_satclip_loc_encoder leaves the module on the CPU whatever device it is given
+    encoder = get_satclip_loc_encoder(str(WEIGHTS_DIR / f"satclip-{name}.ckpt"), device).to(device)
     with torch.no_grad():
         emb = encoder(coords.to(device)).cpu()
     assert emb.shape == (len(PLACES), EMBED_DIM), f"{name}: shape {tuple(emb.shape)}"

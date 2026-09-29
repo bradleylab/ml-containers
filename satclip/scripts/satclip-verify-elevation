@@ -105,7 +105,7 @@ def features(config: str, coords: np.ndarray, device: str) -> torch.Tensor:
         return torch.from_numpy(coords).float()
     encoder = get_satclip_loc_encoder(
         str(WEIGHTS_DIR / f"satclip-{config}.ckpt"), device
-    )
+    ).to(device)  # the loader builds the module on the CPU
     parts = []
     with torch.no_grad():
         for start in range(0, len(coords), EMBED_BATCH):
