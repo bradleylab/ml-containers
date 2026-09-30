@@ -20,14 +20,18 @@ six-class land-cover map of an RGB orthophoto (below). The weights for
 that task are baked into the image; every other checkpoint downloads
 from the Hugging Face Hub on first call.
 
-GPU required: the image's torch is built for CUDA 12.1, and the land-cover
-task refuses to start without a visible GPU. `:v2` passed the lab's GPU probe
-on an H100 (`VERIFICATION.json`).
+The land-cover task runs on a GPU when one is visible and on the CPU
+otherwise. On the CPU the DINOv2 layers use standard PyTorch attention in
+place of xformers, the fallback upstream's layers take when
+`XFORMERS_DISABLED` is set; 16 CPU cores took about one second per
+512-pixel window. `:v2` passed the lab's GPU probe on an H100
+(`VERIFICATION.json`).
 
 ## Image tag
 
-`ghcr.io/bradleylab/crossearth:v3` (also `:latest`, `:torch2.1-cu121`).
-`:v2` is the same stack without the land-cover task.
+`ghcr.io/bradleylab/crossearth:v4` (also `:latest`, `:torch2.1-cu121`).
+`:v3` is the same image with a land-cover task that needs a GPU; `:v2` has
+no land-cover task.
 Do not use `:v1`: its CUDA 11.7 torch cannot target an H100 and hangs.
 
 ## Stack
@@ -39,7 +43,7 @@ Do not use `:v1`: its CUDA 11.7 torch cannot target an H100 and hangs.
   `mmdet >=3.0.0,<3.4` — mmengine and mmcv via `mim`
 - `xformers ==0.0.22.post7`, the build paired with torch 2.1.0
 - `numpy <2`, for the torch 2.1 ABI
-- `rasterio ==1.4.3` (its wheel bundles GDAL 3.9.3) and
+- `rasterio ==1.4.3` (its wheel bundles GDAL 3.9.3) with `affine ==2.4.0`, and
   `safetensors ==0.8.0`, for the land-cover task
 - Vendored CrossEarth at SHA `644a5a1b` (HEAD as of 2026-04-02)
 - requirements.txt deps: numpy, ftfy, scipy, prettytable, matplotlib,
@@ -77,14 +81,15 @@ ENTRYPOINT (cwltool with Docker, Podman or Apptainer; Toil) can run it.
 ```bash
 docker run --rm --gpus all \
   -v /path/to/job:/job \
-  ghcr.io/bradleylab/crossearth:v3 \
+  ghcr.io/bradleylab/crossearth:v4 \
   --input-dir /job/input \
   --output-dir /job/output \
   --params-json /job/params.json
 ```
 
 with the orthophoto at `/path/to/job/input/primary/<name>.tif` and
-`params.json` holding, for example, `{"resolution": "0"}`.
+`params.json` holding, for example, `{"resolution": "0"}`. Drop
+`--gpus all` to run on the CPU.
 
 The model has only been trained on Potsdam, so its classes are the
 Potsdam benchmark's; on other scenes, forests, fields or water among
@@ -134,7 +139,7 @@ docker run --rm -it --gpus all \
   -v /path/to/data:/work \
   -v /shared/hf-cache:/opt/hf-cache \
   --entrypoint bash \
-  ghcr.io/bradleylab/crossearth:v3
+  ghcr.io/bradleylab/crossearth:v4
 ```
 
 Upstream's `tools/test.py` evaluates a config against a dataset; its
