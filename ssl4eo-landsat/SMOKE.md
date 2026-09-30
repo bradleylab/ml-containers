@@ -65,16 +65,30 @@ the 25,000-patch dataset, fixed by the dataset class's own seed.
 
 The target is Stewart et al. (2023), SSL4EO-L, NeurIPS Datasets and Benchmarks,
 Table 2, row Landsat 7 (ETM+) · Level-2 (SR) · ResNet-18 · MoCo, CDL column:
-**67.30 % overall accuracy, 50.71 mIoU**. The same U-Net on ImageNet weights
-scores 60.70 % and 43.58. That 6.60-point accuracy gap is the largest MoCo gain
-in Table 2, so this cell separates the SSL4EO-L weights from a backbone that
-merely runs.
+**67.30 % overall accuracy, 50.71 mIoU**. Table 2 lists the same U-Net on
+ImageNet weights at 60.70 % and 43.58, and describes all its U-Nets as
+frozen-backbone. The two numbers come from different setups. Four H100 runs of
+this cell at learning rate 1e-3, differing only in starting weights and
+freezing:
+
+| Starting weights | Encoder | Accuracy % | mIoU | Table 2 |
+|---|---|---|---|---|
+| ImageNet | frozen | 60.82 | 43.70 | 60.70 / 43.58 (ImageNet) |
+| SSL4EO-L MoCo | frozen | 62.04 | 44.97 | |
+| ImageNet | trainable | 66.47 | 49.78 | |
+| SSL4EO-L MoCo | trainable | 67.20 | 50.61 | 67.30 / 50.71 (MoCo) |
+
+The ImageNet entry reproduces with the encoder frozen and the MoCo entry with it
+trained, so compared under one setup the SSL4EO-L encoder leads ImageNet by 1.2
+points frozen and 0.7 trained, not 6.6. Each row is one run. TorchGeo's
+released config for this cell does not freeze the encoder, and the benchmark
+below follows it.
 
 [`scripts/ssl4eo-benchmark`](scripts/ssl4eo-benchmark) follows the paper's
 recipe and TorchGeo's released config for this cell
 (`experiments/ssl4eo/landsat/conf/ssl4eo_benchmark_etm_sr_cdl.yaml`,
-`releases/v0.5`): the `ResNet18_Weights.LANDSAT_ETM_SR_MOCO` encoder frozen, a
-U-Net decoder trained with cross-entropy and class 0 ignored, 18 CDL classes,
+`releases/v0.5`): the `ResNet18_Weights.LANDSAT_ETM_SR_MOCO` encoder and a
+U-Net decoder, both trained, with cross-entropy and class 0 ignored, 18 CDL classes,
 batch 64, 20–100 epochs, learning-rate plateau patience 6, seed 0. Two points
 are not fully specified upstream:
 
@@ -99,7 +113,7 @@ srun --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleyl
 ```
 
 Each task writes its best checkpoint and a CSV metrics log under `runs/etm_sr_cdl_lr<LR>/`, and its log ends with the test
-accuracy and mIoU beside the published and ImageNet values.
+accuracy and mIoU beside the published values.
 
 **Reading the result.** Take the learning rate whose best validation loss is
 lower; the paper does not state its selection criterion, and validation loss
@@ -107,9 +121,8 @@ is what the script monitors. Table 2 reports one run per cell with
 no spread; the three-seed cloud-detection results in Table 1 give a sense of
 seed-to-seed variation, with standard deviations of 1.94 to 5.17 accuracy points
 across the ResNet MoCo rows. An accuracy near 67.30 % reproduces the paper. One
-nearer the ImageNet 60.70 % than the MoCo 67.30 % means the SSL4EO-L encoder is
-not what the decoder is seeing, and the weight loading is the first place to
-look.
+near the trained-ImageNet 66.47 % or below it means the SSL4EO-L encoder is not
+what the decoder is seeing, and the weight loading is the first place to look.
 
 **Which IoU to compare.** TorchGeo 0.5, the first release containing the
 paper's code, logged micro-averaged Jaccard as its IoU. In TorchGeo 0.10 that is

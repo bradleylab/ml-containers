@@ -2,15 +2,16 @@
 """Reproduce one SSL4EO-L benchmark cell: Landsat 7 ETM+ SR, CDL, ResNet-18 MoCo.
 
 Stewart et al. (2023), Table 2, report 67.30 % overall accuracy and 50.71 mIoU
-for a U-Net on a frozen ResNet-18 MoCo backbone, against 60.70 % and 43.58 for
-the same U-Net on ImageNet weights. That 6.6-point gap is the largest MoCo gain
-in the table, so a run that lands near 67 % shows the SSL4EO-L weights were
+for a U-Net on this ResNet-18 MoCo encoder. The table describes its U-Nets as
+frozen-backbone, but this cell reproduces only with the encoder trained: on an
+H100 the frozen encoder reaches 62.0 % and the trainable one 67.2 % (see
+SMOKE.md). The run therefore trains the encoder, as TorchGeo's released config
+for this cell does, and a result near 67 % shows the SSL4EO-L weights were
 loaded and used, not merely imported.
 
-The training recipe follows the paper (Section 3) and TorchGeo's released
-config for this cell (experiments/ssl4eo/landsat/conf/
-ssl4eo_benchmark_etm_sr_cdl.yaml at releases/v0.5): frozen encoder, U-Net
-decoder, cross-entropy with class 0 ignored, batch 64, 20-100 epochs,
+The training recipe follows that config (experiments/ssl4eo/landsat/conf/
+ssl4eo_benchmark_etm_sr_cdl.yaml at releases/v0.5) and the paper (Section 3):
+U-Net decoder, cross-entropy with class 0 ignored, batch 64, 20-100 epochs,
 ReduceLROnPlateau patience 6, and the 18 CDL classes listed there.
 
     ssl4eo-benchmark stage  ROOT            download + extract the benchmark
@@ -45,7 +46,6 @@ SEED = 0
 NUM_WORKERS = 16
 
 PUBLISHED = {"accuracy": 67.30, "miou": 50.71}
-IMAGENET_BASELINE = {"accuracy": 60.70, "miou": 43.58}
 
 
 def stage(root: Path) -> None:
@@ -71,7 +71,7 @@ def run(root: Path, out: Path, lr: float) -> None:
     task = SemanticSegmentation(model="unet", backbone="resnet18", weights=WEIGHTS,
                                 in_channels=WEIGHTS.meta["in_chans"],
                                 num_classes=len(CLASSES), loss="ce", ignore_index=0,
-                                lr=lr, patience=LR_PATIENCE, freeze_backbone=True)
+                                lr=lr, patience=LR_PATIENCE, freeze_backbone=False)
     # The paper stops early but does not give the stopping patience, so the run
     # goes to MAX_EPOCHS and tests the epoch with the lowest validation loss,
     # the model early stopping would have kept.
@@ -89,10 +89,8 @@ def run(root: Path, out: Path, lr: float) -> None:
     acc = 100 * result["test_OverallAccuracy"]
     miou = 100 * result["test_OverallJaccardIndex"]
     print(f"lr {lr:g} | best epoch val_loss {best.best_model_score:.4f} ({best.best_model_path})")
-    print(f"test overall accuracy {acc:.2f}  (published {PUBLISHED['accuracy']:.2f}, "
-          f"ImageNet baseline {IMAGENET_BASELINE['accuracy']:.2f})")
-    print(f"test mIoU (micro)     {miou:.2f}  (published {PUBLISHED['miou']:.2f}, "
-          f"ImageNet baseline {IMAGENET_BASELINE['miou']:.2f})")
+    print(f"test overall accuracy {acc:.2f}  (published {PUBLISHED['accuracy']:.2f})")
+    print(f"test mIoU (micro)     {miou:.2f}  (published {PUBLISHED['miou']:.2f})")
 
 
 def main() -> None:

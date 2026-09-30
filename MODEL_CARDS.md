@@ -1312,7 +1312,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Container stack | `python:3.12-slim-bookworm`, `torch==2.13.0` + `torchvision==0.28.0` (CUDA 12.9), `torchgeo==0.10.0`; dependency set frozen in `constraints.txt` |
 | H100 status | sm_90 through the CUDA 12.9 torch build |
 | Lab status | **experimental** |
-| First-run / current behavior | Build smoke test runs with network access disabled: loads all 30 checkpoints, checks each one's band count against its first layer, and runs a forward pass on synthetic input. `SMOKE.md` reproduces Table 2's Landsat 7 ETM+ SR CDL result for ResNet-18 MoCo (67.30 % accuracy, against 60.70 % for the ImageNet baseline) |
+| First-run / current behavior | Build smoke test runs with network access disabled: loads all 30 checkpoints, checks each one's band count against its first layer, and runs a forward pass on synthetic input. Table 2's Landsat 7 ETM+ SR CDL ResNet-18 MoCo result reproduces on an H100 with the encoder trained (67.20 % vs 67.30 %); its lead over ImageNet is 1.2 points frozen and 0.7 trained, not Table 2's 6.6 (`SMOKE.md`) |
 | Tags | `:v1` (= `:latest` = `:torch2.13-cu129`) |
 | Notes | TorchGeo's metadata labels the ETM+ SR ResNet-50 entries `resnet18`; file sizes and the builder show ResNet-50. TM and ETM+ weights extend the catalog's Landsat coverage back before Landsat 8 |
 

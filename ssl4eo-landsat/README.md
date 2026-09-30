@@ -53,8 +53,9 @@ prepared any other way is out of distribution for these encoders.
 ## Checkpoints
 
 All 30 are baked. Scores are overall accuracy (%) / mIoU from Stewart et al.
-(2023) Table 2, for a U-Net decoder trained on the frozen backbone over the
-SSL4EO-L NLCD and CDL benchmarks; TorchGeo's `docs/api/weights/landsat.csv`
+(2023) Table 2, for a U-Net decoder over the SSL4EO-L NLCD and CDL benchmarks,
+described there as frozen-backbone (the ETM+ SR CDL MoCo cell reproduces only
+with the encoder trained; [`SMOKE.md`](SMOKE.md) has the runs); TorchGeo's `docs/api/weights/landsat.csv`
 carries the same values. The mIoU is micro-averaged, which makes it a function of
 the accuracy ([`SMOKE.md`](SMOKE.md) shows why).
 
@@ -126,7 +127,7 @@ Without `num_classes=0` the timm model keeps a 1000-class head that SSL4EO-L
 does not ship, initialized at random. `features_only=True` returns the feature
 pyramid for a segmentation decoder. For fine-tuning, `torchgeo.tasks`
 (`SemanticSegmentation`, `Classification`) accepts the enum, or its string
-name, as `weights=` and can freeze the backbone, as the paper's benchmarks did.
+name, as `weights=` and can freeze the backbone (`freeze_backbone=True`).
 
 `ssl4eo-check [cpu|cuda]` loads all 30 checkpoints and runs each on synthetic
 input, printing versions and output shapes.
