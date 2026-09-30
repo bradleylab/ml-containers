@@ -1,0 +1,44 @@
+# The full dependency set for the location-encoder stack (torch 2.14.0+cu130,
+# einops, numpy, pandas, pyarrow), resolved on 2026-09-28 with uv pip compile
+# for Linux x86-64 (manylinux_2_28) / Python 3.12 against PyPI plus the PyTorch
+# CUDA 13.0 index. Upstream pins nothing. Two CUDA packages float within 13.x
+# in the wheel metadata, and the resolver would take 13.4 for both; they are
+# held at the metadata's floors, nvidia-nvjitlink 13.0.88 (cuda-toolkit 13.0.3)
+# and cuda-bindings 13.0.3 (torch), to stay on the CUDA 13.0 release the wheel
+# was built with and Compute2's driver supports. Regenerate deliberately, and
+# rerun satclip-verify-elevation after doing so.
+cuda-bindings==13.0.3
+cuda-pathfinder==1.8.2
+cuda-toolkit==13.0.3.0
+einops==0.8.2
+filelock==4.0.5
+fsspec==2026.9.0
+jinja2==3.1.6
+markupsafe==3.0.3
+mpmath==1.3.0
+networkx==3.7
+numpy==2.5.3
+nvidia-cublas==13.1.1.3
+nvidia-cuda-cupti==13.0.85
+nvidia-cuda-nvrtc==13.0.88
+nvidia-cuda-runtime==13.0.96
+nvidia-cudnn-cu13==9.24.0.43
+nvidia-cufft==12.0.0.61
+nvidia-cufile==1.15.1.6
+nvidia-curand==10.4.0.35
+nvidia-cusolver==12.0.4.66
+nvidia-cusparse==12.6.3.3
+nvidia-cusparselt-cu13==0.8.1
+nvidia-nccl-cu13==2.30.7
+nvidia-nvjitlink==13.0.88
+nvidia-nvshmem-cu13==3.4.5
+nvidia-nvtx==13.0.85
+pandas==3.0.6
+pyarrow==25.0.1
+python-dateutil==2.9.0.post0
+setuptools==84.0.0
+six==1.17.0
+sympy==1.14.0
+torch==2.14.0+cu130
+triton==3.8.0
+typing-extensions==4.16.0

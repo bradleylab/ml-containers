@@ -1,0 +1,359 @@
+#!/usr/bin/env python3
+"""Fracture probability map from an RGB orthomosaic, with an optional DEM.
+
+    fraxtex-predict --model unet-rgb ortho.tif prob.tif
+    fraxtex-predict --model unet-rgbdem --dem dem.tif --dem-scaling patch-minmax \\
+        ortho.tif prob.tif --mask mask.tif --threshold 0.1
+
+The input contract (bands, value range, tile size, normalization) is read from
+the chosen ONNX file, not assumed; see fraxtex_onnx.py.
+
+Tiling and stitching. Tiles sit on one global grid with a stride of
+tile x (1 - overlap), the last tile in each row and column pushed flush with
+the far edge. Each tile's prediction is weighted by a separable Hann taper
+(sin^2 over pixel centers, so strictly positive) and the map is the weighted
+mean of every tile covering a pixel. The image is processed in square output
+blocks so an orthomosaic never has to fit in memory; each block runs every
+global-grid tile that touches it, so block edges leave no seams.
+
+Nodata. A pixel is invalid if the RGB dataset mask (nodata value, alpha band
+or internal mask) says so, or if the DEM is nodata or non-finite there.
+Invalid pixels are written as nodata in the outputs. Inside a tile they are
+filled with the tile's mean over valid pixels before inference, because a
+black fill is itself an edge: the preprint traces false positives in Matteo21
+to zero-filled NaNs. A tile with no valid pixel is not run. Counts of both
+are printed.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from dataclasses import dataclass
+
+import numpy as np
+import rasterio
+from rasterio.enums import ColorInterp
+from rasterio.windows import Window
+
+import fraxtex_onnx as fx
+
+DEFAULT_OVERLAP = 0.5
+# FraXet patches are 256 px; the dynamic-size U-Net was trained on them.
+DEFAULT_DYNAMIC_TILE = 256
+DEFAULT_BATCH = 8
+# Output block edge: bounds memory to a few hundred MB whatever the mosaic size.
+BLOCK = 4096
+UINT8_MAX = 255.0
+PROB_NODATA = -1.0
+MASK_NODATA = 255
+DEM_SCALINGS = ("patch-minmax", "patch-minmax-255", "zero")
+TRANSFORM_TOLERANCE = 1e-9
+PROGRESS_EVERY = 10  # blocks
+OUTPUT_BLOCKSIZE = 512
+
+
+@dataclass
+class Sources:
+    rgb: rasterio.io.DatasetReader
+    bands: tuple[int, int, int]
+    dem: rasterio.io.DatasetReader | None
+    rgb_range: tuple[float, float] | None
+
+
+@dataclass
+class Plan:
+    tile: int
+    stride: int
+    rows: list[int]
+    cols: list[int]
+    taper: np.ndarray  # (tile, tile)
+
+
+@dataclass
+class Tally:
+    tiles_run: int = 0
+    tiles_empty: int = 0
+    invalid_pixels: int = 0
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    p.add_argument("rgb", help="RGB orthomosaic: GeoTIFF, or any raster GDAL reads (JPG, PNG)")
+    p.add_argument("output", help="probability GeoTIFF to write (float32, nodata -1)")
+    p.add_argument("--model", required=True, help=f"one of {sorted(fx.MODELS)}, or a path to an .onnx")
+    p.add_argument("--dem", help="DEM GeoTIFF on the same pixel grid as the RGB (4-channel models)")
+    p.add_argument("--dem-scaling", choices=DEM_SCALINGS,
+                   help="how the DEM becomes the 4th channel; required with --dem (see README)")
+    p.add_argument("--rgb-range", nargs=2, type=float, metavar=("LOW", "HIGH"),
+                   help="linear map of non-uint8 RGB values LOW..HIGH onto 0..255 (clipped)")
+    p.add_argument("--tile", type=int, help=f"tile edge for dynamic-size models (default "
+                   f"{DEFAULT_DYNAMIC_TILE}); fixed-size models take only their own")
+    p.add_argument("--overlap", type=float, default=DEFAULT_OVERLAP,
+                   help=f"fractional tile overlap, 0 <= overlap < 1 (default {DEFAULT_OVERLAP})")
+    p.add_argument("--batch", type=int, default=DEFAULT_BATCH, help="tiles per inference call")
+    p.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
+    p.add_argument("--mask", help="also write a uint8 mask: 1 fracture, 0 background, 255 nodata")
+    p.add_argument("--threshold", type=float,
+                   help="probability above which --mask marks fracture (upstream evaluation uses 0.1)")
+    args = p.parse_args(argv)
+    if args.mask and args.threshold is None:
+        p.error("--mask needs --threshold")
+    if bool(args.dem) != bool(args.dem_scaling):
+        p.error("--dem and --dem-scaling go together")
+    if not 0 <= args.overlap < 1:
+        p.error("--overlap must be in [0, 1)")
+    return args
+
+
+def pick_rgb_bands(src: rasterio.io.DatasetReader) -> tuple[int, int, int]:
+    """Bands tagged red, green, blue; otherwise bands 1-3, said aloud."""
+    interp = list(src.colorinterp)
+    tagged = [interp.index(c) + 1 for c in (ColorInterp.red, ColorInterp.green, ColorInterp.blue)
+              if c in interp]
+    if len(tagged) == 3:
+        return tuple(tagged)
+    if src.count < 3:
+        raise SystemExit(f"{src.name} has {src.count} band(s); an RGB image needs 3")
+    print(f"note: {src.name} does not tag its bands as red/green/blue; using bands 1, 2, 3")
+    return (1, 2, 3)
+
+
+def georeferenced(src: rasterio.io.DatasetReader) -> bool:
+    return src.crs is not None and not src.transform.is_identity
+
+
+def check_grid(rgb: rasterio.io.DatasetReader, dem: rasterio.io.DatasetReader) -> None:
+    """The DEM must share the RGB pixel grid; resampling is the caller's job."""
+    if (dem.height, dem.width) != (rgb.height, rgb.width):
+        raise SystemExit(f"DEM is {dem.width}x{dem.height}, RGB is {rgb.width}x{rgb.height}; "
+                         "resample the DEM onto the RGB grid first (e.g. gdalwarp -te -tr)")
+    same_place = dem.crs == rgb.crs and dem.transform.almost_equals(rgb.transform, TRANSFORM_TOLERANCE)
+    if georeferenced(rgb) and georeferenced(dem) and not same_place:
+        raise SystemExit("DEM and RGB differ in CRS or geotransform; they must be co-registered")
+
+
+def open_sources(args: argparse.Namespace, contract: fx.Contract) -> Sources:
+    rgb = rasterio.open(args.rgb)
+    bands = pick_rgb_bands(rgb)
+    dtype = rgb.dtypes[bands[0] - 1]
+    if dtype != "uint8" and args.rgb_range is None:
+        raise SystemExit(f"RGB is {dtype}; the models expect 8-bit color. Give --rgb-range LOW HIGH "
+                         "to map it onto 0..255, having chosen LOW and HIGH for this sensor")
+    if contract.uses_dem and not args.dem:
+        raise SystemExit(f"{args.model} takes RGB+DEM; give --dem and --dem-scaling")
+    if args.dem and not contract.uses_dem:
+        raise SystemExit(f"{args.model} takes RGB only; drop --dem")
+    dem = rasterio.open(args.dem) if args.dem else None
+    if dem is not None:
+        check_grid(rgb, dem)
+    return Sources(rgb, bands, dem, tuple(args.rgb_range) if args.rgb_range else None)
+
+
+def origins(size: int, tile: int, stride: int) -> list[int]:
+    if size <= tile:
+        return [0]
+    starts = list(range(0, size - tile + 1, stride))
+    if starts[-1] != size - tile:
+        starts.append(size - tile)
+    return starts
+
+
+def make_plan(contract: fx.Contract, args: argparse.Namespace, height: int, width: int) -> Plan:
+    tile = contract.tile or args.tile or DEFAULT_DYNAMIC_TILE
+    if args.tile is not None:
+        fx.check_tile(contract, args.tile)
+    fx.check_tile(contract, tile)
+    stride = max(1, round(tile * (1 - args.overlap)))
+    centers = (np.arange(tile) + 0.5) / tile
+    taper_1d = np.sin(np.pi * centers) ** 2
+    return Plan(tile, stride, origins(height, tile, stride), origins(width, tile, stride),
+                np.outer(taper_1d, taper_1d).astype(np.float32))
+
+
+def read_region(src: Sources, win: Window) -> tuple[np.ndarray, np.ndarray | None, np.ndarray]:
+    """RGB on the 0..255 scale, raw DEM, and the valid-pixel mask for a window."""
+    rgb = src.rgb.read(src.bands, window=win).astype(np.float32)
+    if src.rgb_range is not None:
+        lo, hi = src.rgb_range
+        rgb = np.clip((rgb - lo) / (hi - lo) * UINT8_MAX, 0.0, UINT8_MAX)
+    valid = src.rgb.dataset_mask(window=win) > 0
+    dem = None
+    if src.dem is not None:
+        dem = src.dem.read(1, window=win, masked=True).astype(np.float32)
+        valid &= ~np.ma.getmaskarray(dem) & np.isfinite(dem.filled(np.nan))
+        dem = dem.filled(np.nan)
+    return rgb, dem, valid
+
+
+def scale_dem(dem: np.ndarray, valid: np.ndarray, scaling: str) -> np.ndarray:
+    """One tile's DEM as the model's 4th channel, from its valid pixels only."""
+    out = np.zeros(dem.shape, dtype=np.float32)
+    if scaling == "zero":
+        return out
+    lo, hi = float(dem[valid].min()), float(dem[valid].max())
+    # A flat tile maps to 0, as the training loader's (x - min) / (range + 1e-8) does.
+    if hi > lo:
+        out[valid] = (dem[valid] - lo) / (hi - lo)
+    out[~valid] = out[valid].mean()
+    return out / UINT8_MAX if scaling == "patch-minmax-255" else out
+
+
+
+
+def model_tile(rgb: np.ndarray, dem: np.ndarray | None, valid: np.ndarray,
+               contract: fx.Contract, dem_scaling: str | None) -> np.ndarray:
+    """(C, t, t) float32 input for one tile, invalid pixels filled with the valid mean."""
+    rgb = rgb.copy()
+    for band in rgb:
+        band[~valid] = band[valid].mean()
+    channels = [rgb * (contract.value_max / UINT8_MAX)]
+    if contract.uses_dem:
+        channels.append(scale_dem(dem, valid, dem_scaling)[None])
+    return np.concatenate(channels).astype(np.float32)
+
+
+def pad_to_tile(rgb: np.ndarray, dem: np.ndarray | None, valid: np.ndarray, tile: int):
+    """Mirror-pad a region smaller than one tile (only when the image itself is).
+
+    The padding lies outside the image and is cropped away after inference.
+    """
+    extra_y, extra_x = max(0, tile - valid.shape[0]), max(0, tile - valid.shape[1])
+    if not (extra_y or extra_x):
+        return rgb, dem, valid
+    pad2 = ((0, extra_y), (0, extra_x))
+    rgb = np.pad(rgb, ((0, 0), *pad2), mode="symmetric")
+    dem = None if dem is None else np.pad(dem, pad2, mode="symmetric")
+    return rgb, dem, np.pad(valid, pad2, mode="symmetric")
+
+
+def flush(session, pending: list, plan: Plan, acc: np.ndarray, weight: np.ndarray,
+          tally: Tally) -> None:
+    probs = fx.predict(session, np.stack([x for _, x in pending]))
+    for (window, _), prob in zip(pending, probs, strict=True):
+        acc[window] += prob * plan.taper
+        weight[window] += plan.taper
+    tally.tiles_run += len(pending)
+    pending.clear()
+
+
+def run_block(session, contract: fx.Contract, plan: Plan, src: Sources, block: Window,
+              args: argparse.Namespace, tally: Tally) -> np.ndarray:
+    """Blended probabilities for one output block, nodata where invalid."""
+    r0, c0 = block.row_off, block.col_off
+    r1, c1 = r0 + block.height, c0 + block.width
+    rows = [y for y in plan.rows if y < r1 and y + plan.tile > r0]
+    cols = [x for x in plan.cols if x < c1 and x + plan.tile > c0]
+    height = min(rows[-1] + plan.tile, src.rgb.height) - rows[0]
+    width = min(cols[-1] + plan.tile, src.rgb.width) - cols[0]
+    rgb, dem, valid = read_region(src, Window(cols[0], rows[0], width, height))
+    in_image = valid.copy()
+    rgb, dem, valid = pad_to_tile(rgb, dem, valid, plan.tile)
+
+    acc = np.zeros(valid.shape, dtype=np.float32)
+    weight = np.zeros(valid.shape, dtype=np.float32)
+    pending: list = []
+    for y in rows:
+        for x in cols:
+            window = np.s_[y - rows[0]:y - rows[0] + plan.tile, x - cols[0]:x - cols[0] + plan.tile]
+            if not valid[window].any():
+                tally.tiles_empty += 1
+                continue
+            pending.append((window, model_tile(rgb[(slice(None), *window)],
+                                               None if dem is None else dem[window],
+                                               valid[window], contract, args.dem_scaling)))
+            if len(pending) == args.batch:
+                flush(session, pending, plan, acc, weight, tally)
+    if pending:
+        flush(session, pending, plan, acc, weight, tally)
+
+    crop = np.s_[r0 - rows[0]:r1 - rows[0], c0 - cols[0]:c1 - cols[0]]
+    ok = in_image[crop] & (weight[crop] > 0)
+    prob = np.full(ok.shape, PROB_NODATA, dtype=np.float32)
+    prob[ok] = acc[crop][ok] / weight[crop][ok]
+    tally.invalid_pixels += int((~ok).sum())
+    return prob
+
+
+def output_profile(src: Sources) -> dict:
+    """Float32 GeoTIFF on the input grid, georeferenced from the RGB, else the DEM."""
+    geo = next((s for s in (src.rgb, src.dem) if s is not None and georeferenced(s)), None)
+    if geo is None:
+        print("note: neither input is georeferenced; the outputs carry pixel coordinates only")
+    elif geo is src.dem:
+        print("note: RGB has no georeference; the outputs take the DEM's")
+    profile = {
+        "driver": "GTiff", "width": src.rgb.width, "height": src.rgb.height, "count": 1,
+        "dtype": "float32", "nodata": PROB_NODATA, "tiled": True, "blockxsize": OUTPUT_BLOCKSIZE,
+        "blockysize": OUTPUT_BLOCKSIZE, "compress": "deflate", "predictor": 3, "BIGTIFF": "IF_SAFER",
+    }
+    if geo is not None:
+        profile.update(crs=geo.crs, transform=geo.transform)
+    return profile
+
+
+def provenance(args: argparse.Namespace, contract: fx.Contract, plan: Plan, provider: str) -> dict:
+    return {
+        "FRAXTEX_MODEL": str(fx.resolve_model(args.model)),
+        "FRAXTEX_CONTRACT": fx.describe(contract),
+        "FRAXTEX_TILING": f"tile {plan.tile}, stride {plan.stride}, overlap {args.overlap}, "
+                          "Hann-weighted mean, invalid pixels filled with tile valid mean",
+        "FRAXTEX_DEM_SCALING": args.dem_scaling or "none",
+        "FRAXTEX_PROVIDER": provider,
+    }
+
+
+def blocks(height: int, width: int):
+    for r in range(0, height, BLOCK):
+        for c in range(0, width, BLOCK):
+            yield Window(c, r, min(BLOCK, width - c), min(BLOCK, height - r))
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    session, provider = fx.open_session(fx.resolve_model(args.model), args.device)
+    contract = fx.read_contract(session)
+    print(fx.describe(contract))
+    fell_back = args.device == "auto" and provider != fx.CUDA_EP
+    print(f"execution provider: {provider}"
+          + (" (CUDA did not initialize, so this runs on CPU)" if fell_back else ""))
+    src = open_sources(args, contract)
+    plan = make_plan(contract, args, src.rgb.height, src.rgb.width)
+    print(f"{src.rgb.width}x{src.rgb.height} px, tile {plan.tile}, stride {plan.stride}, "
+          f"{len(plan.rows) * len(plan.cols)} tiles on the grid")
+
+    profile = output_profile(src)
+    tally, start = Tally(), time.monotonic()
+    with rasterio.open(args.output, "w", **profile) as prob_out:
+        prob_out.update_tags(**provenance(args, contract, plan, provider))
+        mask_out = None
+        if args.mask:
+            mask_out = rasterio.open(args.mask, "w", **{**profile, "dtype": "uint8",
+                                                        "nodata": MASK_NODATA, "predictor": 1})
+            mask_out.update_tags(FRAXTEX_THRESHOLD=str(args.threshold))
+        try:
+            for i, block in enumerate(blocks(src.rgb.height, src.rgb.width), start=1):
+                prob = run_block(session, contract, plan, src, block, args, tally)
+                prob_out.write(prob, 1, window=block)
+                if mask_out is not None:
+                    mask = np.where(prob > args.threshold, 1, 0).astype(np.uint8)
+                    mask[prob == PROB_NODATA] = MASK_NODATA
+                    mask_out.write(mask, 1, window=block)
+                if i % PROGRESS_EVERY == 0:
+                    print(f"  {i} blocks, {tally.tiles_run} tiles, {time.monotonic() - start:.0f} s")
+        finally:
+            if mask_out is not None:
+                mask_out.close()
+
+    print(f"tiles run {tally.tiles_run}, tiles skipped (no valid pixel) {tally.tiles_empty}, "
+          f"nodata pixels {tally.invalid_pixels}, {time.monotonic() - start:.1f} s")
+    print(f"wrote {args.output}" + (f" and {args.mask}" if args.mask else ""))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except (fx.ContractError, FileNotFoundError) as err:
+        sys.exit(f"error: {err}")

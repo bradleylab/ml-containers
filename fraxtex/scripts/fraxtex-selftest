@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Open every baked fraXteX model, print its contract, and run it on noise.
+
+    fraxtex-selftest                 # CPU; the image build runs this
+    fraxtex-selftest --device cuda   # on a GPU node: fails unless CUDA runs it
+
+For each model the input is a batch of two tiles of uniform noise within the
+declared value range, at the declared tile size (320 px for the dynamic-size
+U-Net, a multiple of 16 other than its 256 px training size, so the dynamic
+path is exercised). The output must match the input's spatial shape and lie in
+[0, 1]. Nothing here says whether a model finds fractures; SMOKE.md does that.
+"""
+
+import argparse
+import importlib.metadata as im
+import sys
+
+import numpy as np
+import onnxruntime as ort
+
+import fraxtex_onnx as fx
+
+SEED = 0
+BATCH = 2
+DYNAMIC_TEST_TILE = 320
+PACKAGES = ("onnxruntime-gpu", "numpy", "rasterio", "scikit-image", "scipy")
+CUDA_MAJOR = "12."
+
+
+def main(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    p.add_argument("--device", choices=("auto", "cuda", "cpu"), default="cpu")
+    args = p.parse_args(argv)
+
+    cuda_version = ort.cuda_version  # set from the wheel's build info; empty on CPU builds
+    print(" | ".join(f"{name} {im.version(name)}" for name in PACKAGES))
+    print(f"onnxruntime CUDA build {cuda_version or 'none'}; providers {ort.get_available_providers()}")
+    assert fx.CUDA_EP in ort.get_available_providers(), "CUDA execution provider missing from this build"
+    assert cuda_version.startswith(CUDA_MAJOR), f"expected a CUDA 12 build, got '{cuda_version}'"
+
+    rng = np.random.default_rng(SEED)
+    for name in fx.MODELS:
+        session, provider = fx.open_session(fx.resolve_model(name), args.device)
+        contract = fx.read_contract(session)
+        print(f"\n{name} [{provider}]\n  {fx.describe(contract)}")
+        for key in fx.CONTRACT_KEYS:
+            print(f"    {key} = {contract.metadata[key]}")
+        tile = contract.tile or DYNAMIC_TEST_TILE
+        fx.check_tile(contract, tile)
+        x = rng.uniform(0, contract.value_max, (BATCH, contract.channels, tile, tile)).astype(np.float32)
+        prob = fx.predict(session, x)
+        assert prob.shape == (BATCH, tile, tile), f"{name}: output {prob.shape}"
+        assert np.isfinite(prob).all() and prob.min() >= 0 and prob.max() <= 1, f"{name}: not a probability"
+        print(f"  noise {x.shape} -> {prob.shape}, range [{prob.min():.4f}, {prob.max():.4f}]")
+    print("\nSELFTEST OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

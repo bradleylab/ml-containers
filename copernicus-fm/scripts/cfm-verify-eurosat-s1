@@ -1,0 +1,275 @@
+#!/usr/bin/env python3
+"""Rerun Copernicus-FM's published EuroSAT-S1 linear-probe score.
+
+Target: Wang et al. (2025), "Towards a Unified Copernicus Foundation Model for
+Earth Vision", arXiv:2503.11849v3, Table 4. Copernicus-FM ViT-B/16, frozen
+encoder, linear probe on Copernicus-Bench EuroSAT-S1: test overall accuracy
+87.2 +/- 0.1 (three runs). DOFA scores 81.7 +/- 0.1 on the same task, so the
+number separates this model from its predecessor.
+
+The protocol follows upstream's benchmark code, Copernicus-Bench/ in
+zhu-xlab/Copernicus-FM @ da95635: scripts/exp_config_copernicusfm.py (batch 64,
+lr 0.1, 50 epochs), scripts/run.sh (seed 42, 8 loader workers),
+src/configs/config.yaml (weight decay 1e-4),
+src/configs/dataset/cobench_eurosat_s1.yaml (band statistics, wavelengths,
+bandwidths, 224 px, kernel 16), src/datasets/cobench_eurosats1_wrapper.py
+(augmentation, metadata), src/foundation_models/copernicusfm_wrapper.py (head)
+and src/foundation_models/lightning_task.py plus src/main.py (optimizer,
+schedule, test on the best-validation checkpoint). The encoder is TorchGeo's
+copernicusfm_base with the staged weights (mounted at /weights); the dataset is TorchGeo's
+CopernicusBenchEuroSATS1, which pins the Hugging Face revision and SHA-256.
+
+    cfm-verify-eurosat-s1 --root /data [--seed 42] [--out result.json]
+"""
+
+import argparse
+import copy
+import functools
+import json
+import math
+from pathlib import Path
+
+import kornia.augmentation as K
+import torch
+from lightning.pytorch import seed_everything
+from torch import Tensor, nn
+from torch.utils.data import DataLoader
+from torchgeo.datasets import CopernicusBenchEuroSATS1
+from torchgeo.models import CopernicusFM_Base_Weights, copernicusfm_base
+
+PUBLISHED_OA = 87.2
+PUBLISHED_SD = 0.1
+PUBLISHED_SOURCE = "Wang et al. 2025, arXiv:2503.11849v3, Table 4"
+
+BAND_MEAN = (-12.548, -20.192)
+BAND_STD = (5.257, 5.912)
+WAVELENGTHS_NM = (5e7, 5e7)
+BANDWIDTHS_NM = (1e9, 1e9)
+IMAGE_SIZE = 224
+KERNEL_SIZE = 16
+# Upstream's wrapper: a 16-pixel patch at 10 m ground sampling distance, in km².
+PATCH_AREA_KM2 = (16 * 10 / 1000) ** 2
+EMBED_DIM = 768
+NUM_CLASSES = 10
+
+BATCH_SIZE = 64
+LEARNING_RATE = 0.1
+WEIGHT_DECAY = 1e-4
+EPOCHS = 50
+SEED = 42
+NUM_WORKERS = 8
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument(
+        "--root",
+        type=Path,
+        default=Path("/data"),
+        help="Copernicus-Bench root; eurosat_s1.zip (0.92 GB) is fetched here if absent",
+    )
+    p.add_argument("--seed", type=int, default=SEED)
+    p.add_argument("--epochs", type=int, default=EPOCHS)
+    p.add_argument("--batch-size", type=int, default=BATCH_SIZE)
+    p.add_argument("--num-workers", type=int, default=NUM_WORKERS)
+    p.add_argument(
+        "--layernorm-eps",
+        type=float,
+        default=None,
+        help="build the encoder with this LayerNorm eps; upstream's ViT uses 1e-6, "
+        "TorchGeo's copernicusfm_base leaves PyTorch's default 1e-5",
+    )
+    p.add_argument("--out", type=Path, help="write the result as JSON here")
+    return p.parse_args()
+
+
+def build_encoder(layernorm_eps: float | None, device: torch.device) -> nn.Module:
+    kwargs = {}
+    if layernorm_eps is not None:
+        kwargs["norm_layer"] = functools.partial(nn.LayerNorm, eps=layernorm_eps)
+    encoder = copernicusfm_base(
+        weights=CopernicusFM_Base_Weights.CopernicusFM_ViT, **kwargs
+    )
+    encoder.requires_grad_(False)
+    return encoder.eval().to(device)
+
+
+def build_head(device: torch.device) -> nn.Module:
+    """Upstream's probe: a non-affine BatchNorm, then a linear layer."""
+    linear = nn.Linear(EMBED_DIM, NUM_CLASSES)
+    nn.init.trunc_normal_(linear.weight, std=0.01)
+    return nn.Sequential(nn.BatchNorm1d(EMBED_DIM, affine=False, eps=1e-6), linear).to(
+        device
+    )
+
+
+def fill_missing_location(sample: dict[str, Tensor]) -> dict[str, Tensor]:
+    # TorchGeo omits lat/lon for an untransformed raster; NaN makes the model
+    # fall back to its learned location token, as it does for missing metadata.
+    sample.setdefault("lat", torch.tensor(float("nan")))
+    sample.setdefault("lon", torch.tensor(float("nan")))
+    return sample
+
+
+def build_loaders(root: Path, batch_size: int, workers: int) -> dict[str, DataLoader]:
+    loaders = {}
+    for split in ("train", "val", "test"):
+        ds = CopernicusBenchEuroSATS1(
+            root,
+            split=split,
+            transforms=fill_missing_location,
+            download=True,
+            checksum=True,
+        )
+        train = split == "train"
+        loaders[split] = DataLoader(
+            ds,
+            batch_size=batch_size,
+            shuffle=train,
+            drop_last=train,
+            num_workers=workers,
+            pin_memory=True,
+        )
+    return loaders
+
+
+def build_augmentations(device: torch.device) -> dict[str, nn.Module]:
+    # Upstream applies these per sample in its dataset; applying them per batch
+    # on the GPU draws each sample's flips independently all the same.
+    mean = torch.tensor(BAND_MEAN, device=device)
+    std = torch.tensor(BAND_STD, device=device)
+    base = [
+        K.Normalize(mean=mean, std=std),
+        K.Resize(size=(IMAGE_SIZE, IMAGE_SIZE), align_corners=True),
+    ]
+    flips = [K.RandomHorizontalFlip(p=0.5), K.RandomVerticalFlip(p=0.5)]
+    return {"train": nn.Sequential(*base, *flips), "eval": nn.Sequential(*base)}
+
+
+def metadata(batch: dict[str, Tensor], device: torch.device) -> Tensor:
+    """[lon, lat, time, area] per sample; EuroSAT-S1 carries no acquisition time."""
+    n = batch["image"].shape[0]
+    time = torch.full((n,), float("nan"))
+    area = torch.full((n,), PATCH_AREA_KM2)
+    return torch.stack(
+        [batch["lon"].float(), batch["lat"].float(), time, area], dim=1
+    ).to(device)
+
+
+@torch.no_grad()
+def embed(
+    encoder: nn.Module, aug: nn.Module, batch: dict[str, Tensor], device: torch.device
+) -> Tensor:
+    x = aug(batch["image"].to(device, non_blocking=True))
+    return encoder(
+        x,
+        metadata(batch, device),
+        wavelengths=WAVELENGTHS_NM,
+        bandwidths=BANDWIDTHS_NM,
+        input_mode="spectral",
+        kernel_size=KERNEL_SIZE,
+    )
+
+
+def train_epoch(encoder, head, aug, loader, optimizer, scheduler, device) -> float:
+    head.train()
+    criterion = nn.CrossEntropyLoss()
+    total, n = 0.0, 0
+    for batch in loader:
+        feats = embed(encoder, aug, batch, device)
+        loss = criterion(head(feats), batch["label"].to(device))
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
+        total += loss.item() * len(feats)
+        n += len(feats)
+    return total / n
+
+
+@torch.no_grad()
+def overall_accuracy(encoder, head, aug, loader, device) -> float:
+    head.eval()
+    correct, n = 0, 0
+    for batch in loader:
+        pred = head(embed(encoder, aug, batch, device)).argmax(dim=1)
+        correct += (pred == batch["label"].to(device)).sum().item()
+        n += len(pred)
+    return 100.0 * correct / n
+
+
+def fit(encoder, head, augs, loaders, args, device) -> tuple[float, int]:
+    """Train the probe; leave the best-validation weights in `head`."""
+    optimizer = torch.optim.SGD(
+        head.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY
+    )
+    # Upstream's schedule, reproduced call for call: warmup_epochs=0 gives
+    # pct_start=0, and OneCycleLR also cycles SGD momentum between 0.85 and 0.95.
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=LEARNING_RATE,
+        total_steps=len(loaders["train"]) * args.epochs,
+        anneal_strategy="cos",
+        pct_start=0.0,
+    )
+    best_oa, best_epoch, best_state = -math.inf, -1, None
+    for epoch in range(args.epochs):
+        loss = train_epoch(
+            encoder, head, augs["train"], loaders["train"], optimizer, scheduler, device
+        )
+        val_oa = overall_accuracy(encoder, head, augs["eval"], loaders["val"], device)
+        print(
+            f"epoch {epoch:2d}  train loss {loss:.4f}  val OA {val_oa:.2f}", flush=True
+        )
+        # Strictly greater, as Lightning's ModelCheckpoint keeps the first maximum.
+        if val_oa > best_oa:
+            best_oa, best_epoch, best_state = (
+                val_oa,
+                epoch,
+                copy.deepcopy(head.state_dict()),
+            )
+    head.load_state_dict(best_state)
+    return best_oa, best_epoch
+
+
+def main() -> None:
+    args = parse_args()
+    seed_everything(args.seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(
+        f"device {device} | torch {torch.__version__} | cuda build {torch.version.cuda}",
+        flush=True,
+    )
+
+    encoder = build_encoder(args.layernorm_eps, device)
+    head = build_head(device)
+    loaders = build_loaders(args.root, args.batch_size, args.num_workers)
+    augs = build_augmentations(device)
+
+    best_val, best_epoch = fit(encoder, head, augs, loaders, args, device)
+    test_oa = overall_accuracy(encoder, head, augs["eval"], loaders["test"], device)
+
+    result = {
+        "task": "Copernicus-Bench EuroSAT-S1 linear probe",
+        "metric": "test OA (%)",
+        "test_oa": round(test_oa, 2),
+        "best_val_oa": round(best_val, 2),
+        "best_epoch": best_epoch,
+        "seed": args.seed,
+        "epochs": args.epochs,
+        "layernorm_eps": args.layernorm_eps,
+        "published_oa": PUBLISHED_OA,
+        "published_sd": PUBLISHED_SD,
+        "published_source": PUBLISHED_SOURCE,
+    }
+    print(
+        f"EuroSAT-S1 test OA {test_oa:.2f} (best val OA {best_val:.2f} at epoch {best_epoch}); "
+        f"published {PUBLISHED_OA} ± {PUBLISHED_SD}, {PUBLISHED_SOURCE}"
+    )
+    print(json.dumps(result))
+    if args.out:
+        args.out.write_text(json.dumps(result, indent=2) + "\n")
+
+
+if __name__ == "__main__":
+    main()

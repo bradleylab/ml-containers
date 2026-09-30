@@ -1278,6 +1278,146 @@ update its card *in the same PR*. Top-level `README.md` and
 
 ---
 
+## copernicus-fm
+
+| | |
+|--|--|
+| Task | Earth-observation embeddings (foundation model) for frozen-encoder or fine-tuned classification, segmentation, change detection and regression |
+| Sensor | Any spectral sensor by wavelength and bandwidth (Sentinel-1 GRD, Sentinel-2, Sentinel-3 OLCI); Sentinel-5P CO/NO₂/SO₂/O₃ and Copernicus DEM by variable-name embedding |
+| Upstream repo | [zhu-xlab/Copernicus-FM](https://github.com/zhu-xlab/Copernicus-FM); runs through TorchGeo 0.10.0 (`copernicusfm_base`) |
+| Upstream license | TorchGeo MIT (the code in the image). Upstream research code Apache-2.0 with MIT and CC-BY-NC-4.0 portions, not in the image |
+| Paper | [arXiv:2503.11849](https://arxiv.org/abs/2503.11849) — Wang et al. (2025) |
+| Weights source | **Not baked.** `torchgeo/copernicus-fm` @ `f395812`, `CopernicusFM_ViT_base_varlang-085350e4.pth` (558 MB), identical by SHA-256 to upstream's `CopernicusFM_ViT_base_varlang_e100.pth`; staged on Storage3 at `Active/copernicus-fm/weights` by `scripts/stage_weights.py` and mounted at `/weights` |
+| Weights license | CC-BY-4.0 (attribution to Wang et al. 2025). The weights were pretrained on Llama 3.2 encodings of variable names, which the Llama 3.2 Community License covers, so the lab keeps them on its own storage rather than redistributing them. The encodings themselves are fetched separately |
+| Container stack | `python:3.12-slim-bookworm`, `torch==2.13.0` + `torchvision==0.28.0` (CUDA 12.9), `torchgeo==0.10.0`; dependency set frozen in `constraints.txt` |
+| H100 status | sm_90 through the CUDA 12.9 torch build |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test: with network access blocked, embeds Sentinel-2, Sentinel-1 and variable-mode inputs through a randomly initialized encoder, asserting shape, finite values and distinct outputs. `SMOKE.md` reproduces the published Copernicus-Bench EuroSAT-S1 linear-probe accuracy (87.2 ± 0.1 %, Table 4; `dofa` scores 81.7 there) |
+| Tags | `:v1` (= `:latest` = `:torch2.13-cu129`) |
+| Notes | Wavelengths are in nanometers; `dofa` takes micrometers. TorchGeo's builder uses LayerNorm eps 1e-5 where upstream's pretraining used 1e-6; the benchmark script can switch |
+
+---
+
+## ssl4eo-landsat
+
+| | |
+|--|--|
+| Task | Landsat image encoders (self-supervised) for embeddings and frozen-backbone segmentation or classification |
+| Sensor | Landsat 4–5 TM TOA; Landsat 7 ETM+ TOA and SR; Landsat 8–9 OLI/TIRS TOA and OLI SR |
+| Upstream repo | [microsoft/torchgeo](https://github.com/microsoft/torchgeo) @ v0.10.0 weight enums (`ResNet18_Weights`, `ResNet50_Weights`, `ViTSmall16_Weights`) |
+| Upstream license | MIT |
+| Paper | [arXiv:2306.09424](https://arxiv.org/abs/2306.09424) — Stewart et al., SSL4EO-L (NeurIPS 2023 Datasets and Benchmarks) |
+| Weights source | Baked: `torchgeo/ssl4eo_landsat` @ `1c88bb5`, the 30 checkpoints TorchGeo 0.10.0 references (2.28 GB); the repository's 12 empty and 6 unreferenced files are left out |
+| Weights license | CC0-1.0 |
+| Container stack | `python:3.12-slim-bookworm`, `torch==2.13.0` + `torchvision==0.28.0` (CUDA 12.9), `torchgeo==0.10.0`; dependency set frozen in `constraints.txt` |
+| H100 status | sm_90 through the CUDA 12.9 torch build |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test runs with network access disabled: loads all 30 checkpoints, checks each one's band count against its first layer, and runs a forward pass on synthetic input. Table 2's Landsat 7 ETM+ SR CDL ResNet-18 MoCo result reproduces on an H100 with the encoder trained (67.20 % vs 67.30 %); its lead over ImageNet is 1.2 points frozen and 0.7 trained, not Table 2's 6.6 (`SMOKE.md`) |
+| Tags | `:v1` (= `:latest` = `:torch2.13-cu129`) |
+| Notes | TorchGeo's metadata labels the ETM+ SR ResNet-50 entries `resnet18`; file sizes and the builder show ResNet-50. TM and ETM+ weights extend the catalog's Landsat coverage back before Landsat 8 |
+
+---
+
+## satclip
+
+| | |
+|--|--|
+| Task | Location embedding: longitude/latitude to a 256-d embedding, used as a covariate for geospatial regression and classification |
+| Sensor | Location (lon, lat); pretrained against Sentinel-2 L2A, 12 bands at 10 m (S2-100K) |
+| Upstream repo | [microsoft/satclip](https://github.com/microsoft/satclip) @ `1ead106` |
+| Upstream license | MIT |
+| Paper | [arXiv:2311.17179](https://arxiv.org/abs/2311.17179) — Klemmer, Rolf, Robinson, Mackey, Russwurm |
+| Weights source | Baked at `/opt/satclip-weights`: `microsoft/SatCLIP-{ViT16,ResNet50,ResNet18}-{L40,L10}`, each at a pinned revision and SHA-256-checked, 598 MB together |
+| Weights license | MIT (all six model cards); the cards scope use to research |
+| Container stack | `python:3.12-slim-bookworm`, `torch==2.14.0` (CUDA 13.0); location encoder only, loaded with upstream's `load_lightweight`; dependency set frozen in `constraints.txt` |
+| H100 status | sm_90 through the CUDA 13.0 torch build; the location encoder also runs on CPU |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test loads every checkpoint offline, embeds St. Louis, Kirkwood MO, a Sahara and an Amazon point, and checks that the nearby pair is more similar than the distant ones. On an H100 the paper's global elevation regression gives R² 0.893 for the ViT-16 and ResNet-50 L=40 encoders (published 0.88) and 0.35 for raw coordinates (published 0.25 ± 0.08), over 10 runs (`SMOKE.md`) |
+| Tags | `:v1` (= `:latest` = `:torch2.14-cu130`) |
+| Notes | The image encoder is not included: upstream's full loader downloads TorchGeo weights at construction. Global-scale model — weak for many close locations; captures landscape-scale structure. Complements `geoclip` (image → location) |
+
+---
+
+## anysat
+
+| | |
+|--|--|
+| Task | Multimodal, multi-resolution Earth-observation features (tile, patch, dense); heads such as linear probes are trained separately |
+| Sensor | Aerial RGBN (+elevation) 0.2 m, SPOT 1 m, NAIP 1.25 m; time series from Sentinel-2, Sentinel-1, ALOS-2, Landsat 7, Landsat 8, MODIS |
+| Upstream repo | [gastruc/AnySat](https://github.com/gastruc/AnySat) @ `5f6f475`, loaded with `torch.hub.load(..., source="local")` |
+| Upstream license | MIT |
+| Paper | [arXiv:2412.14123](https://arxiv.org/abs/2412.14123) — Astruc, Gonthier, Mallet, Landrieu (CVPR 2025) |
+| Weights source | Baked: `g-astruc/AnySat` @ `63f2521`, `models/AnySat.pth` (504 MB); `AnySat_full.pth` is not used by the hub entrypoint and is left out |
+| Weights license | MIT |
+| Container stack | `python:3.12-slim-bookworm`, `torch==2.12.1` (CUDA 12.9); inference path only (no Lightning/Hydra training stack); flash-attn not installed; dependency set frozen in `constraints.txt` |
+| H100 status | sm_90 through the CUDA 12.9 torch build |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test runs with network access disabled: forwards a synthetic NAIP plus Sentinel-2 time-series sample and asserts tile and patch shapes. `SMOKE.md` probes AnySat features against NLCD 2021 land cover over Tyson Research Center with spatial cross-validation, judged against a raw band-mean baseline |
+| Tags | `:v1` (= `:latest` = `:torch2.12-cu129`) |
+| Notes | The fused `patch` output is nearly constant within a tile; per-location work should use the sub-patch half of the `dense` output. GeoPlex pretraining data is mostly European |
+
+---
+
+## panopticon
+
+| | |
+|--|--|
+| Task | Any-sensor Earth-observation embeddings (class and patch tokens) for linear probes, kNN and dense heads |
+| Sensor | RGB, multispectral, hyperspectral (bands by center wavelength in nm) and SAR (by polarization/orbit category) |
+| Upstream repo | [Panopticon-FM/panopticon](https://github.com/Panopticon-FM/panopticon) @ `24a229a` |
+| Upstream license | Apache-2.0 (DINOv2-derived files carry Meta's Apache-2.0 headers; two TorchGeo-derived dataset files MIT) |
+| Paper | [arXiv:2503.10845](https://arxiv.org/abs/2503.10845) — Waldmann, Shah et al. (2025); CVPR 2025 EarthVision best paper |
+| Weights source | Baked: `lewaldm/panopticon` @ `c8c2bb9`, `panopticon_vitb14_teacher.pth` (396 MB, SHA-256-pinned) |
+| Weights license | CC-BY-4.0 per the upstream README; the Hugging Face repository declares MIT. Crediting the authors satisfies both |
+| Container stack | `python:3.12-slim-bookworm`, `torch==2.12.1` (CUDA 12.9); upstream code at `/opt/panopticon`, not pip-installed; xformers not needed for inference; dependency set frozen in `constraints.txt` |
+| H100 status | sm_90 through the CUDA 12.9 torch build |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test loads the baked teacher with network access blocked and embeds RGB and 12-band Sentinel-2 inputs. On an H100, 8 Tanager patches at all 426 bands take 41 GB and 0.54 s per forward pass in fp32, 22 GB and 0.17 s in bf16; EMIT's 285 bands take 28 GB in fp32 (`SMOKE.md`). The paper has no small published result reproducible without its evaluation code |
+| Tags | `:v1` (= `:latest` = `:torch2.12-cu129`) |
+| Notes | Patch-embedding cost grows linearly and steeply with band count (about 50× the ViT trunk at 426 bands); pretraining views held at most 13 channels. Wavelengths are floored to whole nanometers |
+
+---
+
+## fraxtex
+
+| | |
+|--|--|
+| Task | Pixel-wise fracture-trace probability segmentation of outcrop imagery |
+| Sensor | RGB UAV orthomosaics of outcrops (mm- to cm-scale GSD), optional co-registered DEM |
+| Upstream repo | [huggingface.co/ayoubft/fraXteX](https://huggingface.co/ayoubft/fraXteX) @ `890ccb4` (weights). The training code, `ayoubft/fractex2D.pt`, has no license and is not in the image |
+| Upstream license | Weights MIT; inference code in the image is the lab's own |
+| Paper | [doi:10.5194/egusphere-2026-1097](https://doi.org/10.5194/egusphere-2026-1097) — Fatihi et al., EGUsphere preprint |
+| Weights source | Baked: four ONNX files (U-Net and SAM 2 on RGB; U-Net and SegFormer on RGB+DEM), 470 MB, SHA-256-checked |
+| Weights license | MIT (Hugging Face); the RGB+DEM pair also CC-BY-4.0 on Zenodo (doi:10.5281/zenodo.17866853). `sam2-rgb` embeds Meta's SAM 2 encoder, Apache-2.0 |
+| Container stack | `python:3.12-slim-bookworm`, `onnxruntime-gpu==1.26.0` with the CUDA 12 runtime and cuDNN 9 from pip, rasterio; no PyTorch; dependency set frozen in `constraints.txt` |
+| H100 status | CUDA execution provider through onnxruntime-gpu 1.26 (CUDA 12); also runs on CPU |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test opens all four ONNX files, prints each embedded input contract, runs each on a matching synthetic input, and confirms the CUDA provider is available. FraXet test scores on an H100 match the preprint's Table D1 for the two RGB+DEM models: U-Net F1 0.48 and SegFormer F1 0.44, both as published (`SMOKE.md`). `sam2-rgb`, which the preprint does not score, reaches F1 0.09 on 2× enlarged 256 px patches |
+| Tags | `:v1` (= `:latest` = `:ort1.26-cu128`) |
+| Notes | The two model directories use different preprocessing; the CLI reads each file's contract rather than hard-coding it. Upstream's training loader appears to have fed the RGB+DEM models a near-zero DEM channel, so the CLI makes `--dem-scaling` an explicit choice. `sam2-rgb` fails in cuDNN at 32 tiles per call and runs at 24; keep `--batch` at or below 24 for it. Output is an aid to interpretation, not a substitute |
+
+---
+
+## aurora
+
+| | |
+|--|--|
+| Task | Global medium-range weather forecasting, 0.25°, 6-hour steps |
+| Sensor | Gridded ERA5 reanalysis or IFS HRES analysis initial conditions |
+| Upstream repo | [microsoft/aurora](https://github.com/microsoft/aurora), PyPI `microsoft-aurora==2.0.1` |
+| Upstream license | MIT |
+| Paper | [doi:10.1038/s41586-025-09005-y](https://doi.org/10.1038/s41586-025-09005-y) — Bodnar et al., Nature (2025) |
+| Weights source | **Not baked.** `microsoft/aurora` @ `0be7e57`: 0.25° pretrained and fine-tuned checkpoints, the small model, static fields and upstream's reference batch, 10.8 GB, staged on Storage3 at `Active/aurora` by `scripts/stage_weights.py` |
+| Weights license | MIT; upstream asks commercial users to contact Microsoft and describes the release as research code |
+| Container stack | `python:3.11-slim-bookworm`, `torch==2.13.0` + `torchvision==0.28.0` (CUDA 12.9), xarray, zarr and gcsfs for WeatherBench2; dependency set frozen in `constraints.txt` |
+| H100 status | sm_90 through the CUDA 12.9 torch build; about 40 GB of GPU memory for the full model per upstream |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test runs upstream's random-batch example through a randomly initialized small model, offline and weight-free. `SMOKE.md` stages the weights, then scores one 6-hour step from ERA5 and from HRES T0 (read anonymously from WeatherBench2) against the verifying analysis and against persistence |
+| Tags | `:v1` (= `:latest` = `:torch2.13-cu129`) |
+| Notes | The 0.1°, Aurora 1.5, wave and air-pollution fine-tunes need initial conditions the lab does not hold; the air-pollution model's CAMS inputs require a Copernicus Atmosphere Data Store account. Joins `aifs`, `fourcastnet3`, `stormcast` and `corrdiff` |
+
+---
+
 ## Deprecated images
 
 For history of `bradleylab/multispec-species` and `bradleylab/tree-analysis`, see [`DEPRECATIONS.md`](DEPRECATIONS.md).

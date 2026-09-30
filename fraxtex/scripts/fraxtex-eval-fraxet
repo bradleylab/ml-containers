@@ -1,0 +1,421 @@
+#!/usr/bin/env python3
+"""Score a fraXteX model on the FraXet test split the way the preprint did.
+
+    fraxtex-eval-fraxet --fraxet /data/FraXet_v0.1 --model unet-rgbdem --dem-mode loader
+
+The protocol follows the upstream evaluation (fractex2D.pt @ f5edf43,
+src/dataset_benchm.py and src/train.py::eval_loop, with config/config.yaml and
+config/dataset/benchmark.yaml), reimplemented here from that description:
+
+  * Test patches of samsu19, matteo21 and ovaskainen23_, in that order, from
+    each split's list.txt (matteo21 sorted by file name, as upstream sorts it).
+  * Labels refined as in preprint sec. 2.2: wide-fracture widening (dark green
+    channel < 30 after a radius-2 maximum filter, dilated by radius 2, kept only
+    where connected to a traced pixel), then multi-scale smoothing (labels
+    expanded 2 px; rings out to radius 2, 5 and 7 weighted 1/3, 1/5, 1/9).
+  * A pixel is fracture in the reference if its refined label is > 0, and in the
+    prediction if its probability is > 0.1 (config.yaml threshold).
+  * Precision, recall, specificity, accuracy, F1 (= Dice), IoU and Cohen's kappa
+    from one confusion matrix pooled over all test pixels, background included.
+  * ROC-AUC is computed, as upstream does, on the thresholded prediction, which
+    makes it (recall + specificity) / 2, over batches of 32 whose reference
+    holds both classes.
+  * MSE, AE and PSNR (data range 1) compare the probability map with the soft
+    refined label; Loss is the mean Huber loss (delta 1) of the raw output.
+  * SSIM: Gaussian window 11 px, sigma 1.5, K1 0.01, K2 0.03, reflect padding,
+    data range taken per batch of 32 as max(prediction span, label span), mean
+    over each whole image and then over images: the torchmetrics (>= 1.8)
+    definition upstream calls.
+  * FracSim on list2.txt patches only (the preprint's "modified test set"):
+    skeletons of both masks, junction blocks removed (3x3 windows summing to
+    more than 4), segment lengths histogrammed on 20 edges over 0-260 px,
+    symmetric chi-square distance (preprint Eq. 1), averaged over patches.
+  * For SegFormer, upstream sets probabilities above 0.99 to zero before every
+    metric except Loss; that is repeated here (--no-segformer-rule disables it).
+
+Known departures: upstream's test loader flips patches at random, which this
+does not; and sam2-rgb takes 512x512 tiles, so each 256 px patch is enlarged
+2x by pixel repetition and the output averaged back over 2x2 blocks. The
+preprint reports scores for the RGB+DEM U-Net and SegFormer only.
+
+--dem-mode chooses how the DEM becomes the 4th channel:
+  loader            what the upstream loader computes: the 4th band of the
+                    image file if it has one (matteo21's DEM, but samsu19's PNG
+                    alpha), else the DEM file; cast to uint8; per-patch min-max;
+                    then divided by 255 with the RGB bands.
+  patch-minmax      the DEM file (matteo21: band 4) min-max scaled per patch to
+                    0-1, as the preprint text and model card describe.
+  patch-minmax-255  the same, divided by 255.
+  zero              an all-zero 4th channel.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import warnings
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+import rasterio
+from scipy.ndimage import correlate1d, uniform_filter
+from skimage.filters.rank import maximum
+from skimage.measure import label
+from skimage.morphology import dilation, disk, skeletonize
+from skimage.segmentation import expand_labels
+
+import fraxtex_onnx as fx
+
+# FraXet patches are PNGs and bare TIFFs without a geotransform; the pixel
+# grid is all this needs, so rasterio's per-file warning is noise here.
+warnings.filterwarnings("ignore", category=rasterio.errors.NotGeoreferencedWarning)
+
+PATCH = 256
+SUBSETS = ("samsu19", "matteo21", "ovaskainen23_")
+SORTED_SUBSETS = ("matteo21",)
+BATCH_SIZE = 32
+# Enlarged 512 px tiles go through the model at most this many at a time: 32 of
+# them fail in sam2-rgb's ConvTranspose with CUDNN_STATUS_NOT_SUPPORTED, while
+# 24 run. Patches are scored independently, so this does not change any metric.
+ENLARGED_CHUNK = 16
+THRESHOLD = 0.1
+UINT8_MAX = 255
+MINMAX_EPS = 1e-8
+SEGFORMER_NAME = "segformer"
+SEGFORMER_CEILING = 0.99
+HUBER_DELTA = 1.0
+
+DARK_LEVEL = 30
+TRACE_LEVEL = 100
+WIDEN_RADIUS = 2
+EXPAND_DISTANCE = 2
+RINGS = ((2, 3), (5, 5), (7, 9))  # (dilation radius, weight divisor)
+
+SSIM_SIGMA = 1.5
+SSIM_SIZE = 11
+SSIM_K1, SSIM_K2 = 0.01, 0.03
+
+FRACSIM_EDGES = np.linspace(0, 260, 20)
+FRACSIM_EPS = 1e-6
+JUNCTION_SUM = 4
+
+DEM_MODES = ("loader", "patch-minmax", "patch-minmax-255", "zero")
+METRICS = ("ae", "mse", "ssim", "psnr", "acc", "prec", "f1", "rec", "spec", "roc", "iou",
+           "ck", "fracsim", "loss")
+
+# Fatihi et al., EGUsphere preprint, doi:10.5194/egusphere-2026-1097. "all" is
+# Table D1 (test set); the subsets are the M_all rows of Table 6. The revised
+# manuscript in the authors' response (AC1) repeats Table D1 as Table E1.
+PUBLISHED = {
+    "unet-rgbdem": {
+        "all": (0.07, 0.03, 0.49, 14.7, 0.84, 0.50, 0.48, 0.45, 0.92, 0.69, 0.31, 0.39, 3.40, 0.02),
+        "ovaskainen23_": (0.05, 0.02, 0.64, 16.51, 0.93, 0.77, 0.73, 0.68, 0.97, 0.83, 0.57, 0.69, 2.99, 0.01),
+        "samsu19": (0.06, 0.03, 0.58, 15.48, 0.86, 0.32, 0.34, 0.38, 0.92, 0.65, 0.21, 0.27, 7.54, 0.01),
+        "matteo21": (0.08, 0.04, 0.57, 14.27, 0.80, 0.45, 0.39, 0.34, 0.90, 0.62, 0.24, 0.27, 4.01, 0.02),
+    },
+    "segformer-rgbdem": {
+        "all": (0.10, 0.05, 0.40, 13.2, 0.79, 0.38, 0.44, 0.52, 0.84, 0.68, 0.28, 0.32, 3.43, 0.02),
+        "ovaskainen23_": (0.06, 0.02, 0.53, 16.34, 0.93, 0.77, 0.70, 0.64, 0.97, 0.80, 0.54, 0.66, 2.94, 0.01),
+        "samsu19": (0.06, 0.03, 0.39, 15.96, 0.85, 0.29, 0.33, 0.39, 0.90, 0.65, 0.20, 0.25, 7.85, 0.01),
+        "matteo21": (0.08, 0.03, 0.38, 15.37, 0.81, 0.48, 0.41, 0.35, 0.91, 0.63, 0.25, 0.29, 4.47, 0.01),
+    },
+}
+
+
+@dataclass(frozen=True)
+class Patch:
+    subset: str
+    name: str
+    image: Path
+    gt: Path
+    dem: Path | None  # None: the DEM is band 4 of the image (matteo21)
+
+
+def list_patches(root: Path, subset: str, list_name: str) -> list[Patch]:
+    split = root / subset / "test"
+    names = [n.strip() for n in (split / list_name).read_text().splitlines() if n.strip()]
+    if subset in SORTED_SUBSETS:
+        names = sorted(names)
+    patches = []
+    for name in names:
+        dem = split / "dem" / name
+        image = split / "image" / (name if not dem.exists() else Path(name).with_suffix(".png").name)
+        patches.append(Patch(subset, name, image, split / "gt" / name, dem if dem.exists() else None))
+    missing = [p for p in patches if not (p.image.exists() and p.gt.exists())]
+    if missing:
+        raise SystemExit(f"{len(missing)} {subset} files listed in {list_name} are missing, "
+                         f"first {missing[0].image}")
+    return patches
+
+
+def to_uint8(array: np.ndarray, counts: dict, key: str) -> np.ndarray:
+    """Upstream's float-to-uint8 cast, with its NaNs made explicitly 0 and counted."""
+    if array.dtype == np.uint8:
+        return array
+    nan = np.isnan(array)
+    counts[key] = counts.get(key, 0) + int(nan.sum())
+    return np.where(nan, 0, array).astype(np.uint8)
+
+
+def minmax(values: np.ndarray) -> np.ndarray:
+    lo, hi = float(values.min()), float(values.max())
+    return ((values - lo) / (hi - lo + MINMAX_EPS)).astype(np.float32)
+
+
+def read_patch(patch: Patch, dem_mode: str | None, counts: dict):
+    """uint8 RGB (H, W, 3), 4th channel or None, and uint8 0/255 trace mask."""
+    with rasterio.open(patch.image) as src:
+        image = src.read()
+    rgb = to_uint8(image[:3], counts, "rgb_nan").transpose(1, 2, 0)
+    with rasterio.open(patch.gt) as src:
+        gt = src.read(1)
+    if gt.dtype != np.uint8:
+        gt = to_uint8(gt * UINT8_MAX if np.nanmax(gt) <= 1 else gt, counts, "gt_nan")
+
+    if dem_mode is None:
+        return rgb, None, gt
+    if dem_mode == "zero":
+        return rgb, np.zeros(gt.shape, np.float32), gt
+    if dem_mode == "loader":
+        band = image[3] if image.shape[0] >= 4 else _read_dem(patch.dem)
+        return rgb, minmax(to_uint8(band, counts, "dem_nan").astype(np.float32)) / UINT8_MAX, gt
+    dem = image[3].astype(np.float32) if patch.dem is None else _read_dem(patch.dem)
+    finite = np.isfinite(dem)
+    counts["dem_nonfinite"] = counts.get("dem_nonfinite", 0) + int((~finite).sum())
+    dem = np.where(finite, dem, np.nanmin(dem) if finite.any() else 0.0)
+    lo, hi = float(dem.min()), float(dem.max())
+    scaled = (dem - lo) / (hi - lo) if hi > lo else np.zeros_like(dem)
+    return rgb, (scaled / (UINT8_MAX if dem_mode == "patch-minmax-255" else 1)).astype(np.float32), gt
+
+
+def _read_dem(path: Path) -> np.ndarray:
+    with rasterio.open(path) as src:
+        return src.read(1).astype(np.float32)
+
+
+def refine_labels(rgb: np.ndarray, gt: np.ndarray) -> np.ndarray:
+    """Preprint sec. 2.2 label refinement; returns the soft label in [0, 1]."""
+    traced = gt > TRACE_LEVEL
+    dark = dilation(maximum(rgb[..., 1], disk(WIDEN_RADIUS)) < DARK_LEVEL, disk(WIDEN_RADIUS))
+    grown = dark | traced
+    components = label(grown, connectivity=1)
+    keep = np.isin(components, np.unique(components[traced])) & grown
+    widened = gt | (keep.astype(np.uint8) * UINT8_MAX)
+
+    # Some traced masks (matteo21) are anti-aliased rather than 0/1, so the
+    # rings are built with upstream's arithmetic, XOR on the label values, not
+    # as clean distance bands; the two differ on those patches.
+    core = expand_labels(widened, distance=EXPAND_DISTANCE)
+    soft = core.astype(np.float64)
+    previous = core
+    for radius, divisor in RINGS:
+        ring = dilation(core, disk(radius)) ^ previous
+        soft += ring / divisor
+        previous = ring ^ previous
+    # float -> uint8 through a wider integer wraps modulo 256, which is what the
+    # upstream cast does on x86; a direct cast of values above 255 is platform-dependent.
+    return (soft.astype(np.int64).astype(np.uint8) / UINT8_MAX).astype(np.float32)
+
+
+def model_batch(rgbs: list, dems: list, contract: fx.Contract) -> np.ndarray:
+    x = np.stack(rgbs).transpose(0, 3, 1, 2).astype(np.float32) * (contract.value_max / UINT8_MAX)
+    if contract.uses_dem:
+        x = np.concatenate([x, np.stack(dems)[:, None]], axis=1)
+    return x
+
+
+def infer(session, contract: fx.Contract, batch: np.ndarray) -> np.ndarray:
+    """Probabilities at patch size; fixed tiles larger than a patch are fed 2x, 4x... enlarged."""
+    factor = (contract.tile or PATCH) // PATCH
+    if (contract.tile or PATCH) != factor * PATCH:
+        raise SystemExit(f"tile {contract.tile} is not a whole multiple of the {PATCH} px patch")
+    if factor == 1:
+        return fx.predict(session, batch)
+    big = batch.repeat(factor, axis=2).repeat(factor, axis=3)
+    prob = np.concatenate([fx.predict(session, np.ascontiguousarray(big[i:i + ENLARGED_CHUNK]))
+                           for i in range(0, len(big), ENLARGED_CHUNK)])
+    n = prob.shape[0]
+    return prob.reshape(n, PATCH, factor, PATCH, factor).mean(axis=(2, 4))
+
+
+def run(session, contract: fx.Contract, patches: list[Patch], dem_mode: str | None):
+    """Raw probabilities (N, H, W) and soft labels (N, H, W) for every patch."""
+    counts: dict = {}
+    probs, labels = [], []
+    for start in range(0, len(patches), BATCH_SIZE):
+        rgbs, dems = [], []
+        for patch in patches[start:start + BATCH_SIZE]:
+            rgb, dem, gt = read_patch(patch, dem_mode, counts)
+            rgbs.append(rgb)
+            dems.append(dem)
+            labels.append(refine_labels(rgb, gt))
+        probs.append(infer(session, contract, model_batch(rgbs, dems, contract)))
+        print(f"  {min(start + BATCH_SIZE, len(patches))}/{len(patches)} patches", flush=True)
+    return np.concatenate(probs), np.stack(labels), counts
+
+
+def _gaussian_1d() -> np.ndarray:
+    dist = np.arange((1 - SSIM_SIZE) / 2, (1 + SSIM_SIZE) / 2)
+    g = np.exp(-((dist / SSIM_SIGMA) ** 2) / 2)
+    return g / g.sum()
+
+
+def ssim_per_image(pred: np.ndarray, ref: np.ndarray, data_range: float) -> np.ndarray:
+    pad = (SSIM_SIZE - 1) // 2
+    g = _gaussian_1d()
+    c1, c2 = (SSIM_K1 * data_range) ** 2, (SSIM_K2 * data_range) ** 2
+
+    def local_mean(a: np.ndarray) -> np.ndarray:
+        a = np.pad(a, ((0, 0), (pad, pad), (pad, pad)), mode="reflect")
+        a = correlate1d(correlate1d(a, g, axis=1), g, axis=2)
+        return a[:, pad:-pad, pad:-pad]
+
+    mp, mr = local_mean(pred), local_mean(ref)
+    var_p = np.maximum(local_mean(pred * pred) - mp * mp, 0)
+    var_r = np.maximum(local_mean(ref * ref) - mr * mr, 0)
+    cov = local_mean(pred * ref) - mp * mr
+    index = ((2 * mp * mr + c1) * (2 * cov + c2)) / ((mp * mp + mr * mr + c1) * (var_p + var_r + c2))
+    # Averaged over the whole image: torchmetrics has not cropped the padded
+    # border since its SSIM padding fix (#2721), and upstream's DiceScore
+    # aggregation_level argument needs torchmetrics >= 1.8, which is later.
+    return index.reshape(len(pred), -1).mean(axis=1)
+
+
+def fracsim(pred_bin: np.ndarray, ref_bin: np.ndarray) -> float:
+    def lengths(mask: np.ndarray) -> np.ndarray:
+        skel = skeletonize(mask).astype(np.uint8)
+        crowded = uniform_filter(skel.astype(float), size=3, mode="constant") * 9 > JUNCTION_SUM + 0.5
+        crowded[[0, -1], :] = False  # only full 3x3 windows count, as upstream slides them
+        crowded[:, [0, -1]] = False
+        skel[dilation(crowded, np.ones((3, 3), bool))] = 0
+        return np.bincount(label(skel).ravel())[1:]
+
+    hp, _ = np.histogram(lengths(pred_bin), bins=FRACSIM_EDGES)
+    hr, _ = np.histogram(lengths(ref_bin), bins=FRACSIM_EDGES)
+    hp, hr = hp + FRACSIM_EPS, hr + FRACSIM_EPS
+    return float(0.5 * np.sum((hp - hr) ** 2 / (hp + hr)))
+
+
+def score(raw: np.ndarray, ref: np.ndarray, is_segformer: bool, fracsim_idx: list[int]) -> dict:
+    """All METRICS for one group of patches, batched in their given order."""
+    diff = raw.astype(np.float64) - ref
+    loss = np.where(np.abs(diff) < HUBER_DELTA, 0.5 * diff ** 2,
+                    HUBER_DELTA * (np.abs(diff) - 0.5 * HUBER_DELTA)).mean()
+    pred = np.where(raw > SEGFORMER_CEILING, 0, raw) if is_segformer else raw
+    pos, truth = pred > THRESHOLD, ref > 0
+    tp, fp = int((pos & truth).sum()), int((pos & ~truth).sum())
+    fn, tn = int((~pos & truth).sum()), int((~pos & ~truth).sum())
+    n = tp + fp + fn + tn
+
+    roc_hits = np.zeros(4)  # tp, fn, tn, fp over batches holding both classes
+    ssim_values = []
+    for s in range(0, len(pred), BATCH_SIZE):
+        batch = slice(s, s + BATCH_SIZE)
+        p, r, t, q = pred[batch], ref[batch], truth[batch], pos[batch]
+        if t.any() and not t.all():
+            roc_hits += [(q & t).sum(), (~q & t).sum(), (~q & ~t).sum(), (q & ~t).sum()]
+        span = max(float(p.max() - p.min()), float(r.max() - r.min()))
+        ssim_values.append(ssim_per_image(p.astype(np.float64), r.astype(np.float64), span))
+
+    def ratio(a: float, b: float) -> float:
+        return a / b if b else 0.0
+
+    mse = float(((pred.astype(np.float64) - ref) ** 2).mean())
+    po = (tp + tn) / n
+    pe = ((tp + fp) * (tp + fn) + (fn + tn) * (fp + tn)) / n ** 2
+    return {
+        "ae": float(np.abs(pred.astype(np.float64) - ref).mean()),
+        "mse": mse,
+        "ssim": float(np.concatenate(ssim_values).mean()),
+        "psnr": float(10 * np.log10(1 / mse)),
+        "acc": po,
+        "prec": ratio(tp, tp + fp),
+        "f1": ratio(2 * tp, 2 * tp + fp + fn),
+        "rec": ratio(tp, tp + fn),
+        "spec": ratio(tn, tn + fp),
+        "roc": 0.5 * (ratio(roc_hits[0], roc_hits[0] + roc_hits[1])
+                      + ratio(roc_hits[2], roc_hits[2] + roc_hits[3])),
+        "iou": ratio(tp, tp + fp + fn),
+        "ck": ratio(po - pe, 1 - pe),
+        "fracsim": float(np.mean([fracsim(pos[i], truth[i]) for i in fracsim_idx]))
+        if fracsim_idx else float("nan"),
+        "loss": float(loss),
+    }
+
+
+def report(model_key: str, results: dict) -> None:
+    published = PUBLISHED.get(model_key)
+    if published is None:
+        print(f"\nThe preprint publishes no scores for {model_key}; measured values only.")
+    for group, measured in results.items():
+        print(f"\n{group}  ({'measured / published' if published else 'measured'})")
+        ref = published.get(group) if published else None
+        for i, key in enumerate(METRICS):
+            line = f"  {key:8s} {measured[key]:8.3f}"
+            print(line + (f"   {ref[i]:6.2f}" if ref else ""))
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    p.add_argument("--fraxet", required=True, type=Path, help="extracted FraXet_v0.1 directory")
+    p.add_argument("--model", required=True, help=f"one of {sorted(fx.MODELS)}, or a path to an .onnx")
+    p.add_argument("--dem-mode", choices=DEM_MODES, help="4th channel for RGB+DEM models (required for them)")
+    p.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
+    p.add_argument("--no-segformer-rule", action="store_true",
+                   help="do not zero SegFormer probabilities above 0.99")
+    p.add_argument("--json", type=Path, help="also write the results here")
+    return p.parse_args(argv)
+
+
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    session, provider = fx.open_session(fx.resolve_model(args.model), args.device)
+    contract = fx.read_contract(session)
+    print(fx.describe(contract))
+    print(f"execution provider: {provider}")
+    if contract.uses_dem != bool(args.dem_mode):
+        raise SystemExit("--dem-mode is required for RGB+DEM models and meaningless for RGB ones")
+    is_segformer = contract.name == SEGFORMER_NAME and not args.no_segformer_rule
+
+    groups: dict[str, list[Patch]] = {}
+    fracsim_names: dict[str, set[str]] = {}
+    for subset in SUBSETS:
+        groups[subset] = list_patches(args.fraxet, subset, "list.txt")
+        fracsim_names[subset] = {p.name for p in list_patches(args.fraxet, subset, "list2.txt")}
+    ordered = [p for subset in SUBSETS for p in groups[subset]]
+    print(f"{len(ordered)} test patches: " + ", ".join(f"{s} {len(groups[s])}" for s in SUBSETS))
+
+    raw, ref, counts = run(session, contract, ordered, args.dem_mode)
+    if counts:
+        print(f"non-finite values set to 0 before use: {counts}")
+    fracsim_idx = [i for i, p in enumerate(ordered) if p.name in fracsim_names[p.subset]]
+    results = {"all": score(raw, ref, is_segformer, fracsim_idx)}
+    start = 0
+    for subset in SUBSETS:
+        stop = start + len(groups[subset])
+        local = [i - start for i in fracsim_idx if start <= i < stop]
+        results[subset] = score(raw[start:stop], ref[start:stop], is_segformer, local)
+        start = stop
+
+    model_key = next((k for k, v in fx.MODELS.items()
+                      if fx.resolve_model(args.model) == fx.MODEL_DIR / v), args.model)
+    report(model_key, results)
+    if args.json:
+        args.json.write_text(json.dumps({
+            "model": model_key, "contract": contract.metadata, "provider": provider,
+            "dem_mode": args.dem_mode, "segformer_rule": is_segformer, "threshold": THRESHOLD,
+            "nonfinite_counts": counts, "results": results,
+            "published": {group: dict(zip(METRICS, values, strict=True))
+                          for group, values in PUBLISHED.get(model_key, {}).items()},
+        }, indent=2))
+        print(f"\nwrote {args.json}")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except (fx.ContractError, FileNotFoundError) as err:
+        sys.exit(f"error: {err}")

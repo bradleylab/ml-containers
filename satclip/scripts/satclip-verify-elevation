@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Rerun SatCLIP's global elevation regression and compare test R^2 with the
+published values.
+
+Published (Klemmer et al., arXiv:2311.17179v3, Table 2, repeated in Table 7):
+test R^2 over 10 independently initialized MLP runs,
+  SatCLIP L=40  0.88 +/- 0.00
+  SatCLIP L=10  0.83 +/- 0.01
+  Identity      0.25 +/- 0.08   (the same MLP on raw lon/lat)
+
+Data: labels_elevation.csv from the authors' downstream-data folder linked in
+upstream's README, 100,000 points subsampled from the global dataset of Rolf et
+al. (2021). Five rows have no elevation; the paper's Table 5 counts 99,995, so
+those five are dropped here and reported.
+
+Setup, from the paper's Appendix E.3: a random 30/10/60 train/validation/test
+split, an MLP on the embedding with MSE loss, trained until the validation loss
+stops improving, 10 runs. The paper tuned the MLP by random search and does not
+report the values it chose, so the MLP, optimizer, learning rate, epoch count and
+target scaling here are those of upstream's notebook B01 (its air-temperature
+example). The split is drawn once and shared by the 10 runs, which differ in MLP
+initialization; the paper does not say whether its runs shared a split.
+Agreement is therefore judged against the published row and the gap to
+Identity, not to the last digit.
+
+  satclip-verify-elevation labels_elevation.csv
+  satclip-verify-elevation labels_elevation.csv --configs vit16-l10 identity --runs 3
+"""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import torch
+from load_lightweight import get_satclip_loc_encoder
+from torch import nn
+
+WEIGHTS_DIR = Path(os.environ.get("SATCLIP_WEIGHTS", "/opt/satclip-weights"))
+EXPECTED_ROWS = 100_000
+EXPECTED_COMPLETE = 99_995  # paper Table 5
+TARGET_COL, LON_COL, LAT_COL = "elevation", "Lon", "Lat"
+
+# Appendix E.3
+TRAIN_FRAC, VAL_FRAC = 0.3, 0.1
+N_RUNS = 10
+# Notebook B01
+HIDDEN, NUM_LAYERS, LR, EPOCHS = 64, 2, 1e-3, 3000
+
+SPLIT_SEED = 0
+EMBED_BATCH = 4096
+IDENTITY = "identity"
+DEFAULT_CONFIGS = ("vit16-l40", "resnet50-l40", IDENTITY)
+PUBLISHED_R2 = {
+    "l40": "0.88 +/- 0.00",
+    "l10": "0.83 +/- 0.01",
+    IDENTITY: "0.25 +/- 0.08",
+}
+
+
+class B01MLP(nn.Module):
+    """Notebook B01's MLP as written. Multiplying the hidden-layer list repeats
+    one Linear module rather than creating new ones, so the hidden layers share
+    weights; kept that way because B01 is the published setup being rerun."""
+
+    def __init__(self, input_dim, dim_hidden, num_layers, out_dims):
+        super().__init__()
+        layers = [nn.Linear(input_dim, dim_hidden), nn.ReLU()]
+        layers += [nn.Linear(dim_hidden, dim_hidden), nn.ReLU()] * num_layers
+        layers += [nn.Linear(dim_hidden, out_dims)]
+        self.features = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.features(x)
+
+
+def load_points(path: Path) -> pd.DataFrame:
+    table = pd.read_csv(path)
+    if len(table) != EXPECTED_ROWS:
+        raise SystemExit(f"{path}: expected {EXPECTED_ROWS} rows, got {len(table)}")
+    incomplete = table[[TARGET_COL, LON_COL, LAT_COL]].isna().any(axis=1)
+    print(
+        f"dropping {int(incomplete.sum())} rows with a missing value "
+        f"(input rows {table.index[incomplete].tolist()})",
+        flush=True,
+    )
+    table = table.loc[~incomplete].reset_index(drop=True)
+    if len(table) != EXPECTED_COMPLETE:
+        raise SystemExit(
+            f"expected {EXPECTED_COMPLETE} complete rows, got {len(table)}"
+        )
+    return table
+
+
+def split_indices(n: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    perm = np.random.default_rng(SPLIT_SEED).permutation(n)
+    n_train, n_val = int(TRAIN_FRAC * n), int(VAL_FRAC * n)
+    return perm[:n_train], perm[n_train : n_train + n_val], perm[n_train + n_val :]
+
+
+def features(config: str, coords: np.ndarray, device: str) -> torch.Tensor:
+    if config == IDENTITY:
+        return torch.from_numpy(coords).float()
+    encoder = get_satclip_loc_encoder(
+        str(WEIGHTS_DIR / f"satclip-{config}.ckpt"), device
+    ).to(device)  # the loader builds the module on the CPU
+    parts = []
+    with torch.no_grad():
+        for start in range(0, len(coords), EMBED_BATCH):
+            chunk = torch.from_numpy(coords[start : start + EMBED_BATCH]).to(device)
+            parts.append(encoder(chunk).float().cpu())
+    return torch.cat(parts)
+
+
+def r2(y: torch.Tensor, pred: torch.Tensor) -> float:
+    ss_res = torch.sum((y - pred) ** 2)
+    ss_tot = torch.sum((y - y.mean()) ** 2)
+    return float(1 - ss_res / ss_tot)
+
+
+def one_run(x, y, idx, seed: int, device: str) -> float:
+    """Full-batch training as in B01, keeping the weights from the epoch with
+    the lowest validation loss (Appendix E.3)."""
+    torch.manual_seed(seed)
+    train, val, test = (torch.as_tensor(i, device=device) for i in idx)
+    model = B01MLP(x.shape[1], HIDDEN, NUM_LAYERS, 1).to(device)
+    opt = torch.optim.Adam(model.parameters(), lr=LR)
+    loss_fn = nn.MSELoss()
+    best_val, best_state = float("inf"), None
+    for _ in range(EPOCHS):
+        model.train()
+        opt.zero_grad()
+        loss_fn(model(x[train]).squeeze(1), y[train]).backward()
+        opt.step()
+        model.eval()
+        with torch.no_grad():
+            val_loss = loss_fn(model(x[val]).squeeze(1), y[val]).item()
+        if val_loss < best_val:
+            best_val = val_loss
+            best_state = {k: v.clone() for k, v in model.state_dict().items()}
+    model.load_state_dict(best_state)
+    with torch.no_grad():
+        return r2(y[test], model(x[test]).squeeze(1))
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("data", type=Path, help="labels_elevation.csv")
+    ap.add_argument(
+        "--configs",
+        nargs="+",
+        default=list(DEFAULT_CONFIGS),
+        help="checkpoint names (e.g. vit16-l40) and/or 'identity'",
+    )
+    ap.add_argument("--runs", type=int, default=N_RUNS)
+    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    args = ap.parse_args()
+
+    table = load_points(args.data)
+    coords = table[[LON_COL, LAT_COL]].to_numpy(np.float64)  # SatCLIP takes (lon, lat)
+    target = table[TARGET_COL].to_numpy(np.float64)
+    # B01 divides the target by its maximum; R^2 does not depend on that scale.
+    y = torch.from_numpy(target / target.max()).float().to(args.device)
+    idx = split_indices(len(table))
+    print(
+        f"{len(table)} points; train/val/test {[len(i) for i in idx]}; "
+        f"device {args.device}; {args.runs} runs x {EPOCHS} epochs each",
+        flush=True,
+    )
+
+    for config in args.configs:
+        x = features(config, coords, args.device).to(args.device)
+        scores = np.array(
+            [one_run(x, y, idx, seed, args.device) for seed in range(args.runs)]
+        )
+        spread = f"{scores.std(ddof=1):.3f}" if len(scores) > 1 else "n/a"
+        key = IDENTITY if config == IDENTITY else config.rsplit("-", 1)[1]
+        print(
+            f"{config:>14}  test R^2 {scores.mean():.3f} +/- {spread}"
+            f"  (published {PUBLISHED_R2.get(key, 'n/a')})"
+            f"  runs: {' '.join(f'{s:.3f}' for s in scores)}",
+            flush=True,
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

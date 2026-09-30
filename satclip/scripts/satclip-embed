@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Embed longitude/latitude points with a SatCLIP location encoder.
+
+Reads a CSV or Parquet table with longitude and latitude columns in decimal
+degrees (WGS 84) and writes one embedding per row, in input order:
+
+  .parquet  the input columns plus satclip_000 ... satclip_NNN
+  .npy      an (n_rows, embed_dim) float64 array
+
+Rows with a missing or out-of-range coordinate are reported and the run stops
+without writing anything, so the output always has one row per input row.
+
+  satclip-embed points.csv embeddings.parquet
+  satclip-embed points.parquet emb.npy --checkpoint vit16-l10 --lon-col x --lat-col y
+"""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import torch
+from load_lightweight import get_satclip_loc_encoder
+
+WEIGHTS_DIR = Path(os.environ.get("SATCLIP_WEIGHTS", "/opt/satclip-weights"))
+CHECKPOINTS = (
+    "vit16-l40",
+    "vit16-l10",
+    "resnet50-l40",
+    "resnet50-l10",
+    "resnet18-l40",
+    "resnet18-l10",
+)
+DEFAULT_CHECKPOINT = "vit16-l40"
+LON_RANGE = (-180.0, 180.0)
+LAT_RANGE = (-90.0, 90.0)
+# Each batch holds an L*L harmonic basis per point in float64: 1600 values at
+# L = 40, so 4096 points is about 50 MB before the network's hidden layers.
+DEFAULT_BATCH = 4096
+MAX_ROWS_LISTED = 10
+
+
+def read_table(path: Path) -> pd.DataFrame:
+    if path.suffix == ".parquet":
+        return pd.read_parquet(path)
+    if path.suffix == ".csv":
+        return pd.read_csv(path)
+    raise SystemExit(f"input must be .csv or .parquet, got {path.name}")
+
+
+def invalid_rows(lon: pd.Series, lat: pd.Series) -> pd.Series:
+    """Rows whose coordinates are missing, non-numeric or off the globe."""
+    lon_ok = lon.between(*LON_RANGE)
+    lat_ok = lat.between(*LAT_RANGE)
+    return ~(lon_ok & lat_ok)
+
+
+def checkpoint_path(name: str) -> Path:
+    path = WEIGHTS_DIR / f"satclip-{name}.ckpt"
+    if not path.is_file():
+        raise SystemExit(f"checkpoint not found: {path}")
+    return path
+
+
+def embed(coords: np.ndarray, ckpt: Path, device: str, batch: int) -> np.ndarray:
+    # get_satclip_loc_encoder leaves the module on the CPU whatever device it is given
+    encoder = get_satclip_loc_encoder(str(ckpt), device).to(device)
+    parts = []
+    with torch.no_grad():
+        for start in range(0, len(coords), batch):
+            chunk = torch.from_numpy(coords[start : start + batch]).to(device)
+            parts.append(encoder(chunk).cpu().numpy())
+    return np.concatenate(parts)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("input", type=Path, help=".csv or .parquet with lon/lat columns")
+    ap.add_argument("output", type=Path, help=".parquet or .npy")
+    ap.add_argument("--checkpoint", choices=CHECKPOINTS, default=DEFAULT_CHECKPOINT)
+    ap.add_argument("--lon-col", default="lon")
+    ap.add_argument("--lat-col", default="lat")
+    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--batch-size", type=int, default=DEFAULT_BATCH)
+    args = ap.parse_args()
+
+    if args.output.suffix not in (".parquet", ".npy"):
+        raise SystemExit(f"output must be .parquet or .npy, got {args.output.name}")
+
+    table = read_table(args.input)
+    missing = [c for c in (args.lon_col, args.lat_col) if c not in table.columns]
+    if missing:
+        raise SystemExit(
+            f"columns not in {args.input.name}: {missing}; "
+            f"available: {list(table.columns)}"
+        )
+
+    lon = pd.to_numeric(table[args.lon_col], errors="coerce")
+    lat = pd.to_numeric(table[args.lat_col], errors="coerce")
+    bad = invalid_rows(lon, lat)
+    if bad.any():
+        listed = table.loc[bad, [args.lon_col, args.lat_col]].head(MAX_ROWS_LISTED)
+        print(
+            f"{int(bad.sum())} of {len(table)} rows have a missing or out-of-range "
+            f"coordinate (lon {LON_RANGE}, lat {LAT_RANGE}); nothing written. "
+            f"First rows (by input index):\n{listed.to_string()}",
+            file=sys.stderr,
+        )
+        return 1
+
+    # SatCLIP's encoder takes (lon, lat) in that order, as float64.
+    coords = np.column_stack([lon.to_numpy(np.float64), lat.to_numpy(np.float64)])
+    ckpt = checkpoint_path(args.checkpoint)
+    emb = embed(coords, ckpt, args.device, args.batch_size)
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.output.suffix == ".npy":
+        np.save(args.output, emb)
+    else:
+        cols = [f"satclip_{i:03d}" for i in range(emb.shape[1])]
+        emb_df = pd.DataFrame(emb, columns=cols, index=table.index)
+        pd.concat([table, emb_df], axis=1).to_parquet(args.output, index=False)
+    print(
+        f"{args.checkpoint}: {emb.shape[0]} rows x {emb.shape[1]} dims -> "
+        f"{args.output} (device {args.device})",
+        file=sys.stderr,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
