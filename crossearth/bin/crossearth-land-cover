@@ -1,0 +1,397 @@
+#!/opt/conda/bin/python
+"""Land-cover map of an RGB orthophoto with CrossEarth's Potsdam RGB model.
+
+Implements entrypoint contract v1 (fossettlab/geospatial-executor,
+docs/contracts/entrypoint-v1.md): exactly three options, the orthophoto staged
+under ``<input-dir>/primary/``, and every artifact plus ``run.json`` written
+under ``<output-dir>``.
+
+The model is upstream's inference configuration
+(``configs/_base_/models/CrossEarth_dinov2_mask2former.py`` at the vendored
+commit) with the six ISPRS classes, loaded from the weights the image converted
+at build time (``scripts/convert_checkpoint.py``). The raster is read in blocks,
+and each block runs upstream's sliding-window inference: 512-pixel windows at a
+341-pixel stride, with overlapping windows averaged.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.metadata as im
+import json
+import math
+import sys
+import tempfile
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import rasterio
+import rasterio.shutil
+import torch
+from affine import Affine
+from rasterio.enums import ColorInterp, MaskFlags, Resampling
+from rasterio.warp import reproject
+from rasterio.windows import Window
+
+CONTRACT_VERSION = 1
+
+UPSTREAM_DIR = Path("/opt/CrossEarth")
+MODEL_CONFIG = UPSTREAM_DIR / "configs/_base_/models/CrossEarth_dinov2_mask2former.py"
+WEIGHTS = Path("/opt/weights/crossearth_potsdam_rgb.safetensors")
+
+# The checkpoint's own dataset_meta (Potsdam(r)-source.pth, meta.dataset_meta).
+CLASSES = ("impervious_surface", "building", "low_vegetation", "tree", "car", "clutter")
+PALETTE = ((255, 255, 255), (0, 0, 255), (0, 255, 255), (0, 255, 0), (255, 255, 0), (255, 0, 0))
+# Written codes are the model's class index plus one, so 0 is free for nodata.
+NODATA_CODE = 0
+# The checkpoint's decode head: loss_cls.class_weight, one per class plus the
+# Mask2Former "no object" class.
+NO_OBJECT_WEIGHT = 0.1
+# ISPRS Potsdam true orthophotos, the model's training imagery: "The ground
+# sampling distance of both, the TOP and the DSM, is 5 cm."
+# https://www.isprs.org/resources/datasets/benchmarks/UrbanSemLab/2d-sem-label-potsdam.aspx
+TRAINING_GSD_M = 0.05
+
+RESOLUTION_MAX = 1.0
+RESOLUTION_NATIVE = 0.0  # zero stands for "not set": the registry has no optional number
+KNOWN_PARAMS = {"resolution"}
+
+# Blocks are read with a halo so every kept pixel had a full window of context;
+# the halo is one window wide and is cut away after inference.
+BLOCK_CORE = 2048
+BLOCK_HALO = 512
+WINDOW = 512
+
+TOLERANCE = 1e-6
+COG_OPTIONS = {"driver": "COG", "compress": "deflate", "overview_resampling": "nearest"}
+STAGING_LAYOUT = {"tiled": True, "blockxsize": 512, "blockysize": 512, "BIGTIFF": "IF_SAFER"}
+
+LAND_COVER_FILE, LAND_COVER_ROLE = "land_cover.tif", "land_cover"
+REPORT_FILE, REPORT_ROLE = "land_cover_report.json", "report"
+
+
+class Refused(Exception):
+    """Input or parameters this recipe will not run on; the message is for the caller."""
+
+
+@dataclass(frozen=True)
+class Params:
+    resolution: float
+
+
+@dataclass(frozen=True)
+class Grid:
+    crs: str
+    cell_x: float
+    cell_y: float
+    width: int
+    height: int
+    bounds: tuple[float, float, float, float]  # xmin, ymin, xmax, ymax
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="crossearth-land-cover", allow_abbrev=False)
+    parser.add_argument("--input-dir", required=True, type=Path)
+    parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--params-json", required=True, type=Path)
+    return parser.parse_args(argv)
+
+
+def read_params(path: Path) -> Params:
+    raw = json.loads(path.read_text())
+    if not isinstance(raw, dict):
+        raise Refused("params.json must hold a JSON object")
+    unknown = sorted(set(raw) - KNOWN_PARAMS)
+    if unknown:
+        raise Refused(f"unknown parameters {unknown}; this task takes {sorted(KNOWN_PARAMS)}")
+    text = raw.get("resolution", str(RESOLUTION_NATIVE))
+    # Contract v1 delivers every validated value as a string.
+    try:
+        resolution = float(text)
+    except (TypeError, ValueError):
+        raise Refused(f"resolution must be a number, got {text!r}") from None
+    if not math.isfinite(resolution) or not 0.0 <= resolution <= RESOLUTION_MAX:
+        raise Refused(f"resolution must be 0-{RESOLUTION_MAX:g}, got {text!r}")
+    return Params(resolution=resolution)
+
+
+def find_orthophoto(input_dir: Path) -> Path:
+    candidates = sorted((input_dir / "primary").glob("*.tif")) + sorted(
+        (input_dir / "primary").glob("*.tiff")
+    )
+    if len(candidates) != 1:
+        raise Refused(
+            f"expected exactly one GeoTIFF under {input_dir / 'primary'}, found {len(candidates)}"
+        )
+    return candidates[0]
+
+
+def describe_grid(dataset: rasterio.DatasetReader) -> Grid:
+    if dataset.crs is None:
+        raise Refused("the orthophoto has no CRS; assign one before classifying it")
+    if not dataset.crs.is_projected:
+        raise Refused("the orthophoto must be in a projected CRS with cells in meters")
+    transform = dataset.transform
+    if abs(transform.b) > TOLERANCE or abs(transform.d) > TOLERANCE:
+        raise Refused("the orthophoto has a rotated grid; only north-up grids are supported")
+    unit = dataset.crs.linear_units_factor[1]
+    if abs(unit - 1.0) > TOLERANCE:
+        raise Refused(f"the orthophoto's CRS unit is not the meter (factor {unit})")
+    return Grid(
+        crs=dataset.crs.to_string(),
+        cell_x=abs(transform.a),
+        cell_y=abs(transform.e),
+        width=dataset.width,
+        height=dataset.height,
+        bounds=tuple(dataset.bounds),
+    )
+
+
+def check_bands(dataset: rasterio.DatasetReader) -> None:
+    if dataset.count not in (3, 4):
+        raise Refused(f"expected an RGB or RGBA orthophoto, got {dataset.count} bands")
+    if any(dtype != "uint8" for dtype in dataset.dtypes):
+        raise Refused(f"expected 8-bit bands, got {sorted(set(dataset.dtypes))}")
+    if dataset.count == 4 and dataset.colorinterp[3] != ColorInterp.alpha:
+        raise Refused("a fourth band must be an alpha band; this model takes red, green, blue")
+
+
+def resample(source: Path, target: Path, resolution: float) -> None:
+    """Warp bilinearly onto cells of the given size, anchored at the upper-left corner."""
+    with rasterio.open(source) as src:
+        left, bottom, right, top = src.bounds
+        width = max(1, round((right - left) / resolution))
+        height = max(1, round((top - bottom) / resolution))
+        profile = {
+            "driver": "GTiff",
+            "width": width,
+            "height": height,
+            "count": src.count,
+            "dtype": "uint8",
+            "crs": src.crs,
+            "transform": Affine(resolution, 0.0, left, 0.0, -resolution, top),
+            "nodata": src.nodata,
+            **STAGING_LAYOUT,
+        }
+        with rasterio.open(target, "w", **profile) as dst:
+            dst.colorinterp = src.colorinterp
+            for band in range(1, src.count + 1):
+                reproject(
+                    rasterio.band(src, band),
+                    rasterio.band(dst, band),
+                    resampling=Resampling.bilinear,
+                )
+
+
+def build_model(device: torch.device) -> torch.nn.Module:
+    from mmengine.config import Config
+    from mmengine.registry import init_default_scope
+    from mmseg.registry import MODELS
+    from safetensors.torch import load_file
+
+    sys.path.insert(0, str(UPSTREAM_DIR))
+    import CrossEarth  # noqa: F401  (registers the backbone and head with mmseg)
+
+    config = Config.fromfile(str(MODEL_CONFIG))
+    head = config.model.decode_head
+    head.num_classes = len(CLASSES)
+    head.loss_cls.class_weight = [1.0] * len(CLASSES) + [NO_OBJECT_WEIGHT]
+    # The converted weights already hold the backbone the config would fetch.
+    config.model.backbone.init_cfg = None
+    config.model.train_cfg = None
+    init_default_scope("mmseg")
+    model = MODELS.build(config.model)
+    missing, unexpected = model.load_state_dict(load_file(str(WEIGHTS)), strict=False)
+    if missing or unexpected:
+        raise RuntimeError(
+            f"weights do not fit the model: missing {missing}, unexpected {unexpected}"
+        )
+    return model.to(device).eval()
+
+
+def block_windows(width: int, height: int) -> list[tuple[Window, Window]]:
+    """(read window with halo, core window) pairs tiling the raster."""
+    pairs = []
+    for row in range(0, height, BLOCK_CORE):
+        for col in range(0, width, BLOCK_CORE):
+            core = Window(col, row, min(BLOCK_CORE, width - col), min(BLOCK_CORE, height - row))
+            col0, row0 = max(0, col - BLOCK_HALO), max(0, row - BLOCK_HALO)
+            col1 = min(width, col + core.width + BLOCK_HALO)
+            row1 = min(height, row + core.height + BLOCK_HALO)
+            pairs.append((Window(col0, row0, col1 - col0, row1 - row0), core))
+    return pairs
+
+
+@torch.no_grad()
+def classify_block(model: torch.nn.Module, rgb: np.ndarray, device: torch.device) -> np.ndarray:
+    """Class index per pixel of an (3, h, w) uint8 RGB block."""
+    height, width = rgb.shape[1:]
+    # Upstream loads images with OpenCV, as BGR, and its preprocessor flips them
+    # to RGB before normalizing; handing it BGR keeps that path unchanged.
+    bgr = torch.from_numpy(np.ascontiguousarray(rgb[::-1])).to(device)
+    inputs = model.data_preprocessor({"inputs": [bgr]}, training=False)["inputs"]
+    # A block smaller than one window is padded with zeros after normalization,
+    # the value the preprocessor itself pads with.
+    pad_h, pad_w = max(0, WINDOW - height), max(0, WINDOW - width)
+    if pad_h or pad_w:
+        inputs = torch.nn.functional.pad(inputs, (0, pad_w, 0, pad_h), value=0.0)
+    shape = tuple(inputs.shape[2:])
+    # No pad_shape: the Mask2Former head sizes its masks to pad_shape when it is
+    # present, and sliding inference updates only img_shape for each window.
+    metas = [{"ori_shape": shape, "img_shape": shape}]
+    logits = model.inference(inputs, metas)
+    return logits[0, :, :height, :width].argmax(dim=0).to(torch.uint8).cpu().numpy()
+
+
+def classify(model: torch.nn.Module, source: Path, target: Path, device: torch.device) -> None:
+    with rasterio.open(source) as src:
+        profile = {
+            "driver": "GTiff",
+            "width": src.width,
+            "height": src.height,
+            "count": 1,
+            "dtype": "uint8",
+            "crs": src.crs,
+            "transform": src.transform,
+            "nodata": NODATA_CODE,
+            **STAGING_LAYOUT,
+        }
+        with rasterio.open(target, "w", **profile) as dst:
+            for read, core in block_windows(src.width, src.height):
+                rgb = src.read((1, 2, 3), window=read)
+                valid = src.dataset_mask(window=read) > 0
+                codes = classify_block(model, rgb, device) + 1
+                codes[~valid] = NODATA_CODE
+                row, col = core.row_off - read.row_off, core.col_off - read.col_off
+                dst.write(codes[row : row + core.height, col : col + core.width], 1, window=core)
+
+
+def label_classes(path: Path) -> None:
+    with rasterio.open(path, "r+") as dataset:
+        dataset.write_colormap(1, {code + 1: PALETTE[code] for code in range(len(CLASSES))})
+        dataset.update_tags(1, **{f"class_{code + 1}": name for code, name in enumerate(CLASSES)})
+
+
+def class_summary(path: Path) -> list[dict[str, Any]]:
+    with rasterio.open(path) as src:
+        codes = src.read(1)
+        cell_area = abs(src.transform.a * src.transform.e)
+    counts = np.bincount(codes.ravel(), minlength=len(CLASSES) + 1)
+    valid = int(counts[1:].sum())
+    return [
+        {
+            "code": code + 1,
+            "class": name,
+            "color_rgb": list(PALETTE[code]),
+            "pixels": int(counts[code + 1]),
+            "area_m2": round(float(counts[code + 1]) * cell_area, 3),
+            "fraction": round(float(counts[code + 1]) / valid, 6) if valid else None,
+        }
+        for code, name in enumerate(CLASSES)
+    ]
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def weights_provenance() -> dict[str, str]:
+    from safetensors import safe_open
+
+    with safe_open(str(WEIGHTS), framework="pt") as handle:
+        return dict(handle.metadata())
+
+
+def run(input_dir: Path, output_dir: Path, params: Params) -> None:
+    source = find_orthophoto(input_dir)
+    with rasterio.open(source) as dataset:
+        check_bands(dataset)
+        input_grid = describe_grid(dataset)
+        has_mask = any(MaskFlags.all_valid not in flags for flags in dataset.mask_flag_enums)
+    if not torch.cuda.is_available():
+        raise Refused("no GPU is visible; this model runs on a GPU")
+    device = torch.device("cuda")
+    # Inference only; fixed algorithms so a rerun writes the same classes.
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=output_dir) as scratch:
+        work = Path(scratch)
+        image = source
+        if params.resolution != RESOLUTION_NATIVE:
+            image = work / "resampled.tif"
+            resample(source, image, params.resolution)
+        with rasterio.open(image) as dataset:
+            grid = describe_grid(dataset)
+        staging = work / LAND_COVER_FILE
+        classify(build_model(device), image, staging, device)
+        label_classes(staging)
+        rasterio.shutil.copy(staging, output_dir / LAND_COVER_FILE, **COG_OPTIONS)
+
+    report = {
+        "input": source.name,
+        "input_grid": asdict(input_grid),
+        "resampled": (
+            {
+                "from_cell_m": max(input_grid.cell_x, input_grid.cell_y),
+                "to_cell_m": params.resolution,
+            }
+            if params.resolution != RESOLUTION_NATIVE
+            else "no"
+        ),
+        "grid": asdict(grid),
+        "params": asdict(params),
+        "nodata": (
+            "pixels the orthophoto masks (alpha or nodata) are written as 0"
+            if has_mask
+            else "the orthophoto masks no pixels"
+        ),
+        "classes": class_summary(output_dir / LAND_COVER_FILE),
+        "model": {
+            "name": "CrossEarth, Potsdam RGB source model",
+            "training_imagery": f"ISPRS Potsdam RGB true orthophotos at {TRAINING_GSD_M} m",
+            "weights": weights_provenance(),
+            "window_px": WINDOW,
+        },
+        "device": torch.cuda.get_device_name(device),
+        "versions": {
+            package: im.version(package)
+            for package in ("torch", "mmsegmentation", "mmcv", "mmengine", "rasterio")
+        },
+    }
+    (output_dir / REPORT_FILE).write_text(json.dumps(report, indent=2) + "\n")
+
+    # The manifest goes last: its presence is what says the run finished.
+    outputs = [(LAND_COVER_FILE, LAND_COVER_ROLE, "GTiff"), (REPORT_FILE, REPORT_ROLE, None)]
+    manifest = {
+        "contract_version": CONTRACT_VERSION,
+        "outputs": [
+            {"path": name, "role": role, "sha256": sha256(output_dir / name)}
+            | ({"format": fmt} if fmt else {})
+            for name, role, fmt in outputs
+        ],
+    }
+    (output_dir / "run.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+    try:
+        params = read_params(args.params_json)
+        run(args.input_dir, args.output_dir, params)
+    except Refused as exc:
+        print(f"crossearth-land-cover: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
