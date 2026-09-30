@@ -1,0 +1,343 @@
+#!/usr/bin/python3.11
+"""Clay v1.5 embeddings of a PlanetScope surface-reflectance scene, one per chip.
+
+Implements entrypoint contract v1 (fossettlab/geospatial-executor,
+docs/contracts/entrypoint-v1.md): exactly three options, the scene staged under
+``<input-dir>/primary/``, and every artifact plus ``run.json`` written under
+``<output-dir>``.
+
+The scene is cut into square chips on a grid anchored at its upper-left corner,
+and each chip is embedded by Clay's encoder, as upstream's ``Embedder`` runs it
+(``claymodel/finetune/embedder/factory.py``): no masking, and the class token as
+the chip's embedding. The datacube is built as upstream's wall-to-wall tutorial
+builds it (``docs/tutorials/wall-to-wall.ipynb``): bands normalized with the
+sensor's mean and standard deviation from ``configs/metadata.yaml``, wavelengths
+in micrometers from the same file, and latitude and longitude as sines and
+cosines of the chip center. The result is a raster with one cell per chip and one
+band per embedding dimension.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.metadata as im
+import json
+import math
+import sys
+import tempfile
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
+import numpy as np
+import rasterio
+import rasterio.shutil
+import torch
+import yaml
+from affine import Affine
+from rasterio.warp import transform as transform_points
+from rasterio.windows import Window
+
+CONTRACT_VERSION = 1
+
+METADATA = Path("/work/configs/metadata.yaml")
+WEIGHTS = Path("/opt/weights/clay_v1.5_encoder.safetensors")
+
+# PlanetScope 4-band products carry SuperDove's blue, green, red and NIR bands in
+# that order (docs.planet.com/data/imagery/planetscope, "Band Order"); Clay's
+# metadata names them within its 8-band "planetscope-sr" entry.
+PLATFORM = "planetscope-sr"
+BANDS = ("blue", "green", "red", "nir")
+
+# upstream Embedder's encoder: ViT-L, patch 8 (factory.py, Embedder.__init__).
+ENCODER = {"patch_size": 8, "dim": 1024, "depth": 24, "heads": 16, "dim_head": 64}
+MLP_RATIO = 4.0
+EMBEDDING_DIM = ENCODER["dim"]
+
+# Clay v1.5 was trained on 256-pixel chips (docs/release-notes/specification.md);
+# smaller chips must stay multiples of the patch size.
+CHIP_SIZES = {"64": 64, "128": 128, "256": 256}
+DEFAULT_CHIP_SIZE = "256"
+KNOWN_PARAMS = {"chip_size"}
+BATCH = 8
+
+# The acquisition time is not read from the GeoTIFF, so time is encoded as zeros,
+# the value upstream's fine-tuning docs give for an unknown date
+# (docs/finetune/classify.md).
+UNKNOWN_TIME = (0.0, 0.0, 0.0, 0.0)
+
+TOLERANCE = 1e-6
+COG_OPTIONS = {"driver": "COG", "compress": "deflate", "predictor": "yes"}
+
+EMBEDDINGS_FILE, EMBEDDINGS_ROLE = "embeddings.tif", "embeddings"
+REPORT_FILE, REPORT_ROLE = "embeddings_report.json", "report"
+
+
+class Refused(Exception):
+    """Input or parameters this recipe will not run on; the message is for the caller."""
+
+
+@dataclass(frozen=True)
+class Params:
+    chip_size: int
+
+
+@dataclass(frozen=True)
+class Grid:
+    crs: str
+    cell_x: float
+    cell_y: float
+    width: int
+    height: int
+    bounds: tuple[float, float, float, float]  # xmin, ymin, xmax, ymax
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="clay-embed", allow_abbrev=False)
+    parser.add_argument("--input-dir", required=True, type=Path)
+    parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--params-json", required=True, type=Path)
+    return parser.parse_args(argv)
+
+
+def read_params(path: Path) -> Params:
+    raw = json.loads(path.read_text())
+    if not isinstance(raw, dict):
+        raise Refused("params.json must hold a JSON object")
+    unknown = sorted(set(raw) - KNOWN_PARAMS)
+    if unknown:
+        raise Refused(f"unknown parameters {unknown}; this task takes {sorted(KNOWN_PARAMS)}")
+    chip = str(raw.get("chip_size", DEFAULT_CHIP_SIZE))
+    if chip not in CHIP_SIZES:
+        raise Refused(f"chip_size must be one of {sorted(CHIP_SIZES, key=int)}, got {chip!r}")
+    return Params(chip_size=CHIP_SIZES[chip])
+
+
+def find_scene(input_dir: Path) -> Path:
+    candidates = sorted((input_dir / "primary").glob("*.tif")) + sorted(
+        (input_dir / "primary").glob("*.tiff")
+    )
+    if len(candidates) != 1:
+        raise Refused(
+            f"expected exactly one GeoTIFF under {input_dir / 'primary'}, found {len(candidates)}"
+        )
+    return candidates[0]
+
+
+def describe_grid(dataset: rasterio.DatasetReader) -> Grid:
+    if dataset.crs is None or not dataset.crs.is_projected:
+        raise Refused("the scene must be in a projected CRS with cells in meters")
+    unit = dataset.crs.linear_units_factor[1]
+    if abs(unit - 1.0) > TOLERANCE:
+        raise Refused(f"the scene's CRS unit is not the meter (factor {unit})")
+    transform = dataset.transform
+    if abs(transform.b) > TOLERANCE or abs(transform.d) > TOLERANCE:
+        raise Refused("the scene has a rotated grid; only north-up grids are supported")
+    if abs(abs(transform.a) - abs(transform.e)) > TOLERANCE:
+        raise Refused("the scene's cells are not square")
+    return Grid(
+        crs=dataset.crs.to_string(),
+        cell_x=abs(transform.a),
+        cell_y=abs(transform.e),
+        width=dataset.width,
+        height=dataset.height,
+        bounds=tuple(dataset.bounds),
+    )
+
+
+def check_bands(dataset: rasterio.DatasetReader) -> None:
+    if dataset.count != len(BANDS):
+        raise Refused(
+            f"expected a 4-band PlanetScope surface-reflectance scene "
+            f"({', '.join(BANDS)}), got {dataset.count} bands"
+        )
+    if any(dtype not in ("uint16", "int16") for dtype in dataset.dtypes):
+        raise Refused(
+            "expected 16-bit integer bands, surface reflectance scaled by 10,000, "
+            f"got {sorted(set(dataset.dtypes))}"
+        )
+
+
+def sensor_constants(metadata_path: Path) -> dict[str, list[float]]:
+    """Per-band mean, standard deviation and wavelength (micrometers), in BANDS order."""
+    bands = yaml.safe_load(metadata_path.read_text())[PLATFORM]["bands"]
+    return {
+        field: [float(bands[field][band]) for band in BANDS]
+        for field in ("mean", "std", "wavelength")
+    }
+
+
+def build_encoder(chip: int, device: torch.device) -> torch.nn.Module:
+    """The encoder for chips of this size; its weights do not depend on the size."""
+    from claymodel.finetune.embedder.factory import EmbeddingEncoder
+    from safetensors.torch import load_file
+
+    encoder = EmbeddingEncoder(img_size=chip, mlp_ratio=MLP_RATIO, **ENCODER)
+    missing, unexpected = encoder.load_state_dict(load_file(str(WEIGHTS)), strict=False)
+    if missing or unexpected:
+        raise RuntimeError(
+            f"weights do not fit the encoder: missing {missing}, unexpected {unexpected}"
+        )
+    return encoder.to(device).eval()
+
+
+def chip_windows(grid: Grid, chip: int) -> list[tuple[int, int, Window]]:
+    """(row, col, window) for every whole chip; a partial chip at an edge is left out."""
+    return [
+        (row, col, Window(col * chip, row * chip, chip, chip))
+        for row in range(grid.height // chip)
+        for col in range(grid.width // chip)
+    ]
+
+
+def latlon_encoding(dataset: rasterio.DatasetReader, window: Window) -> list[float]:
+    x, y = dataset.xy(
+        window.row_off + window.height / 2, window.col_off + window.width / 2, offset="ul"
+    )
+    lons, lats = transform_points(dataset.crs, "EPSG:4326", [x], [y])
+    lat, lon = math.radians(lats[0]), math.radians(lons[0])
+    return [math.sin(lat), math.cos(lat), math.sin(lon), math.cos(lon)]
+
+
+@torch.no_grad()
+def embed_batch(
+    encoder: torch.nn.Module,
+    pixels: np.ndarray,
+    latlons: list[list[float]],
+    constants: dict[str, list[float]],
+    gsd: float,
+    device: torch.device,
+) -> np.ndarray:
+    """Class-token embeddings of a (B, 4, chip, chip) batch."""
+    cube = torch.from_numpy(pixels.astype(np.float32)).to(device)
+    mean = torch.tensor(constants["mean"], device=device).view(1, -1, 1, 1)
+    std = torch.tensor(constants["std"], device=device).view(1, -1, 1, 1)
+    datacube = {
+        "pixels": (cube - mean) / std,
+        "time": torch.tensor([UNKNOWN_TIME] * len(latlons), dtype=torch.float32, device=device),
+        "latlon": torch.tensor(latlons, dtype=torch.float32, device=device),
+        "gsd": torch.tensor(gsd, device=device),
+        "waves": torch.tensor(constants["wavelength"], device=device),
+    }
+    return encoder(datacube).float().cpu().numpy()
+
+
+def embed(scene: Path, target: Path, chip: int, device: torch.device) -> dict[str, int]:
+    constants = sensor_constants(METADATA)
+    with rasterio.open(scene) as src:
+        grid = describe_grid(src)
+        rows, cols = grid.height // chip, grid.width // chip
+        if rows == 0 or cols == 0:
+            raise Refused(
+                f"the scene ({grid.width} x {grid.height}) is smaller than one {chip}-pixel chip"
+            )
+        chips = chip_windows(grid, chip)
+        valid = [c for c in chips if not (src.dataset_mask(window=c[2]) == 0).any()]
+        encoder = build_encoder(chip, device)
+        out = np.full((EMBEDDING_DIM, rows, cols), np.nan, dtype=np.float32)
+        for start in range(0, len(valid), BATCH):
+            batch = valid[start : start + BATCH]
+            pixels = np.stack([src.read(window=window) for _, _, window in batch])
+            latlons = [latlon_encoding(src, window) for _, _, window in batch]
+            vectors = embed_batch(encoder, pixels, latlons, constants, grid.cell_x, device)
+            for (row, col, _), vector in zip(batch, vectors, strict=True):
+                out[:, row, col] = vector
+        profile = {
+            "driver": "GTiff",
+            "width": cols,
+            "height": rows,
+            "count": EMBEDDING_DIM,
+            "dtype": "float32",
+            "crs": src.crs,
+            "transform": src.transform * Affine.scale(chip),
+            "nodata": float("nan"),
+            "tiled": False,
+            "BIGTIFF": "IF_SAFER",
+        }
+    with rasterio.open(target, "w", **profile) as dst:
+        dst.write(out)
+    return {"chips": len(chips), "embedded": len(valid), "masked": len(chips) - len(valid)}
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def weights_provenance() -> dict[str, str]:
+    from safetensors import safe_open
+
+    with safe_open(str(WEIGHTS), framework="pt") as handle:
+        return dict(handle.metadata())
+
+
+def run(input_dir: Path, output_dir: Path, params: Params) -> None:
+    scene = find_scene(input_dir)
+    with rasterio.open(scene) as dataset:
+        check_bands(dataset)
+        grid = describe_grid(dataset)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=output_dir) as scratch:
+        staging = Path(scratch) / EMBEDDINGS_FILE
+        counts = embed(scene, staging, params.chip_size, device)
+        rasterio.shutil.copy(staging, output_dir / EMBEDDINGS_FILE, **COG_OPTIONS)
+
+    constants = sensor_constants(METADATA)
+    report = {
+        "input": scene.name,
+        "input_grid": asdict(grid),
+        "params": asdict(params),
+        "chip_m": params.chip_size * grid.cell_x,
+        "chips": counts,
+        "skipped": {
+            "masked": "chips holding any pixel the scene masks (nodata) are not embedded",
+            "edge": "a partial chip at the right or bottom edge is left out",
+        },
+        "bands": {
+            band: {field: constants[field][index] for field in constants}
+            for index, band in enumerate(BANDS)
+        },
+        "time": "acquisition time not used; encoded as zeros",
+        "model": {
+            "name": "Clay v1.5 encoder",
+            "embedding_dim": EMBEDDING_DIM,
+            "weights": weights_provenance(),
+        },
+        "device": torch.cuda.get_device_name(device) if device.type == "cuda" else "cpu",
+        "versions": {
+            package: im.version(package) for package in ("claymodel", "torch", "rasterio")
+        },
+    }
+    (output_dir / REPORT_FILE).write_text(json.dumps(report, indent=2) + "\n")
+
+    # The manifest goes last: its presence is what says the run finished.
+    outputs = [(EMBEDDINGS_FILE, EMBEDDINGS_ROLE, "GTiff"), (REPORT_FILE, REPORT_ROLE, None)]
+    manifest = {
+        "contract_version": CONTRACT_VERSION,
+        "outputs": [
+            {"path": name, "role": role, "sha256": sha256(output_dir / name)}
+            | ({"format": fmt} if fmt else {})
+            for name, role, fmt in outputs
+        ],
+    }
+    (output_dir / "run.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(sys.argv[1:] if argv is None else argv)
+    try:
+        params = read_params(args.params_json)
+        run(args.input_dir, args.output_dir, params)
+    except Refused as exc:
+        print(f"clay-embed: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
