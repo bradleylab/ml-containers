@@ -13,8 +13,13 @@ on Harmonized Landsat–Sentinel-2 (HLS) imagery. Three variants:
 This container ships [TerraTorch](https://github.com/IBM/terratorch),
 the IBM-supported fine-tuning toolkit that wraps Prithvi (and other
 geospatial foundation models) behind the `BACKBONE_REGISTRY` +
-Lightning task scaffolding. Prithvi weights are NOT baked — they
+Lightning task scaffolding. Backbone weights are NOT baked — they
 download from HF Hub on first use.
+
+Its ENTRYPOINT is one runnable task, `prithvi-burn-scars`: a burn-scar
+map of one HLS scene from the `Prithvi-EO-2.0-300M-BurnScars`
+fine-tune (below), whose checkpoint and config are baked into the
+image.
 
 GPU-primary (H100 sm_90). The 100M v1 fine-tuned variants run on a
 laptop GPU with 8+ GB VRAM; the 300M and 600M v2 base models want
@@ -23,15 +28,15 @@ strictly required.
 
 ## Image tag
 
-`ghcr.io/bradleylab/prithvi-eo:v1` (also `:latest`,
-`:torch2.5-cu121`)
+`ghcr.io/bradleylab/prithvi-eo:v2` (also `:latest`,
+`:torch2.5-cu121`). `:v1` is the same stack without the burn-scar task.
 
 ## Stack
 
 - Base: `nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04`
 - Python 3.11
 - PyTorch 2.5.1 + torchvision 0.20.1 (cu121, sm_90)
-- `terratorch >= 1.2.5`
+- `terratorch ==1.2.7` (the Dockerfile explains the pin)
 - Lightning, segmentation-models-pytorch, torchgeo, timm, diffusers,
   geopandas, rasterio, albumentations (transitive — see
   `terratorch`'s pyproject for the full list)
@@ -39,9 +44,59 @@ strictly required.
 `WANDB_MODE=offline` and `NO_ALBUMENTATIONS_UPDATE=true` in ENV so
 neither service blocks runs with a network probe at import time.
 
+## Burn-scar task
+
+`prithvi-burn-scars` implements the geospatial executor's entrypoint
+contract v1 (`fossettlab/geospatial-executor`,
+`docs/contracts/entrypoint-v1.md`): three options, the scene staged under
+`<input-dir>/primary/`, and every output plus a `run.json` manifest
+written under `<output-dir>`. `prithvi_burn_scars.cwl` describes the same
+task as a CWL v1.2 tool.
+
+- **Input:** one 6-band HLS scene, int16 reflectance × 10000 with fill
+  -9999, bands blue, green, red, narrow NIR, SWIR 1, SWIR 2, in a
+  projected CRS in meters. The `hls` product of the satellite fetch task
+  (`bradleylab/geo-pipelines`, `satellite-fetch`) writes one.
+- **Model:** `ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars` at revision
+  `a3f2c410`, loaded as its own `inference.py` loads it: TerraTorch's
+  `LightningInferenceModel` from `burn_scars_config.yaml` and the
+  checkpoint. The baked config differs from the published one in one line,
+  `backbone_pretrained: false`, so building the model fetches nothing; the
+  checkpoint holds every weight, and TerraTorch loads it with every key
+  matched.
+- **Inference:** as that `inference.py` runs it: reflectance divided by
+  10,000, the scene reflect-padded to whole 512-pixel windows, each window
+  normalized by the datamodule's transforms, the argmax of the two classes.
+  Pixels with any band at fill go into the model as 0, as the training
+  config's `no_data_replace` does, and come out as nodata.
+- **Outputs:** `burn_scars.tif`, a Cloud Optimized GeoTIFF of 0 (not
+  burned), 1 (burn scar) and 255 (nodata) with a color table, and
+  `burn_scars_report.json`, with the burned area in hectares and share.
+- **Parameters:** none.
+
+```bash
+docker run --rm \
+  -v /path/to/job:/job \
+  ghcr.io/bradleylab/prithvi-eo:v2 \
+  --input-dir /job/input \
+  --output-dir /job/output \
+  --params-json /job/params.json
+```
+
+with the scene at `/path/to/job/input/primary/<name>.tif` and `{}` in
+`params.json`. It uses a GPU when one is visible and the CPU otherwise:
+on 16 CPU cores a 512 × 512 scene took 10 s and peaked at 3.5 GB.
+
+On the model's three published example scenes (HLS v1.4 subsets over
+California, converted to this layout), the burned areas it mapped
+coincide with the burns visible in a SWIR 2 / NIR / red composite. The
+model does not mask clouds: it was trained with clouds labeled as no
+data, so cloud edges may be mapped as burn scars. The satellite fetch
+task's quality layer shows where the scene is cloudy.
+
 ## Weights
 
-Not baked. Pull from HF Hub on first call:
+Backbones are not baked; pull them from HF Hub on first call:
 
 | Variant | HF Hub repo | Approx. size |
 |---|---|---|
@@ -51,6 +106,7 @@ Not baked. Pull from HF Hub on first call:
 | 2.0 600M | [`ibm-nasa-geospatial/Prithvi-EO-2.0-600M`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M) | ~2.5 GB |
 | 2.0 600M-TL | [`ibm-nasa-geospatial/Prithvi-EO-2.0-600M-TL`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M-TL) | ~2.5 GB |
 | 2.0 300M-TL Sen1Floods11 (flood fine-tune) | [`ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL-Sen1Floods11`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL-Sen1Floods11) | ~1.2 GB |
+| 2.0 300M BurnScars (burn-scar fine-tune, baked in v2) | [`ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars) | 1.30 GB |
 
 Bind-mount a persistent host directory at `/opt/hf-cache` so each
 variant only downloads once per host.
@@ -59,7 +115,8 @@ variant only downloads once per host.
 docker run --rm -it --gpus all \
   -v "$PWD/hf-cache:/opt/hf-cache" \
   -v "$PWD/data:/data" \
-  ghcr.io/bradleylab/prithvi-eo:v1
+  --entrypoint bash \
+  ghcr.io/bradleylab/prithvi-eo:v2
 ```
 
 ## Inference
@@ -137,23 +194,31 @@ upstream.
 
 ## Run on Compute2
 
-Inference / fine-tuning on `general-gpu`:
+The burn-scar task on a CPU node, run the way the geospatial executor runs
+contract images under pyxis (the entrypoint's path as the command):
 
 ```bash
 sbatch -A compute2-alexander.s.bradley \
-       -p general-gpu \
-       --gpus=1 \
-       --mem=64G \
-       --time=04:00:00 \
+       -p general-cpu \
+       --cpus-per-task=8 \
+       --mem=16G \
+       --time=01:00:00 \
        --wrap='srun \
-         --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+prithvi-eo+v1.sqsh \
-         --container-mounts=/scratch2/fs1/alexander.s.bradley/hf-cache:/opt/hf-cache,/scratch2/fs1/alexander.s.bradley/hls-stacks:/data,/scratch2/fs1/alexander.s.bradley/prithvi-out:/outputs \
-         bash -lc "export PYTHONNOUSERSITE=1; python /scratch2/fs1/alexander.s.bradley/scripts/prithvi_embed.py"'
+         --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+prithvi-eo+v2.sqsh \
+         --container-mounts=/scratch2/fs1/alexander.s.bradley:/scratch2/fs1/alexander.s.bradley \
+         --export=ALL,PYTHONNOUSERSITE=1,NVIDIA_VISIBLE_DEVICES=void \
+         /usr/local/bin/prithvi-burn-scars \
+           --input-dir /scratch2/fs1/alexander.s.bradley/burn-job/input \
+           --output-dir /scratch2/fs1/alexander.s.bradley/burn-job/output \
+           --params-json /scratch2/fs1/alexander.s.bradley/burn-job/params.json'
 ```
 
-`PYTHONNOUSERSITE=1` is required on Compute2 — see
-`~/.claude/rules/research-infrastructure.md`. Memory: 64 GB
-accommodates 600M-TL plus a moderate batch; shrink for 100M / 300M.
+`PYTHONNOUSERSITE=1` keeps a user site-packages directory in the mounted
+`$HOME` from shadowing the image's packages. `NVIDIA_VISIBLE_DEVICES=void`
+is for CPU nodes: without it, enroot's GPU hook stops this CUDA image from
+starting where there is no GPU driver. Inside the container `HF_HOME`
+(`/opt/hf-cache`) is read-only, so anything that downloads from the Hub
+there needs `HF_HOME` exported to a writable path in the job's shell.
 
 ## Limitations
 

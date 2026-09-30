@@ -9,9 +9,16 @@
 # This container ships the IBM-supported [TerraTorch](https://github.com/IBM/terratorch)
 # fine-tuning toolkit, which provides the canonical inference and
 # training entrypoints for Prithvi via the BACKBONE_REGISTRY +
-# Lightning task scaffolding. Prithvi weights themselves are NOT
-# baked — TerraTorch downloads them from Hugging Face Hub on first
-# call (e.g. `ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL`).
+# Lightning task scaffolding. Backbone weights are NOT baked —
+# TerraTorch downloads them from Hugging Face Hub on first call
+# (e.g. `ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL`).
+#
+# v2 adds one runnable task, `prithvi-burn-scars` (the ENTRYPOINT): a burn-scar
+# map of one HLS scene from `Prithvi-EO-2.0-300M-BurnScars`, under the
+# geospatial executor's entrypoint contract v1. That model's checkpoint and
+# config are baked in at a pinned revision and checksum by
+# scripts/prepare_burn_scars.py, so the task runs offline. For a shell, run
+# with `--entrypoint bash`.
 #
 # Upstream:  https://github.com/IBM/terratorch  (Apache-2.0)
 # Weights:   https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL
@@ -94,6 +101,22 @@ RUN pip install \
 
 RUN mkdir -p /opt/hf-cache
 
+# The burn-scar model, staged for offline inference; the download cache is
+# removed in the same layer. The script checks both files' SHA-256 and writes
+# the config with backbone_pretrained set to false (see its docstring).
+ARG BURN_SCARS_REVISION=a3f2c410e45b8ac7417976614528a872f024d831
+ARG BURN_SCARS_CHECKPOINT_SHA256=0c5f9334be9a75c9006387ab8f3dc05a55ea7fb5ef7956717316be57c62954d3
+ARG BURN_SCARS_CONFIG_SHA256=9b40e6d8c6369b863d29fb1d69b6185aa366f8ee4c2de955bbad28d3ee32f466
+COPY scripts/prepare_burn_scars.py /opt/prithvi-tools/prepare_burn_scars.py
+RUN python /opt/prithvi-tools/prepare_burn_scars.py /opt/weights \
+        --revision "${BURN_SCARS_REVISION}" \
+        --checkpoint-sha256 "${BURN_SCARS_CHECKPOINT_SHA256}" \
+        --config-sha256 "${BURN_SCARS_CONFIG_SHA256}" \
+        --cache /tmp/burn-scars-download \
+    && rm -rf /tmp/burn-scars-download
+
+COPY bin/prithvi-burn-scars /usr/local/bin/prithvi-burn-scars
+
 # Smoke test: import terratorch + reach BACKBONE_REGISTRY (which is
 # what registers Prithvi backbones). No weight fetch at build time.
 # importlib.metadata for portable version
@@ -116,11 +139,22 @@ from terratorch import BACKBONE_REGISTRY; \
 print('terratorch', im.version('terratorch'), '| torch', torch.__version__, '| cuda-build', torch.version.cuda); \
 assert BACKBONE_REGISTRY is not None"
 
+# The burn-scar model builds from its config and takes the checkpoint with every
+# key matched (TerraTorch loads it strictly), on CPU: no GPU on the runner and
+# no network needed.
+RUN python -c "import importlib.machinery, importlib.util, sys, torch; \
+loader = importlib.machinery.SourceFileLoader('burn_scars', '/usr/local/bin/prithvi-burn-scars'); \
+spec = importlib.util.spec_from_loader('burn_scars', loader); \
+burn_scars = importlib.util.module_from_spec(spec); sys.modules['burn_scars'] = burn_scars; \
+loader.exec_module(burn_scars); \
+model, datamodule = burn_scars.load_model(torch.device('cpu')); \
+print('burn-scar model:', sum(p.numel() for p in model.parameters()), 'parameters')"
+
 LABEL org.opencontainers.image.title="prithvi-eo" \
-      org.opencontainers.image.description="Prithvi-EO (IBM/NASA) geospatial foundation model — ViT pre-trained on HLS (Harmonized Landsat-Sentinel-2). Container ships TerraTorch fine-tuning toolkit; weights via Hugging Face Hub at runtime." \
+      org.opencontainers.image.description="Prithvi-EO (IBM/NASA) geospatial foundation model — ViT pre-trained on HLS (Harmonized Landsat-Sentinel-2). Container ships TerraTorch fine-tuning toolkit; ENTRYPOINT: a burn-scar map of one HLS scene (Prithvi-EO-2.0-300M-BurnScars baked in, geospatial executor contract v1); other weights via Hugging Face Hub at runtime." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/prithvi-eo/README.md" \
-      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.version="v2" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="Apache-2.0" \
       bradleylab.model.upstream="https://github.com/IBM/terratorch" \
@@ -128,7 +162,7 @@ LABEL org.opencontainers.image.title="prithvi-eo" \
       bradleylab.model.task="geospatial foundation model — pretrained backbone for burn-scar / flood / crop classification / segmentation; downstream fine-tuning via TerraTorch task heads" \
       bradleylab.model.sensor="image:multi (HLS — Harmonized Landsat 8/9 + Sentinel-2)" \
       bradleylab.model.status="utility" \
-      bradleylab.model.weights.source="huggingface-hub:ibm-nasa-geospatial/Prithvi-EO-{1.0-100M,2.0-300M,2.0-300M-TL,2.0-600M,2.0-600M-TL} (runtime fetch into HF_HOME=/opt/hf-cache)"
+      bradleylab.model.weights.source="huggingface-hub:ibm-nasa-geospatial/Prithvi-EO-{1.0-100M,2.0-300M,2.0-300M-TL,2.0-600M,2.0-600M-TL} (runtime fetch into HF_HOME=/opt/hf-cache); Prithvi-EO-2.0-300M-BurnScars baked at /opt/weights"
 
 WORKDIR /work
-CMD ["bash"]
+ENTRYPOINT ["/usr/local/bin/prithvi-burn-scars"]
