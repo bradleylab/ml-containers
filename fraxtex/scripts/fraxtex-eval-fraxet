@@ -76,6 +76,10 @@ PATCH = 256
 SUBSETS = ("samsu19", "matteo21", "ovaskainen23_")
 SORTED_SUBSETS = ("matteo21",)
 BATCH_SIZE = 32
+# Enlarged 512 px tiles go through the model at most this many at a time: 32 of
+# them fail in sam2-rgb's ConvTranspose with CUDNN_STATUS_NOT_SUPPORTED, while
+# 24 run. Patches are scored independently, so this does not change any metric.
+ENLARGED_CHUNK = 16
 THRESHOLD = 0.1
 UINT8_MAX = 255
 MINMAX_EPS = 1e-8
@@ -230,7 +234,8 @@ def infer(session, contract: fx.Contract, batch: np.ndarray) -> np.ndarray:
     if factor == 1:
         return fx.predict(session, batch)
     big = batch.repeat(factor, axis=2).repeat(factor, axis=3)
-    prob = fx.predict(session, np.ascontiguousarray(big))
+    prob = np.concatenate([fx.predict(session, np.ascontiguousarray(big[i:i + ENLARGED_CHUNK]))
+                           for i in range(0, len(big), ENLARGED_CHUNK)])
     n = prob.shape[0]
     return prob.reshape(n, PATCH, factor, PATCH, factor).mean(axis=(2, 4))
 
