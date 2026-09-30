@@ -1332,7 +1332,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Container stack | `python:3.12-slim-bookworm`, `torch==2.14.0` (CUDA 13.0); location encoder only, loaded with upstream's `load_lightweight`; dependency set frozen in `constraints.txt` |
 | H100 status | sm_90 through the CUDA 13.0 torch build; the location encoder also runs on CPU |
 | Lab status | **experimental** |
-| First-run / current behavior | Build smoke test loads every checkpoint offline, embeds St. Louis, Kirkwood MO, a Sahara and an Amazon point, and checks that the nearby pair is more similar than the distant ones. `SMOKE.md` reproduces the paper's global elevation regression (Table 2: R² 0.88 at L=40, 0.83 at L=10, 0.25 for raw coordinates) |
+| First-run / current behavior | Build smoke test loads every checkpoint offline, embeds St. Louis, Kirkwood MO, a Sahara and an Amazon point, and checks that the nearby pair is more similar than the distant ones. On an H100 the paper's global elevation regression gives R² 0.893 for the ViT-16 and ResNet-50 L=40 encoders (published 0.88) and 0.35 for raw coordinates (published 0.25 ± 0.08), over 10 runs (`SMOKE.md`) |
 | Tags | `:v1` (= `:latest` = `:torch2.14-cu130`) |
 | Notes | The image encoder is not included: upstream's full loader downloads TorchGeo weights at construction. Global-scale model — weak for many close locations; captures landscape-scale structure. Complements `geoclip` (image → location) |
 
@@ -1372,7 +1372,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Container stack | `python:3.12-slim-bookworm`, `torch==2.12.1` (CUDA 12.9); upstream code at `/opt/panopticon`, not pip-installed; xformers not needed for inference; dependency set frozen in `constraints.txt` |
 | H100 status | sm_90 through the CUDA 12.9 torch build |
 | Lab status | **experimental** |
-| First-run / current behavior | Build smoke test loads the baked teacher with network access blocked and embeds RGB and 12-band Sentinel-2 inputs. `SMOKE.md` measures memory and time on real Tanager and EMIT hyperspectral patches as the band count rises from 12 to all bands; the paper has no small published result reproducible without its evaluation code |
+| First-run / current behavior | Build smoke test loads the baked teacher with network access blocked and embeds RGB and 12-band Sentinel-2 inputs. On an H100, 8 Tanager patches at all 426 bands take 41 GB and 0.54 s per forward pass in fp32, 22 GB and 0.17 s in bf16; EMIT's 285 bands take 28 GB in fp32 (`SMOKE.md`). The paper has no small published result reproducible without its evaluation code |
 | Tags | `:v1` (= `:latest` = `:torch2.12-cu129`) |
 | Notes | Patch-embedding cost grows linearly and steeply with band count (about 50× the ViT trunk at 426 bands); pretraining views held at most 13 channels. Wavelengths are floored to whole nanometers |
 
@@ -1392,9 +1392,9 @@ update its card *in the same PR*. Top-level `README.md` and
 | Container stack | `python:3.12-slim-bookworm`, `onnxruntime-gpu==1.26.0` with the CUDA 12 runtime and cuDNN 9 from pip, rasterio; no PyTorch; dependency set frozen in `constraints.txt` |
 | H100 status | CUDA execution provider through onnxruntime-gpu 1.26 (CUDA 12); also runs on CPU |
 | Lab status | **experimental** |
-| First-run / current behavior | Build smoke test opens all four ONNX files, prints each embedded input contract, runs each on a matching synthetic input, and confirms the CUDA provider is available. `SMOKE.md` reproduces the preprint's Table D1 FraXet test scores for the two RGB+DEM models (U-Net F1 0.48, SegFormer F1 0.44) |
+| First-run / current behavior | Build smoke test opens all four ONNX files, prints each embedded input contract, runs each on a matching synthetic input, and confirms the CUDA provider is available. FraXet test scores on an H100 match the preprint's Table D1 for the two RGB+DEM models: U-Net F1 0.48 and SegFormer F1 0.44, both as published (`SMOKE.md`). `sam2-rgb`, which the preprint does not score, reaches F1 0.09 on 2× enlarged 256 px patches |
 | Tags | `:v1` (= `:latest` = `:ort1.26-cu128`) |
-| Notes | The two model directories use different preprocessing; the CLI reads each file's contract rather than hard-coding it. Upstream's training loader appears to have fed the RGB+DEM models a near-zero DEM channel, so the CLI makes `--dem-scaling` an explicit choice. Output is an aid to interpretation, not a substitute |
+| Notes | The two model directories use different preprocessing; the CLI reads each file's contract rather than hard-coding it. Upstream's training loader appears to have fed the RGB+DEM models a near-zero DEM channel, so the CLI makes `--dem-scaling` an explicit choice. `sam2-rgb` fails in cuDNN at 32 tiles per call and runs at 24; keep `--batch` at or below 24 for it. Output is an aid to interpretation, not a substitute |
 
 ---
 
