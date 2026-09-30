@@ -1,6 +1,6 @@
 #!/usr/bin/env cwl-runner
 # crossearth_land_cover, described as a CWL v1.2 CommandLineTool for the image
-# ghcr.io/bradleylab/crossearth:v3, whose ENTRYPOINT takes --input-dir,
+# ghcr.io/bradleylab/crossearth:v4, whose ENTRYPOINT takes --input-dir,
 # --output-dir and --params-json (the geospatial executor's entrypoint contract
 # v1). The staging layout and params.json are built from the typed inputs below,
 # so an engine that honors the image ENTRYPOINT runs it as the executor does.
@@ -26,7 +26,7 @@ $namespaces:
 s:codeRepository: https://github.com/bradleylab/ml-containers
 s:license: MIT
 s:citation: https://arxiv.org/abs/2410.22629
-s:version: "3"
+s:version: "4"
 gx:model: crossearth
 gx:capability: map_land_cover
 gx:tags: [segmentation]
@@ -35,7 +35,7 @@ gx:contract: 1
 
 requirements:
   DockerRequirement:
-    dockerPull: ghcr.io/bradleylab/crossearth:v3
+    dockerPull: ghcr.io/bradleylab/crossearth:v4
   InlineJavascriptRequirement: {}
   InitialWorkDirRequirement:
     listing:
@@ -57,7 +57,8 @@ requirements:
     timelimit: 3600
 
 hints:
-  # Run on H100s only so far; the image's torch build is CUDA 12.1.
+  # A GPU is used when present (tested on H100s; the image's torch build is
+  # CUDA 12.1); without one the task runs on the CPU.
   cwltool:CUDARequirement:
     cudaVersionMin: "12.1"
     cudaComputeCapability: "9.0"

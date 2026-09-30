@@ -10,7 +10,7 @@
 # This container vendors the upstream `VisionXLab/CrossEarth` repo at a
 # pinned commit (no PyPI release; not pip-installable).
 #
-# v3 adds one runnable task, `crossearth-land-cover` (the ENTRYPOINT): a
+# v3 added one runnable task, `crossearth-land-cover` (the ENTRYPOINT): a
 # six-class land-cover map of an RGB orthophoto from the Potsdam RGB source
 # model, under the geospatial executor's entrypoint contract v1. That model's
 # weights are baked in, converted at build time by scripts/convert_checkpoint.py
@@ -18,7 +18,8 @@
 # runs offline. The conversion reads the checkpoint's pickle through an
 # allowlist and keeps only the inference tensors; see the script's docstring.
 # Every other checkpoint in `Cusyoung/CrossEarth` still downloads from the Hub
-# on first call. For a shell, run with `--entrypoint bash`.
+# on first call. For a shell, run with `--entrypoint bash`. v4 lets the task
+# run on the CPU when no GPU is visible (the entrypoint's docstring says how).
 #
 # ---------------------------------------------------------------------
 # WHY THIS IS NOT ON UPSTREAM'S TORCH 2.0.1 / CUDA 11.7 ANY MORE.
@@ -110,8 +111,12 @@ RUN pip install --upgrade pip wheel \
     && pip install future tensorboard "huggingface_hub>=0.20.0" "numpy<2"
 
 # GeoTIFF reading and writing for the land-cover entrypoint. The rasterio wheel
-# bundles its own GDAL; numpy<2 again, for the torch 2.1 ABI above.
-RUN pip install "rasterio==1.4.3" "safetensors==0.8.0" "numpy<2"
+# bundles its own GDAL; numpy<2 again, for the torch 2.1 ABI above. rasterio
+# 1.4.3 leaves affine unpinned, and under this base image's Python 3.10 affine
+# 3.0.1 cannot iterate an Affine, so reading any dataset's bounds fails ("No
+# '__dict__' attribute on 'Affine' instance to cache '_astuple' property", v3's
+# entrypoint on Compute2); affine 2.4.0 works.
+RUN pip install "rasterio==1.4.3" "affine==2.4.0" "safetensors==0.8.0" "numpy<2"
 
 RUN mkdir -p /opt/hf-cache
 
@@ -169,9 +174,10 @@ print('CrossEarth-specific classes registered:', found)"
 
 # The land-cover model builds from upstream's config and takes the baked
 # weights with no key missing or left over, on CPU (no GPU on the runner), and
-# the entrypoint's GeoTIFF stack imports.
+# the entrypoint's resampling writes a GeoTIFF on a new grid.
 RUN python -c "import importlib.machinery, importlib.util, torch, rasterio; \
-import importlib.metadata as im; \
+import importlib.metadata as im; import numpy as np; from pathlib import Path; \
+from rasterio.transform import from_origin; \
 loader = importlib.machinery.SourceFileLoader('land_cover', '/usr/local/bin/crossearth-land-cover'); \
 spec = importlib.util.spec_from_loader('land_cover', loader); \
 import sys; land_cover = importlib.util.module_from_spec(spec); sys.modules['land_cover'] = land_cover; \
@@ -179,15 +185,20 @@ loader.exec_module(land_cover); \
 model = land_cover.build_model(torch.device('cpu')); \
 params = sum(p.numel() for p in model.parameters()); \
 print('land-cover model:', params, 'parameters;', land_cover.weights_provenance()); \
-print('rasterio', im.version('rasterio'), '| gdal', rasterio.__gdal_version__, \
-'| safetensors', im.version('safetensors'))"
+site = rasterio.open('/tmp/site.tif', 'w', driver='GTiff', width=8, height=8, count=3, dtype='uint8', crs='EPSG:32615', transform=from_origin(0, 80, 10, 10)); \
+site.write(np.ones((3, 8, 8), dtype='uint8')); site.close(); \
+land_cover.resample(Path('/tmp/site.tif'), Path('/tmp/resampled.tif'), 5.0); \
+print('resample check:', rasterio.open('/tmp/resampled.tif').shape); \
+print('rasterio', im.version('rasterio'), '| affine', im.version('affine'), \
+'| gdal', rasterio.__gdal_version__, '| safetensors', im.version('safetensors'))" \
+    && rm -f /tmp/site.tif /tmp/resampled.tif
 
 # gpu=required: torch 2.1.0 cu121 with sm_90; v1 (cu117) could not target the H100 and hung
 LABEL org.opencontainers.image.title="crossearth" \
       org.opencontainers.image.description="CrossEarth (TPAMI 2025) — vision foundation model for cross-domain remote sensing semantic segmentation. Frozen DINOv2 backbone + Earth-Style Injection + multi-task training; targets Remote Sensing Domain Generalization (RSDG). Container vendors the upstream repo + mmcv/mmseg stack; ENTRYPOINT: a land-cover map of an RGB orthophoto (Potsdam RGB model, weights baked in, geospatial executor contract v1); other checkpoints via Hugging Face Hub at runtime." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/crossearth/README.md" \
-      org.opencontainers.image.version="v3" \
+      org.opencontainers.image.version="v4" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="MIT" \
       bradleylab.model.upstream="https://github.com/VisionXLab/CrossEarth" \
