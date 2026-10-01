@@ -1,6 +1,6 @@
 #!/usr/bin/env cwl-runner
 # crossearth_land_cover, described as a CWL v1.2 CommandLineTool for the image
-# ghcr.io/bradleylab/crossearth:v4, whose ENTRYPOINT takes --input-dir,
+# ghcr.io/bradleylab/crossearth:v5, whose ENTRYPOINT takes --input-dir,
 # --output-dir and --params-json (the geospatial executor's entrypoint contract
 # v1). The staging layout and params.json are built from the typed inputs below,
 # so an engine that honors the image ENTRYPOINT runs it as the executor does.
@@ -15,8 +15,9 @@ doc: |
   system in meters, into six land-cover classes: impervious surface, building,
   low vegetation, tree, car and clutter. The model is CrossEarth's Potsdam RGB
   source model, trained on the ISPRS Potsdam RGB true orthophotos, whose cells
-  are 5 cm. Writes the class map as a GeoTIFF with a color table and a report
-  with each class's area.
+  are 5 cm. Writes the class map as a GeoTIFF with a color table, a PNG preview
+  of it in the same colors at most 1024 pixels on a side, and a report with each
+  class's area.
 
 $namespaces:
   s: https://schema.org/
@@ -26,7 +27,7 @@ $namespaces:
 s:codeRepository: https://github.com/bradleylab/ml-containers
 s:license: MIT
 s:citation: https://arxiv.org/abs/2410.22629
-s:version: "4"
+s:version: "5"
 gx:model: crossearth
 gx:capability: map_land_cover
 gx:tags: [segmentation]
@@ -35,7 +36,7 @@ gx:contract: 1
 
 requirements:
   DockerRequirement:
-    dockerPull: ghcr.io/bradleylab/crossearth:v4
+    dockerPull: ghcr.io/bradleylab/crossearth:v5
   InlineJavascriptRequirement: {}
   InitialWorkDirRequirement:
     listing:
@@ -92,6 +93,10 @@ outputs:
     type: File
     outputBinding: {glob: output/land_cover.tif}
     gx:role: land_cover
+  preview:
+    type: File
+    outputBinding: {glob: output/land_cover_preview.png}
+    gx:role: preview
   report:
     type: File
     outputBinding: {glob: output/land_cover_report.json}

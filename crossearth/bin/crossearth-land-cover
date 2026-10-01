@@ -27,6 +27,7 @@ import math
 import os
 import sys
 import tempfile
+import warnings
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,7 @@ import rasterio.shutil
 import torch
 from affine import Affine
 from rasterio.enums import ColorInterp, MaskFlags, Resampling
+from rasterio.errors import NotGeoreferencedWarning
 from rasterio.warp import reproject
 from rasterio.windows import Window
 
@@ -51,6 +53,7 @@ CLASSES = ("impervious_surface", "building", "low_vegetation", "tree", "car", "c
 PALETTE = ((255, 255, 255), (0, 0, 255), (0, 255, 255), (0, 255, 0), (255, 255, 0), (255, 0, 0))
 # Written codes are the model's class index plus one, so 0 is free for nodata.
 NODATA_CODE = 0
+COLOR_TABLE = {index + 1: color for index, color in enumerate(PALETTE)}
 # The checkpoint's decode head: loss_cls.class_weight, one per class plus the
 # Mask2Former "no object" class.
 NO_OBJECT_WEIGHT = 0.1
@@ -72,8 +75,12 @@ WINDOW = 512
 TOLERANCE = 1e-6
 COG_OPTIONS = {"driver": "COG", "compress": "deflate", "overview_resampling": "nearest"}
 STAGING_LAYOUT = {"tiled": True, "blockxsize": 512, "blockysize": 512, "BIGTIFF": "IF_SAFER"}
+# The preview is for showing the map inline in a chat, so it stays small whatever
+# the orthophoto's size.
+PREVIEW_MAX_SIDE = 1024
 
 LAND_COVER_FILE, LAND_COVER_ROLE = "land_cover.tif", "land_cover"
+PREVIEW_FILE, PREVIEW_ROLE = "land_cover_preview.png", "preview"
 REPORT_FILE, REPORT_ROLE = "land_cover_report.json", "report"
 
 
@@ -275,7 +282,7 @@ def classify(model: torch.nn.Module, source: Path, target: Path, device: torch.d
 
 def label_classes(path: Path) -> None:
     with rasterio.open(path, "r+") as dataset:
-        dataset.write_colormap(1, {code + 1: PALETTE[code] for code in range(len(CLASSES))})
+        dataset.write_colormap(1, COLOR_TABLE)
         dataset.update_tags(1, **{f"class_{code + 1}": name for code, name in enumerate(CLASSES)})
 
 
@@ -296,6 +303,47 @@ def class_summary(path: Path) -> list[dict[str, Any]]:
         }
         for code, name in enumerate(CLASSES)
     ]
+
+
+def write_preview(
+    classes: np.ndarray,
+    palette: dict[int, tuple[int, int, int]],
+    nodata: int,
+    max_side: int,
+    path: Path,
+) -> dict[str, Any]:
+    """Write a (h, w) uint8 class map as an RGBA PNG at most max_side pixels on a side.
+
+    Each class code takes its palette color, opaque, and nodata is transparent. A
+    larger map is downsampled by nearest neighbor, keeping its aspect ratio; a
+    smaller one is never upsampled.
+    """
+    height, width = classes.shape
+    factor = max(1.0, max(height, width) / max_side)
+    out_height, out_width = (max(1, round(side / factor)) for side in (height, width))
+    # Each preview pixel takes the class under its center. Integer arithmetic keeps
+    # the index exact, so an axis that is not downsampled maps onto itself.
+    rows = (2 * np.arange(out_height) + 1) * height // (2 * out_height)
+    cols = (2 * np.arange(out_width) + 1) * width // (2 * out_width)
+    lookup = np.zeros((256, 4), dtype=np.uint8)
+    lookup[:, 3] = 255
+    for code, color in palette.items():
+        lookup[code, :3] = color
+    lookup[nodata] = 0
+    preview = lookup[classes[np.ix_(rows, cols)]]
+    # The preview carries no georeferencing by design; the GeoTIFF has it.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", NotGeoreferencedWarning)
+        with rasterio.open(
+            path, "w", driver="PNG", width=out_width, height=out_height, count=4, dtype="uint8"
+        ) as dst:
+            dst.write(np.moveaxis(preview, -1, 0))
+    return {
+        "file": path.name,
+        "width_px": out_width,
+        "height_px": out_height,
+        "downsampling_factor": round(factor, 6),
+    }
 
 
 def sha256(path: Path) -> str:
@@ -345,6 +393,14 @@ def run(input_dir: Path, output_dir: Path, params: Params) -> None:
         classify(build_model(device), image, staging, device)
         label_classes(staging)
         rasterio.shutil.copy(staging, output_dir / LAND_COVER_FILE, **COG_OPTIONS)
+    with rasterio.open(output_dir / LAND_COVER_FILE) as land_cover:
+        preview = write_preview(
+            land_cover.read(1),
+            COLOR_TABLE,
+            NODATA_CODE,
+            PREVIEW_MAX_SIDE,
+            output_dir / PREVIEW_FILE,
+        )
 
     report = {
         "input": source.name,
@@ -365,6 +421,7 @@ def run(input_dir: Path, output_dir: Path, params: Params) -> None:
             else "the orthophoto masks no pixels"
         ),
         "classes": class_summary(output_dir / LAND_COVER_FILE),
+        "preview": preview,
         "model": {
             "name": "CrossEarth, Potsdam RGB source model",
             "training_imagery": f"ISPRS Potsdam RGB true orthophotos at {TRAINING_GSD_M} m",
@@ -381,7 +438,11 @@ def run(input_dir: Path, output_dir: Path, params: Params) -> None:
     (output_dir / REPORT_FILE).write_text(json.dumps(report, indent=2) + "\n")
 
     # The manifest goes last: its presence is what says the run finished.
-    outputs = [(LAND_COVER_FILE, LAND_COVER_ROLE, "GTiff"), (REPORT_FILE, REPORT_ROLE, None)]
+    outputs = [
+        (LAND_COVER_FILE, LAND_COVER_ROLE, "GTiff"),
+        (PREVIEW_FILE, PREVIEW_ROLE, "PNG"),
+        (REPORT_FILE, REPORT_ROLE, None),
+    ]
     manifest = {
         "contract_version": CONTRACT_VERSION,
         "outputs": [

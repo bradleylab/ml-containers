@@ -29,9 +29,9 @@ place of xformers, the fallback upstream's layers take when
 
 ## Image tag
 
-`ghcr.io/bradleylab/crossearth:v4` (also `:latest`, `:torch2.1-cu121`).
-`:v3` is the same image with a land-cover task that needs a GPU; `:v2` has
-no land-cover task.
+`ghcr.io/bradleylab/crossearth:v5` (also `:latest`, `:torch2.1-cu121`).
+`:v4` is the same image without the PNG preview; `:v3` has a land-cover
+task that needs a GPU; `:v2` has no land-cover task.
 Do not use `:v1`: its CUDA 11.7 torch cannot target an H100 and hangs.
 
 ## Stack
@@ -75,13 +75,17 @@ ENTRYPOINT (cwltool with Docker, Podman or Apptainer; Toil) can run it.
   the orthophoto onto first, bilinearly; 0 keeps its own cells.
 - **Outputs:** `land_cover.tif`, a Cloud Optimized GeoTIFF of class codes
   1–6 (impervious surface, building, low vegetation, tree, car, clutter)
-  with a color table, and `land_cover_report.json`, with each class's pixel
-  count, area and share, the grid, and the weights' provenance.
+  with a color table; `land_cover_preview.png`, the same map as an RGBA PNG
+  in the color table's colors with nodata transparent, at most 1024 pixels
+  on its longer side (downsampled by nearest neighbor, never upsampled), for
+  a chat interface to show inline; and `land_cover_report.json`, with each
+  class's pixel count, area and share, the grid, the preview's size and
+  downsampling factor, and the weights' provenance.
 
 ```bash
 docker run --rm --gpus all \
   -v /path/to/job:/job \
-  ghcr.io/bradleylab/crossearth:v4 \
+  ghcr.io/bradleylab/crossearth:v5 \
   --input-dir /job/input \
   --output-dir /job/output \
   --params-json /job/params.json
@@ -139,7 +143,7 @@ docker run --rm -it --gpus all \
   -v /path/to/data:/work \
   -v /shared/hf-cache:/opt/hf-cache \
   --entrypoint bash \
-  ghcr.io/bradleylab/crossearth:v4
+  ghcr.io/bradleylab/crossearth:v5
 ```
 
 Upstream's `tools/test.py` evaluates a config against a dataset; its
