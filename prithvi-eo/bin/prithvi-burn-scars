@@ -21,6 +21,7 @@ import hashlib
 import importlib.metadata as im
 import json
 import sys
+import warnings
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,7 @@ import rasterio
 import rasterio.shutil
 import torch
 import yaml
+from rasterio.errors import NotGeoreferencedWarning
 
 CONTRACT_VERSION = 1
 
@@ -55,6 +57,9 @@ KNOWN_PARAMS: set[str] = set()
 TOLERANCE = 1e-6
 COG_OPTIONS = {"driver": "COG", "compress": "deflate", "overview_resampling": "nearest"}
 MAP_FILE, MAP_ROLE = "burn_scars.tif", "burn_scars"
+PREVIEW_FILE, PREVIEW_ROLE = "burn_scars_preview.png", "preview"
+# The preview's longer side, small enough for a chat interface to show inline.
+PREVIEW_MAX_SIDE = 1024
 REPORT_FILE, REPORT_ROLE = "burn_scars_report.json", "report"
 
 
@@ -167,6 +172,46 @@ def write_map(path: Path, classes: np.ndarray, profile: dict[str, Any]) -> None:
     staging.unlink()
 
 
+def write_preview(
+    path: Path,
+    classes: np.ndarray,
+    palette: dict[int, tuple[int, int, int]],
+    nodata: int,
+    max_side: int,
+) -> dict[str, Any]:
+    """Write a uint8 class map as an RGBA PNG in its palette, at most ``max_side`` px a side.
+
+    Nearest neighbor, so every preview pixel is one of the map's own classes; a map
+    already within ``max_side`` keeps its size. Nodata is fully transparent. Returns
+    the preview's size and the downsampling factor along its longer side.
+    """
+    height, width = classes.shape
+    scale = min(1.0, max_side / max(height, width))
+    out_height, out_width = max(1, round(height * scale)), max(1, round(width * scale))
+    # Each preview pixel takes the map pixel under its center.
+    rows = ((np.arange(out_height) + 0.5) * height / out_height).astype(np.intp)
+    cols = ((np.arange(out_width) + 0.5) * width / out_width).astype(np.intp)
+    lookup = np.zeros((256, 4), dtype=np.uint8)
+    lookup[:, 3] = 255
+    for code, rgb in palette.items():
+        lookup[code, :3] = rgb
+    lookup[nodata] = 0
+    rgba = lookup[classes[np.ix_(rows, cols)]].transpose(2, 0, 1)
+    # The preview is deliberately not georeferenced (the map is), so rasterio's
+    # warning about its missing geotransform would only mislead a reader of the log.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", NotGeoreferencedWarning)
+        with rasterio.open(
+            path, "w", driver="PNG", width=out_width, height=out_height, count=4, dtype="uint8"
+        ) as dst:
+            dst.write(rgba)
+    return {
+        "width_px": out_width,
+        "height_px": out_height,
+        "downsampling_factor": max(height, width) / max(out_height, out_width),
+    }
+
+
 def summary(classes: np.ndarray, grid: Grid) -> dict[str, Any]:
     cell_area = grid.cell_x * grid.cell_y
     valid = int((classes != NODATA_CODE).sum())
@@ -215,6 +260,9 @@ def run(input_dir: Path, output_dir: Path) -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     write_map(output_dir / MAP_FILE, classes, profile)
+    preview = write_preview(
+        output_dir / PREVIEW_FILE, classes, PALETTE, NODATA_CODE, PREVIEW_MAX_SIDE
+    )
     config = yaml.safe_load(CONFIG.read_text())
     report = {
         "input": scene.name,
@@ -222,6 +270,7 @@ def run(input_dir: Path, output_dir: Path) -> None:
         "classes": {str(code): name for code, name in enumerate(CLASS_NAMES)}
         | {str(NODATA_CODE): "nodata"},
         **summary(classes, grid),
+        "preview": {"file": PREVIEW_FILE, **preview},
         "model": {
             "name": "Prithvi-EO-2.0-300M-BurnScars",
             "weights": json.loads(PROVENANCE.read_text()),
@@ -245,7 +294,11 @@ def run(input_dir: Path, output_dir: Path) -> None:
     (output_dir / REPORT_FILE).write_text(json.dumps(report, indent=2) + "\n")
 
     # The manifest goes last: its presence is what says the run finished.
-    outputs = [(MAP_FILE, MAP_ROLE, "GTiff"), (REPORT_FILE, REPORT_ROLE, None)]
+    outputs = [
+        (MAP_FILE, MAP_ROLE, "GTiff"),
+        (PREVIEW_FILE, PREVIEW_ROLE, "PNG"),
+        (REPORT_FILE, REPORT_ROLE, None),
+    ]
     manifest = {
         "contract_version": CONTRACT_VERSION,
         "outputs": [
