@@ -20,6 +20,8 @@
 # Every other checkpoint in `Cusyoung/CrossEarth` still downloads from the Hub
 # on first call. For a shell, run with `--entrypoint bash`. v4 lets the task
 # run on the CPU when no GPU is visible (the entrypoint's docstring says how).
+# v5 adds a PNG preview of the class map, at most 1024 pixels on a side, so a
+# chat interface can show the map inline.
 #
 # ---------------------------------------------------------------------
 # WHY THIS IS NOT ON UPSTREAM'S TORCH 2.0.1 / CUDA 11.7 ANY MORE.
@@ -173,11 +175,15 @@ print('mmcv', im.version('mmcv'), \
 print('CrossEarth-specific classes registered:', found)"
 
 # The land-cover model builds from upstream's config and takes the baked
-# weights with no key missing or left over, on CPU (no GPU on the runner), and
-# the entrypoint's resampling writes a GeoTIFF on a new grid.
+# weights with no key missing or left over, on CPU (no GPU on the runner), the
+# entrypoint's resampling writes a GeoTIFF on a new grid, and its preview
+# shrinks a synthetic class map wider than the cap to an RGBA PNG at the cap,
+# nodata transparent.
 RUN python -c "import importlib.machinery, importlib.util, torch, rasterio; \
 import importlib.metadata as im; import numpy as np; from pathlib import Path; \
 from rasterio.transform import from_origin; \
+import warnings; from rasterio.errors import NotGeoreferencedWarning; \
+warnings.simplefilter('ignore', NotGeoreferencedWarning); \
 loader = importlib.machinery.SourceFileLoader('land_cover', '/usr/local/bin/crossearth-land-cover'); \
 spec = importlib.util.spec_from_loader('land_cover', loader); \
 import sys; land_cover = importlib.util.module_from_spec(spec); sys.modules['land_cover'] = land_cover; \
@@ -189,16 +195,22 @@ site = rasterio.open('/tmp/site.tif', 'w', driver='GTiff', width=8, height=8, co
 site.write(np.ones((3, 8, 8), dtype='uint8')); site.close(); \
 land_cover.resample(Path('/tmp/site.tif'), Path('/tmp/resampled.tif'), 5.0); \
 print('resample check:', rasterio.open('/tmp/resampled.tif').shape); \
+classes = np.tile(np.arange(len(land_cover.CLASSES) + 1, dtype='uint8'), (8, 300)); \
+preview = land_cover.write_preview(classes, land_cover.COLOR_TABLE, land_cover.NODATA_CODE, land_cover.PREVIEW_MAX_SIDE, Path('/tmp/preview.png')); \
+png = rasterio.open('/tmp/preview.png'); \
+assert (png.count, png.width, png.dtypes[0]) == (4, land_cover.PREVIEW_MAX_SIDE, 'uint8'), (png.count, png.shape, png.dtypes); \
+assert set(np.unique(png.read(4))) == {0, 255}, 'preview alpha must be 0 for nodata and 255 elsewhere'; \
+print('preview check:', preview); \
 print('rasterio', im.version('rasterio'), '| affine', im.version('affine'), \
 '| gdal', rasterio.__gdal_version__, '| safetensors', im.version('safetensors'))" \
-    && rm -f /tmp/site.tif /tmp/resampled.tif
+    && rm -f /tmp/site.tif /tmp/resampled.tif /tmp/preview.png
 
 # gpu=required: torch 2.1.0 cu121 with sm_90; v1 (cu117) could not target the H100 and hung
 LABEL org.opencontainers.image.title="crossearth" \
       org.opencontainers.image.description="CrossEarth (TPAMI 2025) — vision foundation model for cross-domain remote sensing semantic segmentation. Frozen DINOv2 backbone + Earth-Style Injection + multi-task training; targets Remote Sensing Domain Generalization (RSDG). Container vendors the upstream repo + mmcv/mmseg stack; ENTRYPOINT: a land-cover map of an RGB orthophoto (Potsdam RGB model, weights baked in, geospatial executor contract v1); other checkpoints via Hugging Face Hub at runtime." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/crossearth/README.md" \
-      org.opencontainers.image.version="v4" \
+      org.opencontainers.image.version="v5" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="MIT" \
       bradleylab.model.upstream="https://github.com/VisionXLab/CrossEarth" \
