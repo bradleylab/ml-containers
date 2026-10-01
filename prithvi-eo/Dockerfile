@@ -20,6 +20,10 @@
 # scripts/prepare_burn_scars.py, so the task runs offline. For a shell, run
 # with `--entrypoint bash`.
 #
+# v3 adds a PNG preview of that map, `burn_scars_preview.png`, in the map's own
+# colors with nodata transparent and at most 1024 pixels on its longer side, so
+# a chat interface can show the result inline.
+#
 # Upstream:  https://github.com/IBM/terratorch  (Apache-2.0)
 # Weights:   https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL
 #            https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M-TL
@@ -141,20 +145,30 @@ assert BACKBONE_REGISTRY is not None"
 
 # The burn-scar model builds from its config and takes the checkpoint with every
 # key matched (TerraTorch loads it strictly), on CPU: no GPU on the runner and
-# no network needed.
-RUN python -c "import importlib.machinery, importlib.util, sys, torch; \
+# no network needed. The preview is then written from a synthetic 1200 x 600
+# class map, which checks that this image's rasterio carries GDAL's PNG driver
+# and that the map is shrunk to 1024 pixels with nodata transparent.
+RUN python -c "import importlib.machinery, importlib.util, sys, numpy as np, rasterio, torch; \
+from pathlib import Path; \
 loader = importlib.machinery.SourceFileLoader('burn_scars', '/usr/local/bin/prithvi-burn-scars'); \
 spec = importlib.util.spec_from_loader('burn_scars', loader); \
 burn_scars = importlib.util.module_from_spec(spec); sys.modules['burn_scars'] = burn_scars; \
 loader.exec_module(burn_scars); \
 model, datamodule = burn_scars.load_model(torch.device('cpu')); \
-print('burn-scar model:', sum(p.numel() for p in model.parameters()), 'parameters')"
+print('burn-scar model:', sum(p.numel() for p in model.parameters()), 'parameters'); \
+classes = np.tile(np.array([[0, 1], [1, burn_scars.NODATA_CODE]], np.uint8), (600, 300)); \
+preview = burn_scars.write_preview(Path('/tmp/preview.png'), classes, burn_scars.PALETTE, burn_scars.NODATA_CODE, burn_scars.PREVIEW_MAX_SIDE); \
+png = rasterio.open('/tmp/preview.png'); \
+assert (png.driver, png.count, png.shape) == ('PNG', 4, (1024, 512)), (png.driver, png.count, png.shape); \
+assert set(np.unique(png.read(4))) == {0, 255}, 'alpha is not 0 for nodata and 255 elsewhere'; \
+print('burn-scar preview:', preview)" \
+    && rm /tmp/preview.png
 
 LABEL org.opencontainers.image.title="prithvi-eo" \
       org.opencontainers.image.description="Prithvi-EO (IBM/NASA) geospatial foundation model — ViT pre-trained on HLS (Harmonized Landsat-Sentinel-2). Container ships TerraTorch fine-tuning toolkit; ENTRYPOINT: a burn-scar map of one HLS scene (Prithvi-EO-2.0-300M-BurnScars baked in, geospatial executor contract v1); other weights via Hugging Face Hub at runtime." \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/prithvi-eo/README.md" \
-      org.opencontainers.image.version="v2" \
+      org.opencontainers.image.version="v3" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="Apache-2.0" \
       bradleylab.model.upstream="https://github.com/IBM/terratorch" \

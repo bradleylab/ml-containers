@@ -28,8 +28,9 @@ strictly required.
 
 ## Image tag
 
-`ghcr.io/bradleylab/prithvi-eo:v2` (also `:latest`,
-`:torch2.5-cu121`). `:v1` is the same stack without the burn-scar task.
+`ghcr.io/bradleylab/prithvi-eo:v3` (also `:latest`,
+`:torch2.5-cu121`). `:v2` is the same task without the PNG preview, and
+`:v1` the same stack without the burn-scar task.
 
 ## Stack
 
@@ -70,14 +71,20 @@ task as a CWL v1.2 tool.
   Pixels with any band at fill go into the model as 0, as the training
   config's `no_data_replace` does, and come out as nodata.
 - **Outputs:** `burn_scars.tif`, a Cloud Optimized GeoTIFF of 0 (not
-  burned), 1 (burn scar) and 255 (nodata) with a color table, and
-  `burn_scars_report.json`, with the burned area in hectares and share.
+  burned), 1 (burn scar) and 255 (nodata) with a color table;
+  `burn_scars_preview.png`, an RGBA picture of that map for a chat
+  interface to show inline, in the same colors with nodata transparent,
+  shrunk by nearest neighbor to at most 1024 pixels on its longer side
+  (never enlarged) and not georeferenced; and `burn_scars_report.json`,
+  with the burned area in hectares and share and the preview's size in
+  pixels and downsampling factor. `run.json` lists the preview with role
+  `preview` and format `PNG`.
 - **Parameters:** none.
 
 ```bash
 docker run --rm \
   -v /path/to/job:/job \
-  ghcr.io/bradleylab/prithvi-eo:v2 \
+  ghcr.io/bradleylab/prithvi-eo:v3 \
   --input-dir /job/input \
   --output-dir /job/output \
   --params-json /job/params.json
@@ -106,7 +113,7 @@ Backbones are not baked; pull them from HF Hub on first call:
 | 2.0 600M | [`ibm-nasa-geospatial/Prithvi-EO-2.0-600M`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M) | ~2.5 GB |
 | 2.0 600M-TL | [`ibm-nasa-geospatial/Prithvi-EO-2.0-600M-TL`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-600M-TL) | ~2.5 GB |
 | 2.0 300M-TL Sen1Floods11 (flood fine-tune) | [`ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL-Sen1Floods11`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL-Sen1Floods11) | ~1.2 GB |
-| 2.0 300M BurnScars (burn-scar fine-tune, baked in v2) | [`ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars) | 1.30 GB |
+| 2.0 300M BurnScars (burn-scar fine-tune, baked since v2) | [`ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars`](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars) | 1.30 GB |
 
 Bind-mount a persistent host directory at `/opt/hf-cache` so each
 variant only downloads once per host.
@@ -116,7 +123,7 @@ docker run --rm -it --gpus all \
   -v "$PWD/hf-cache:/opt/hf-cache" \
   -v "$PWD/data:/data" \
   --entrypoint bash \
-  ghcr.io/bradleylab/prithvi-eo:v2
+  ghcr.io/bradleylab/prithvi-eo:v3
 ```
 
 ## Inference
@@ -204,7 +211,7 @@ sbatch -A compute2-alexander.s.bradley \
        --mem=16G \
        --time=01:00:00 \
        --wrap='srun \
-         --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+prithvi-eo+v2.sqsh \
+         --container-image=/storage3/fs1/alexander.s.bradley/Active/c2_jobs/bradleylab+prithvi-eo+v3.sqsh \
          --container-mounts=/scratch2/fs1/alexander.s.bradley:/scratch2/fs1/alexander.s.bradley \
          --export=ALL,PYTHONNOUSERSITE=1,NVIDIA_VISIBLE_DEVICES=void \
          /usr/local/bin/prithvi-burn-scars \
