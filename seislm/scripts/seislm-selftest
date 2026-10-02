@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Load SeisLM-base and SeisLM-large and run each on a synthetic waveform window.
+
+With the lab's weights mounted, each checkpoint is checked against its recorded
+SHA-256 and loaded the way upstream's demo notebook does
+(examples/demo_seislm_visualized_pretrained_features.ipynb):
+LitMultiDimWav2Vec2.load_from_checkpoint(...).model. Without weights
+(--random-init), each model is built randomly initialized from the upstream
+pretraining config it was trained with; the image build runs this mode.
+
+Either way the model gets a seeded 3-component noise window of 3001 samples
+(30 s at 100 Hz, the window length of upstream's pretraining and demo),
+normalized per channel as the demo does. The check asserts the parameter count,
+the feature and hidden-state shapes, and that every output is finite.
+
+  seislm-selftest --random-init                 offline, no weights (image build)
+  seislm-selftest [--device cuda] [--weights /weights]
+"""
+
+import argparse
+import importlib.metadata as im
+import json
+import os
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+import ml_collections
+import torch
+from seisLM.model.foundation.pretrained_models import (
+    LitMultiDimWav2Vec2,
+    MultiDimWav2Vec2ForPreTraining,
+)
+
+from seislm_checkpoints import CHECKPOINTS, DEFAULT_WEIGHTS, verified_checkpoint
+
+SEISLM_HOME = Path(os.environ.get("SEISLM_HOME", "/opt/seislm"))
+PRETRAIN_CONFIGS = SEISLM_HOME / "seisLM" / "configs" / "pretrain"
+
+WINDOW_SAMPLES = 3001
+# Two stride-2, kernel-3 convolutions without padding: 3001 -> 1500 -> 749.
+FEATURE_FRAMES = 749
+BATCH = 2
+SEED = 0
+NORM_EPS = 1e-10  # StdSafeNormalize's default eps in upstream's pretraining pipeline
+PACKAGES = ("torch", "lightning", "ml-collections", "seisbench", "torchtune", "torchao", "numpy")
+
+
+@dataclass(frozen=True)
+class Expected:
+    n_params: int  # counted from the lab's copy of each checkpoint
+    paper_params_m: float  # Liu et al. 2024, Section 4.1 and Appendix B
+    hidden_size: int
+    n_layers: int
+
+
+EXPECTED = {
+    "base": Expected(n_params=11_359_568, paper_params_m=11.4, hidden_size=240, n_layers=6),
+    "large": Expected(n_params=90_683_648, paper_params_m=90.7, hidden_size=768, n_layers=12),
+}
+
+
+def load_pretrained(variant: str, weights: Path, device: str) -> MultiDimWav2Vec2ForPreTraining:
+    path = verified_checkpoint(weights, variant)
+    # weights_only=False: the saved hyperparameters are an ml_collections
+    # ConfigDict, which torch's restricted unpickler refuses. The SHA-256 check
+    # in verified_checkpoint is what makes the file trusted.
+    lit = LitMultiDimWav2Vec2.load_from_checkpoint(path, map_location=device, weights_only=False)
+    return lit.model
+
+
+def build_random(variant: str) -> MultiDimWav2Vec2ForPreTraining:
+    config_file = PRETRAIN_CONFIGS / CHECKPOINTS[variant].pretrain_config
+    model_config = json.loads(config_file.read_text())["model_config"]
+    torch.manual_seed(SEED)
+    return MultiDimWav2Vec2ForPreTraining(ml_collections.ConfigDict(model_config))
+
+
+def synthetic_window() -> torch.Tensor:
+    """Seeded noise shaped (batch, 3 channels ZNE, samples), demeaned and std-scaled per channel."""
+    gen = torch.Generator().manual_seed(SEED)
+    x = torch.randn(BATCH, 3, WINDOW_SAMPLES, generator=gen)
+    x = x - x.mean(dim=-1, keepdim=True)
+    return x / (x.std(dim=-1, keepdim=True, correction=0) + NORM_EPS)
+
+
+def check(variant: str, model: MultiDimWav2Vec2ForPreTraining, x: torch.Tensor, device: str) -> str:
+    want = EXPECTED[variant]
+    n_params = sum(p.numel() for p in model.parameters())
+    assert n_params == want.n_params, f"{variant}: {n_params} parameters, expected {want.n_params}"
+    cfg = model.config
+    assert (cfg.hidden_size, cfg.num_hidden_layers) == (want.hidden_size, want.n_layers), (
+        f"{variant}: hidden {cfg.hidden_size} x {cfg.num_hidden_layers} layers"
+    )
+
+    model = model.to(device).eval()
+    with torch.no_grad():
+        out = model.wav2vec2(input_values=x.to(device), output_hidden_states=True)
+
+    conv_dim = cfg.conv_dim[-1]
+    assert out.extract_features.shape == (BATCH, FEATURE_FRAMES, conv_dim), out.extract_features.shape
+    assert out.last_hidden_state.shape == (BATCH, FEATURE_FRAMES, want.hidden_size), out.last_hidden_state.shape
+    assert len(out.hidden_states) == want.n_layers + 1, len(out.hidden_states)
+    tensors = (out.extract_features, out.last_hidden_state, *out.hidden_states)
+    assert all(torch.isfinite(t).all() for t in tensors), f"{variant}: non-finite output"
+
+    return (
+        f"SeisLM-{variant:<5}  {n_params:,} parameters ({n_params / 1e6:.1f} M; paper {want.paper_params_m} M)  "
+        f"conv features {tuple(out.extract_features.shape)}  last hidden {tuple(out.last_hidden_state.shape)}  "
+        f"mean |h| {out.last_hidden_state.abs().mean().item():.4f}"
+    )
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--device", default="cpu", choices=("cpu", "cuda"))
+    ap.add_argument("--weights", type=Path, default=DEFAULT_WEIGHTS)
+    ap.add_argument("--random-init", action="store_true", help="build from upstream configs; no weights needed")
+    args = ap.parse_args()
+
+    if args.device == "cuda":
+        assert torch.cuda.is_available(), "CUDA requested but no GPU is visible"
+        print("GPU:", torch.cuda.get_device_name(0), "| capability", torch.cuda.get_device_capability(0))
+    print(" | ".join(f"{p} {im.version(p)}" for p in PACKAGES), f"| torch CUDA build {torch.version.cuda}")
+
+    mode = "random init from upstream configs" if args.random_init else f"pretrained, from {args.weights}"
+    print(f"mode: {mode}")
+    x = synthetic_window()
+    for variant in EXPECTED:
+        if args.random_init:
+            model = build_random(variant)
+        else:
+            model = load_pretrained(variant, args.weights, args.device)
+        print(check(variant, model, x, args.device))
+        del model
+    print("SELFTEST OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

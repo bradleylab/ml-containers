@@ -142,6 +142,7 @@ locally.
 | `aurora` | `aurora/` | full recipe — **experimental** (GPU sm_90; Microsoft Aurora — 1.3B-parameter Earth-system model, 0.25° global weather in 6 h steps from ERA5 or IFS HRES; weights NOT baked, staged on Storage3; MIT code *and* weights) |
 | `poseidon` | `poseidon/` | full recipe — **experimental** (GPU sm_90; Poseidon PDE foundation models (scOT) — solution-operator learning for Euler/Navier-Stokes/wave/Poisson/Helmholtz, finetunable onto a downstream operator; Poseidon-T baked, B and L at runtime; **code carries NO license upstream, weights CC-BY-NC-4.0 — not listed on the public catalog**) |
 | `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
+| `seislm` | `seislm/` | full recipe — **experimental** (GPU sm_90; SeisLM self-supervised Wav2Vec2-style encoder for 3-component waveforms, base 11.4 M and large 90.7 M parameters, fine-tuned for detection, picking and foreshock–aftershock classification; **no license upstream — WashU-internal, weights NOT baked, held privately and mounted at runtime; not listed on the public catalog**) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
 | `tabfm` | `tabfm/` | full recipe — **experimental** (GPU optional; TabFM zero-shot tabular classification and regression by in-context learning, scikit-learn API; Apache-2.0 code, **weights non-commercial AND non-production, NOT baked** — the license forbids redistribution) |
 | `octformer` | `octformer/` | full recipe — **experimental** (GPU sm_90; OctFormer octree-transformer semantic segmentation on ScanNet; weights NOT baked — OneDrive, ScanNet research-only terms; MIT code) |
@@ -1988,3 +1989,18 @@ need initial conditions the lab does not hold; the air-pollution model's CAMS
 inputs come from the Copernicus Atmosphere Data Store, which needs an account.
 
 Pull: `ghcr.io/bradleylab/aurora:v1` · details in [`aurora/README.md`](aurora/README.md)
+
+### seislm
+
+SeisLM ([Liu et al. 2024](https://arxiv.org/abs/2410.15765)): a Wav2Vec2-style
+encoder pretrained without labels on eight SeisBench datasets, for
+single-station, 3-component waveforms at 100 Hz. SeisLM-base (11.4 M parameters)
+and SeisLM-large (90.7 M) are fine-tuned for event detection, phase
+identification and onset picking, and foreshock–aftershock classification; the
+paper's gains over PhaseNet are largest when labels are scarce. The released
+weights are the pretrained encoder only, so `seisbench` remains the ready-made
+picker. **Upstream publishes no license for code or weights: the image is
+WashU-internal, the checkpoints are held privately by the lab and mounted at
+`/weights`, and it is not listed on the public catalog.**
+
+Pull: `ghcr.io/bradleylab/seislm:v1` · details in [`seislm/README.md`](seislm/README.md)
