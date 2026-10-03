@@ -59,9 +59,9 @@ DataFrames of NRCA traces (pre-mainshock, Visso and post-mainshock; named
 it with gdown, prints its SHA-256, unzips it and reads each file, printing its
 trace and event counts.
 
-Reading a pickle runs code, so record the printed SHA-256 as
-`NRCA_ARCHIVE_SHA256` in `scripts/seislm-verify-shock`; later stages then
-refuse any other archive. The archive carries no license. The same Laurenti et
+Reading a pickle runs code, so `scripts/seislm-verify-shock` records the
+archive's SHA-256 (549,375,104 bytes, `08c60ea9…4461`) and refuses any other
+archive. The archive carries no license. The same Laurenti et
 al. (2024) dataset is published as D-SET on Zenodo
 ([doi:10.5281/zenodo.12795621](https://doi.org/10.5281/zenodo.12795621),
 CC-BY-4.0, 5.08 GB, nine stations including NRCA as HDF5 waveforms with CSV
@@ -120,7 +120,9 @@ eps 1e-7 for base), cosine decay with no warmup, 15 epochs; then
   follows the notebook, so the head's batch normalization sees 32 traces per
   step rather than 16 per GPU.
 - **Number of runs.** The paper reports one run per model with no spread; the
-  configs fix seed 42, and the script runs that seed once.
+  configs fix seed 42. `--seed N` reseeds training (head initialization, time
+  masking, batch order) after the data pipeline, which keeps upstream's seed-42
+  trace selection, so repeated runs measure training variation alone.
 - **Number of classes.** The run script defaults to four classes; the figure
   shows nine, and the notebook sets nine. The script uses nine and the full
   training fold.
@@ -157,9 +159,18 @@ in at `data/foreshock_aftershock_NRCA`, which is where upstream's
 `results/models/` and the scores to `result.json`. The log ends with the
 accuracy beside the published one.
 
-**Reading the result.** The published figures are single runs, so compare
-against them rather than to a tolerance the paper does not give. A result near
-65.11 % for base and 74.22 % for large reproduces the paper. One near the
+**Reading the result.** The published figures are single runs. On an H100,
+six runs per model (the config's seed 42 and `--seed 0` to `4`) gave:
+
+| Model | Runs (seed 42; seeds 0–4) | Mean | Range | Published |
+|---|---|---|---|---|
+| SeisLM-base | 67.78; 72.89, 73.44, 61.56, 64.22, 64.33 | 67.37 % | 61.56–73.44 % | 65.11 % |
+| SeisLM-large | 69.44; 75.89, 76.44, 71.56, 72.00, 72.22 | 72.92 % | 69.44–76.44 % | 74.22 % |
+
+Both published values fall inside the spread, and every run beats the ConvNet's
+58.33 %. Training alone moves a single run by up to 12 points for base and 7
+for large, so compare a new run against these ranges, not against the
+published figure alone. One near the
 ConvNet's 58.33 % or below means the pretrained encoder is not what the head is
 seeing, and the checkpoint loading is the first place to look; the build's
 selfcheck runs the same pipeline from random weights, so the pipeline itself

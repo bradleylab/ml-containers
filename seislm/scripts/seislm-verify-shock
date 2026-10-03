@@ -59,9 +59,9 @@ PRETRAIN_CONFIGS = SEISLM_HOME / "seisLM" / "configs" / "pretrain"
 # data/foreshock_aftershock_NRCA/, where its data pipeline reads it.
 DRIVE_FILE_ID = "1saaRH175pSFgl0zfQWFpedgj44pJKK3_"
 ARCHIVE_NAME = "wetransfer_classify_generic_norcia-py_2024-06-24_1530.zip"
-# The SHA-256 of the archive the lab staged. Unset until the first stage
-# prints it; once recorded here, stage refuses any other archive.
-NRCA_ARCHIVE_SHA256: str | None = None
+# The SHA-256 of the archive the lab staged (549,375,104 bytes); stage refuses
+# any other archive, because reading its files runs their pickles.
+NRCA_ARCHIVE_SHA256: str | None = "08c60ea9c9c0aff95f0d2039232b5e9b1eb7231a7f01396881d2895b680b4461"
 # Pickled DataFrames despite the .csv suffix; upstream reads them with pd.read_pickle.
 NRCA_FILES = ("dataframe_pre_NRCA.csv", "dataframe_visso_NRCA.csv", "dataframe_post_NRCA.csv")
 UPSTREAM_DATA_SUBDIR = Path("data") / "foreshock_aftershock_NRCA"
@@ -137,7 +137,7 @@ def shock_config(variant: str, pretrained_ckpt: Path) -> ml_collections.ConfigDi
     return config
 
 
-def finetune(config: ml_collections.ConfigDict, run_dir: Path) -> dict:
+def finetune(config: ml_collections.ConfigDict, run_dir: Path, training_seed: int | None = None) -> dict:
     """Upstream's train_foreshock_aftershock with a CSV logger in place of W&B."""
     # The data pipeline imports seisLM.utils.project_path, which resolves the
     # repository root at import time, so it can only be imported once
@@ -148,6 +148,10 @@ def finetune(config: ml_collections.ConfigDict, run_dir: Path) -> dict:
     loaders = dataloaders.prepare_foreshock_aftershock_dataloaders(
         num_classes=config.model_args.num_classes, **config.data_args
     )
+    # The pipeline re-seeds with data_args.seed while it picks traces, so a
+    # training seed has to be set after it; the data selection stays upstream's.
+    if training_seed is not None:
+        seed_everything(training_seed)
     config.trainer_args.max_train_steps = config.trainer_args.max_epochs * len(loaders["train"])
     model = foreshock_aftershock_models.Wav2vec2ShockClassifierLit(
         model_config=config.model_args, training_config=config.trainer_args
@@ -208,7 +212,9 @@ def summarize(variant: str, cm_percent: np.ndarray, lightning_acc: float) -> dic
     }
 
 
-def run(data_dir: Path, run_dir: Path, variant: str, weights: Path, max_epochs: int | None) -> None:
+def run(
+    data_dir: Path, run_dir: Path, variant: str, weights: Path, max_epochs: int | None, training_seed: int | None
+) -> None:
     assert torch.cuda.is_available(), "no GPU visible"
     pretrained = verified_checkpoint(weights, variant)
     run_dir = run_dir.resolve()
@@ -222,7 +228,7 @@ def run(data_dir: Path, run_dir: Path, variant: str, weights: Path, max_epochs: 
     if max_epochs is not None:
         config.trainer_args.max_epochs = max_epochs
     print(config)
-    fit = finetune(config, run_dir)
+    fit = finetune(config, run_dir, training_seed)
     result = summarize(
         variant, confusion_percentages(fit["last_ckpt"], fit["test_loader"], "cuda"), fit["lightning_test_acc"]
     )
@@ -230,6 +236,7 @@ def run(data_dir: Path, run_dir: Path, variant: str, weights: Path, max_epochs: 
         gpu=torch.cuda.get_device_name(0),
         max_epochs=config.trainer_args.max_epochs,
         global_batch=GLOBAL_BATCH,
+        training_seed=training_seed,
         pretrained_sha256=CHECKPOINTS[variant].sha256,
         versions={p: im.version(p) for p in ("torch", "lightning", "seisbench", "torchmetrics", "pandas")},
     )
@@ -312,13 +319,16 @@ def main() -> int:
     p_run.add_argument("variant", choices=tuple(PUBLISHED_ACC))
     p_run.add_argument("--weights", type=Path, default=DEFAULT_WEIGHTS)
     p_run.add_argument("--max-epochs", type=int, help="override the config's max_epochs (debugging only)")
+    p_run.add_argument(
+        "--seed", type=int, help="training seed for run-to-run spread; the data selection keeps upstream's seed 42"
+    )
     sub.add_parser("selfcheck", help="offline pipeline check on synthetic data (image build)")
     args = ap.parse_args()
 
     if args.command == "stage":
         stage(args.data)
     elif args.command == "run":
-        run(args.data, args.run_dir, args.variant, args.weights, args.max_epochs)
+        run(args.data, args.run_dir, args.variant, args.weights, args.max_epochs, args.seed)
     else:
         selfcheck()
     return 0

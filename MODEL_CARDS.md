@@ -1433,7 +1433,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Container stack | `python:3.12-slim-bookworm`, `torch==2.14.0` (CUDA 13.0), Lightning 2.6, SeisBench, torchtune 0.6.1 for one imported class; upstream source on `PYTHONPATH`; dependency set frozen in `constraints.txt` |
 | H100 status | sm_90 through the CUDA 13.0 torch build |
 | Lab status | **experimental** |
-| First-run / current behavior | Build smoke test runs with network access disabled: builds both architectures from upstream's configs (11,359,568 and 90,683,648 parameters, the paper's 11.4 M and 90.7 M) and fine-tunes a random SeisLM-base for one epoch on synthetic NRCA-format data through upstream's pipeline. `SMOKE.md` loads both checkpoints on an H100 and reruns Figure 6's nine-class foreshock–aftershock accuracy at NRCA (published 65.11 % base, 74.22 % large) |
+| First-run / current behavior | Build smoke test runs with network access disabled: builds both architectures from upstream's configs (11,359,568 and 90,683,648 parameters, the paper's 11.4 M and 90.7 M) and fine-tunes a random SeisLM-base for one epoch on synthetic NRCA-format data through upstream's pipeline. On an H100 both checkpoints load and Figure 6's nine-class foreshock–aftershock accuracy at NRCA reproduces within run-to-run spread: base 67.4 % mean over six seeds (61.6–73.4 %; published 65.11 %), large 72.9 % (69.4–76.4 %; published 74.22 %); ConvNet baseline 58.33 % (`SMOKE.md`) |
 | Tags | `:v1` (= `:latest` = `:torch2.14-cu130`) |
 | Notes | Released weights are the pretrained encoder only; picking or detection needs fine-tuning first, so `seisbench` remains the ready-made picker. Upstream's `project_path` needs a git working directory at import time |
 
