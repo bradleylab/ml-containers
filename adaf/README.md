@@ -101,6 +101,95 @@ Both spellings are wired, and the build asserts all eight resolve either way.
 When upstream fixes the separators, the backslash links become inert rather than
 breaking, and the POSIX-named copies in `adaf/ml_models/` are what it will find.
 
+### Running a script of your own
+
+From `v2` the image's ENTRYPOINT is the geospatial executor's contract program
+(next section), so under Docker a command after the image name is handed to that
+program rather than run. Name the interpreter with `--entrypoint`:
+
+```bash
+docker run --rm \
+  --entrypoint python \
+  -v "$PWD":/work \
+  ghcr.io/bradleylab/adaf:v2 \
+  /work/my_script.py
+```
+
+Under Slurm and pyxis nothing changes. `srun --container-image=...
+python /work/my_script.py` runs the command it is given, because pyxis runs an
+image's ENTRYPOINT only when asked to with `--container-entrypoint`, so
+`SMOKE.md` works as written.
+
+## Running under the geospatial executor
+
+`/usr/local/bin/adaf-contract`, the image's ENTRYPOINT, runs ADAF under the
+geospatial executor's entrypoint contract v1 (`docs/contracts/entrypoint-v1.md`
+in fossettlab/geospatial-executor). It takes `--input-dir`, `--output-dir` and
+`--params-json` and nothing else, and parameter values arrive as strings.
+
+It calls ADAF's own `main_routine` the way upstream's "ADAF as Python module"
+notebook does, so a run is the one the ADAF GUI performs. ADAF computes the SLRM
+from the DTM (10 m radius, or 10 cells when the cells are 1 m or larger,
+normalized between -0.5 and 0.5), cuts it into tiles of 1024 cells, the size
+`main_routine` sets for inference (training used 512 px patches), runs one
+model, and converts the predictions to polygons. The program uses the stock
+model labels, which the backslash links above make resolve, not `custom_model`:
+`main_routine` writes the label into every result, and a custom run labels every
+feature `custom`.
+
+**Input.** One single-band GeoTIFF DTM (`.tif` or `.tiff`) under
+`<input-dir>/primary/`, in a projected CRS measured in meters. ADAF reads the
+cell size as meters to set the SLRM radius and filters by area in square meters,
+so the program refuses a raster with no CRS, a geographic or foot-based CRS, or
+more than one band. Object detection also needs a CRS with an EPSG code, because
+ADAF rebuilds each box's CRS from it. A DTM whose cells are not 0.5 m runs, with
+a warning in the manifest; see *Resolution is an open question, not a solved
+one* above.
+
+**Parameters.** Defaults and ranges are the ADAF GUI's; the user manual (v1.1)
+gives the same 40 m² and 0.5. Unknown names are refused.
+
+| Name | Values | Default | Meaning |
+|---|---|---|---|
+| `method` | `segmentation`, `object_detection` | `segmentation` | Polygons that follow each feature's outline, or boxes around it |
+| `feature_class` | `AO`, `barrow`, `ringfort`, `enclosure` | `AO` | Which model runs. `AO` ("all archaeology") treats the three classes as one |
+| `min_area_m2` | 0 to 100 | 40 | Features of this area or smaller are dropped; 0 keeps every feature |
+| `min_roundness` | 0 to 0.95 | 0.5 | Segmentation only. Features this round or less are dropped; roundness is 4π · area / convex perimeter², 1 for a circle; 0 keeps every feature |
+
+**Outputs.** ADAF writes its results folder, `<DTM name>_<date>_<time>_seg` (or
+`_obj`), inside the output directory, and deletes its SLRM tiles and raw
+predictions. The program then writes `run.json` beside the folder, listing:
+
+| Role | File | When |
+|---|---|---|
+| `detections` | `semantic_segmentation.gpkg` or `object_detection.gpkg` | When ADAF detected anything. Segmentation polygons carry `label`, `area` and `roundness`; object-detection boxes carry `label`, `score` and, when `min_area_m2` is above 0, `area` |
+| `log` | `logfile.txt` | Always. ADAF's record of the input, the settings and the timings |
+
+The manifest's warnings say when the DTM's cell size is not 0.5 m, when ADAF
+detected nothing, and when the area or roundness filter removed every feature
+it detected.
+
+**Exit status.** 0 with a manifest when ADAF ran, including a run that found
+nothing. 2 when the input or a parameter is refused, with the reason on standard
+error and no manifest. Any other non-zero status is a failure during the run,
+with its traceback on standard error.
+
+**Hardware.** Run it on a GPU partition. The image sets
+`NVIDIA_VISIBLE_DEVICES` (see *GPU* below), so on a CPU partition the container
+starts only with `NVIDIA_VISIBLE_DEVICES=void` in the job's environment. ADAF
+sizes its visualization worker pool from the node's CPU count less two, not from
+the CPUs Slurm allocated, so a job may start more worker processes than it has
+CPUs.
+
+**License.** Detections are results, not a derivative of the CC-BY-SA-4.0
+weights, so they carry no share-alike obligation (see *Share-alike attaches to
+anything you fine-tune*). The notice ships in the image at
+`/opt/licenses/LICENSE.weights.md`.
+
+`tests/test_adaf_contract.py` checks the program's own logic (options,
+parameters, finding the DTM, the manifest) without the model or the image:
+`python3 -m unittest discover tests` from this directory.
+
 ## Python 3.9 is not an oversight
 
 AiTLAS pins `h5py<3.2.1`, `imagecodecs==2023.3.16` and `ipykernel==6.15.0`.
@@ -146,6 +235,8 @@ at this model scale. CPU works, slowly.
 - Eight weight TARs, 5.52 GB → `/opt/adaf-weights` (**not** extracted; AiTLAS
   loads the `.tar` directly and upstream is explicit that extracting breaks it)
 - CC-BY-SA notice → `/opt/licenses/LICENSE.weights.md`
+- The contract program → `/usr/local/bin/adaf-contract`, the ENTRYPOINT from
+  `v2` (see *Running under the geospatial executor*)
 
 ## Status
 
