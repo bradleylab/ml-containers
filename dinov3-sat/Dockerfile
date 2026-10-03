@@ -23,8 +23,8 @@
 # Upstream: https://github.com/facebookresearch/dinov3
 # Weights:  https://huggingface.co/timm/vit_large_patch16_dinov3.sat493m
 #           (the facebook/ repo of the same weights is manually gated;
-#           the timm mirror is not, and carries the same licence)
-# Licence:  DINOv3 License — NOT open source. Redistribution is permitted
+#           the timm mirror is not, and carries the same license)
+# License:  DINOv3 License — NOT open source. Redistribution is permitted
 #           only with a copy of the Agreement, which is why LICENSE.dinov3.md
 #           is shipped inside this image. Publications using it MUST
 #           acknowledge DINO Materials. See README.md.
@@ -33,6 +33,13 @@
 # Weights are baked at build time so the enroot .sqsh is self-contained on
 # compute nodes with no outbound network. The smoke test runs offline
 # against the baked cache.
+#
+# ENTRYPOINT is bin/dinov3-sat-contract, which implements the geospatial
+# executor's entrypoint contract v1 (fossettlab/geospatial-executor,
+# docs/contracts/entrypoint-v1.md): --input-dir, --output-dir and
+# --params-json, the images under <input-dir>/primary/, features, previews
+# and run.json under <output-dir>. It runs extract_features.py unchanged. To
+# run the extractor directly, override the entrypoint (README.md, Usage).
 
 FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime
 
@@ -63,7 +70,7 @@ COPY extract_features.py /opt/dinov3-sat/extract_features.py
 
 # Bake the checkpoint into the image (~1.2 GB) so compute nodes need no
 # network. This is a redistribution of DINO Materials, permitted by the
-# licence copied above and shipped with it.
+# license copied above and shipped with it.
 RUN python -c "import timm; timm.create_model('hf-hub:timm/vit_large_patch16_dinov3.sat493m', pretrained=True, num_classes=0)"
 
 # Smoke test — offline (HF_HUB_OFFLINE=1), no network, no fetch. Loads the
@@ -84,11 +91,23 @@ f = m.forward_features(torch.zeros(1, 3, 256, 256)); \
 print('forward_features', tuple(f.shape)); \
 print('SMOKE OK')"
 
+COPY bin/dinov3-sat-contract /usr/local/bin/dinov3-sat-contract
+COPY tests/contract_check.py /opt/dinov3-sat/tests/contract_check.py
+
+# Contract check — offline, on the build's CPU. A Slurm job step carries the
+# host's environment rather than this image's, so the entrypoint must parse
+# with an empty one (env -i), and contract_check.py runs it end to end under
+# an empty environment on two synthetic images: the baked weights are found,
+# the manifest matches the files, and bad parameters are refused.
+RUN chmod +x /usr/local/bin/dinov3-sat-contract \
+    && env -i /usr/local/bin/dinov3-sat-contract --help >/dev/null \
+    && python /opt/dinov3-sat/tests/contract_check.py
+
 LABEL org.opencontainers.image.title="dinov3-sat" \
       org.opencontainers.image.description="DINOv3 SAT-493M ViT-L/16 frozen feature extractor — satellite/aerial RGB ortho pretraining (493M Maxar tiles at 0.6 m); dense 1024-D patch tokens for a downstream head" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/dinov3-sat/README.md" \
-      org.opencontainers.image.version="v1" \
+      org.opencontainers.image.version="v2" \
       org.opencontainers.image.vendor="bradleylab" \
       org.opencontainers.image.licenses="LicenseRef-DINOv3" \
       bradleylab.model.upstream="https://github.com/facebookresearch/dinov3" \
@@ -99,4 +118,5 @@ LABEL org.opencontainers.image.title="dinov3-sat" \
       bradleylab.model.licence.note="DINOv3 License at /opt/licenses/LICENSE.dinov3.md — redistribute only with this file; publications must acknowledge DINO Materials"
 
 WORKDIR /work
-CMD ["python", "/opt/dinov3-sat/extract_features.py", "--help"]
+ENTRYPOINT ["/usr/local/bin/dinov3-sat-contract"]
+CMD ["--help"]

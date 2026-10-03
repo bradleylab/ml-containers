@@ -1,7 +1,10 @@
 name: Build dinov3-sat
 
 on:
+  # main only: this job pushes :latest and the version tag, so a build from an
+  # unmerged branch would publish unreviewed code under both.
   push:
+    branches: [main]
     paths:
       - 'dinov3-sat/**'
       - '!dinov3-sat/**/*.md'
@@ -49,7 +52,7 @@ jobs:
           platforms: linux/amd64
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v1
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v2
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:torch2.5-cu121
           cache-from: type=gha
           cache-to: type=gha,mode=max
