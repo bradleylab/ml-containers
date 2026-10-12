@@ -56,11 +56,18 @@ RUN conda create -y -n hp -c conda-forge --override-channels \
         python=3.11 "numpy=1.26" gdal geopandas tifffile imagecodecs \
         "whitebox_tools=2.3.0=py311hfe55011_0" \
     && conda clean -afy \
-    && /opt/conda/envs/hp/bin/whitebox_tools --version
+    && /opt/conda/envs/hp/bin/whitebox_tools --version \
+    && /opt/conda/envs/hp/bin/python -c "from osgeo import gdal; print('gdal', gdal.__version__)" \
+    && test -f /opt/conda/envs/hp/lib/libgcc_s.so.1
+# conda-forge's GDAL needs a newer libgcc_s (GCC_12.0.0) than the base image's.
+# With tensorflow imported before osgeo, the system's older copy was loaded
+# first and the GDAL import failed. Preloading the environment's copy, which
+# is backward compatible, makes the import order irrelevant.
 ENV PATH=/opt/conda/envs/hp/bin:$PATH \
     CONDA_DEFAULT_ENV=hp \
     PYTHONNOUSERSITE=1 \
-    PROJ_LIB=/opt/conda/envs/hp/share/proj
+    PROJ_LIB=/opt/conda/envs/hp/share/proj \
+    LD_PRELOAD=/opt/conda/envs/hp/lib/libgcc_s.so.1
 
 # The paper used TensorFlow 2.6 and upstream's image TensorFlow 2.8 (NGC
 # 22.04). 2.15 is the last release whose Keras is Keras 2, which reads the
