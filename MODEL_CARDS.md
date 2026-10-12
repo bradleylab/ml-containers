@@ -1448,7 +1448,7 @@ update its card *in the same PR*. Top-level `README.md` and
 | Paper | [doi:10.1080/00934690.2024.2364428](https://doi.org/10.1080/00934690.2024.2364428) — Lidberg, Westphal, Brax, Sandström, Östlund, J. Field Archaeol. 49:395–405 (CC BY 4.0) |
 | Weights source | Upstream repository, `semantic_segmentation/trained_models/UNet/05m/profile_curvature1/trained.h5`; baked at `/opt/hunting-pits/weights`, SHA-256 checked at build |
 | Weights license | MIT |
-| Container stack | `condaforge/miniforge3:24.9.2-0`, Python 3.11, conda-forge GDAL and geopandas, `tensorflow[and-cuda]==2.15.1` (Keras 2), torch 2.5.1 CPU (imported by upstream's model module), WhiteboxTools v2.3.0 compiled from source |
+| Container stack | `condaforge/miniforge3:24.9.2-0`, Python 3.11, conda-forge GDAL and geopandas, `tensorflow[and-cuda]==2.15.1` (Keras 2), torch 2.5.1 CPU (imported by upstream's model module), WhiteboxTools v2.3.0 (conda-forge build `py311hfe55011_0`) |
 | Published result | Test set (20% of chips, random): object-based F1 0.76, recall 70%, precision 85% (15% of detections false); 342 true positives, 62 false positives, 149 missed |
 | Lab status | **experimental** |
 | First-run / current behavior | Build smoke test runs upstream's inference script, unmodified and with the network disabled, on upstream's test chip and compares the polygons with upstream's committed prediction (`SMOKE.md`) |

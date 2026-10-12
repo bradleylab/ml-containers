@@ -143,7 +143,7 @@ locally.
 | `poseidon` | `poseidon/` | full recipe — **experimental** (GPU sm_90; Poseidon PDE foundation models (scOT) — solution-operator learning for Euler/Navier-Stokes/wave/Poisson/Helmholtz, finetunable onto a downstream operator; Poseidon-T baked, B and L at runtime; **code carries NO license upstream, weights CC-BY-NC-4.0 — not listed on the public catalog**) |
 | `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
 | `seislm` | `seislm/` | full recipe — **experimental** (GPU sm_90; SeisLM self-supervised Wav2Vec2-style encoder for 3-component waveforms, base 11.4 M and large 90.7 M parameters, fine-tuned for detection, picking and foreshock–aftershock classification; **no license upstream — WashU-internal, weights NOT baked, held privately and mounted at runtime; listed publicly as WashU-only**) |
-| `hunting-pits` | `hunting-pits/` | full recipe — **experimental** (GPU optional; hunting-pit detection in 0.5 m lidar DEMs — TensorFlow U-Net on WhiteboxTools profile curvature, polygons out; trained on 2,519 pits in northern Sweden; WhiteboxTools 2.3.0 built from source; weights baked; MIT) |
+| `hunting-pits` | `hunting-pits/` | full recipe — **experimental** (GPU optional; hunting-pit detection in 0.5 m lidar DEMs — TensorFlow U-Net on WhiteboxTools profile curvature, polygons out; trained on 2,519 pits in northern Sweden; WhiteboxTools 2.3.0 pinned from conda-forge; weights baked; MIT) |
 | `dino-cv-stonewall` | `dino-cv-stonewall/` | full recipe — **experimental** (GPU sm_90; DINO-CV dry-stone wall segmentation from 10 cm lidar MHS + VAT views, Budj Bim; two-view ResNet-50 / WideResNet-50-2 / ViT-S/16; MHS and VAT supplied by the caller; **CC BY-NC 4.0, culturally sensitive, data owned by GMTOC — weights NOT baked, held privately and mounted at runtime**) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
 | `tabfm` | `tabfm/` | full recipe — **experimental** (GPU optional; TabFM zero-shot tabular classification and regression by in-context learning, scikit-learn API; Apache-2.0 code, **weights non-commercial AND non-production, NOT baked** — the license forbids redistribution) |
@@ -2016,8 +2016,8 @@ Sweden. On the 20% of image chips held out for testing it found 70% of the pits,
 15% of its detections were false, and object-based F1 was 0.76. Upstream's
 inference script runs unmodified on a folder of DEM tiles and writes a polygon
 shapefile per tile. Built from the repository rather than re-hosting upstream's
-Docker Hub image; WhiteboxTools 2.3.0 is compiled from source so the curvature
-does not depend on whatever binary is current. MIT code and weights.
+Docker Hub image; WhiteboxTools is pinned to one conda-forge build of 2.3.0 so
+the curvature does not depend on whatever binary is current. MIT code and weights.
 
 Pull: `ghcr.io/bradleylab/hunting-pits:v1` · details in [`hunting-pits/README.md`](hunting-pits/README.md)
 

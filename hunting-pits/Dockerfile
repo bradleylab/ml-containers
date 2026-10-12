@@ -21,28 +21,7 @@
 # Upstream: https://github.com/williamlidberg/Detection-of-hunting-pits-using-airborne-laser-scanning-and-deep-learning @ e45f3ca
 # Paper:    https://doi.org/10.1080/00934690.2024.2364428 (CC BY 4.0)
 
-# ---------------------------------------------------------------------
-# Stage 1: WhiteboxTools from source, at a release tag.
-# ---------------------------------------------------------------------
-# Upstream's inference script calls whitebox.download_wbt() on import, which
-# fetches whatever WhiteboxTools binary whiteboxgeo.com serves that day; the
-# GitHub releases carry no binaries. Building the tag from source pins the
-# version that computes the profile curvature. v2.3.0 was the current release
-# when upstream built its image (2023-08-31). rust 1.70 is of the same period,
-# and --locked holds the dependency tree to the tag's Cargo.lock.
-FROM rust:1.70-bookworm AS wbt
-ARG WBT_TAG=v2.3.0
-ARG WBT_GIT_SHA=59d345138f86a50602182a2dd5b0a410449f6511
-RUN git clone --depth 1 --branch "${WBT_TAG}" https://github.com/jblindsay/whitebox-tools.git /src \
-    && test "$(git -C /src rev-parse HEAD)" = "${WBT_GIT_SHA}" \
-    && cd /src && cargo build --release --locked -p whitebox_tools \
-    && /src/target/release/whitebox_tools --version
-
-# ---------------------------------------------------------------------
-# Stage 2: the runtime.
-# ---------------------------------------------------------------------
 FROM condaforge/miniforge3:24.9.2-0
-ARG WBT_TAG=v2.3.0
 
 # enroot exposes the GPU only when the image asks for it. On a CPU
 # partition override with  srun --export=ALL,NVIDIA_VISIBLE_DEVICES=void ...
@@ -63,9 +42,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # GDAL, geopandas and the TIFF readers from conda-forge in their own
 # environment, as adaf does. numpy stays below 2 because TensorFlow 2.15 is
 # built against the numpy 1 ABI.
+#
+# WhiteboxTools comes from the same solve, pinned to one conda-forge build.
+# Upstream's inference script calls whitebox.download_wbt() on import, which
+# fetches whatever binary whiteboxgeo.com serves that day, so the version that
+# computes the profile curvature would drift. v2.3.0 was the current release
+# when upstream built its image (2023-08-31). It can no longer be compiled from
+# its tag: its lock file pins the crate tsp-rs 0.1.0, which was removed from
+# crates.io, and the name was registered again in January 2026 by another
+# author for an unrelated crate, so cargo --locked refuses the checksum. The
+# conda-forge build below was compiled on 2023-03-29, before that.
 RUN conda create -y -n hp -c conda-forge --override-channels \
         python=3.11 "numpy=1.26" gdal geopandas tifffile imagecodecs \
-    && conda clean -afy
+        "whitebox_tools=2.3.0=py311hfe55011_0" \
+    && conda clean -afy \
+    && /opt/conda/envs/hp/bin/whitebox_tools --version
 ENV PATH=/opt/conda/envs/hp/bin:$PATH \
     CONDA_DEFAULT_ENV=hp \
     PYTHONNOUSERSITE=1 \
@@ -83,10 +74,9 @@ RUN pip install "tensorflow[and-cuda]==2.15.1" \
 # The whitebox package looks for the binary beside its own module and, with
 # WBT_PATH set, skips its download step, so the import-time download in
 # upstream's script becomes a no-op without editing the script.
-COPY --from=wbt /src/target/release/whitebox_tools /opt/wbt/whitebox_tools
 RUN WB=$(python -c "import os, whitebox; print(os.path.dirname(whitebox.__file__))") \
-    && ln -s /opt/wbt/whitebox_tools "$WB/whitebox_tools"
-ENV WBT_PATH=/opt/wbt
+    && ln -s /opt/conda/envs/hp/bin/whitebox_tools "$WB/whitebox_tools"
+ENV WBT_PATH=/opt/conda/envs/hp/bin
 
 # Only the files inference needs, at the pinned commit: the repository is
 # 1.2 GB with its notebooks, figures and training data. The test chip and
@@ -141,13 +131,13 @@ LABEL org.opencontainers.image.title="hunting-pits" \
       bradleylab.model.paper="https://doi.org/10.1080/00934690.2024.2364428" \
       bradleylab.model.task="semantic segmentation of hunting pits (dug hollows) in lidar DEMs, vectorized to polygons" \
       bradleylab.model.sensor="lidar:airborne DEM at 0.5 m (trained on Swedish national ALS, 1–2 points/m²)" \
-      bradleylab.model.input="0.5 m DEM GeoTIFF tiles; profile curvature computed in the image with WhiteboxTools 2.3.0" \
+      bradleylab.model.input="0.5 m DEM GeoTIFF tiles; profile curvature computed in the image with WhiteboxTools 2.3.0 (conda-forge)" \
       bradleylab.model.status="experimental" \
       bradleylab.model.domain="archaeology" \
       bradleylab.model.weights.source="upstream repository, semantic_segmentation/trained_models/UNet/05m/profile_curvature1/trained.h5 @ e45f3ca (MIT), baked at /opt/hunting-pits/weights" \
       bradleylab.model.licence.note="MIT code and weights (upstream LICENSE, Copyright (c) 2021 williamlidberg); paper CC BY 4.0" \
       bradleylab.upstream.git_sha="${HP_GIT_SHA}" \
-      bradleylab.wbt.version="${WBT_TAG}"
+      bradleylab.wbt.version="2.3.0 (conda-forge py311hfe55011_0)"
 
 WORKDIR /work
 CMD ["bash", "-c", "echo 'hunting-pits ready: hunting-pits-infer <dem_dir> <out_dir> (see README.md)'"]

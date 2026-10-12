@@ -23,8 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # TensorFlow 2.15 with its CUDA 12 wheels is several GB installed, and the
-      # WhiteboxTools build stage needs the Rust toolchain alongside it.
+      # TensorFlow 2.15 with its CUDA 12 wheels is several GB installed.
       - name: Free disk space on runner
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
@@ -42,7 +41,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # amd64 only: the target is Compute2. The upstream commit, the
-      # WhiteboxTools tag and the weight hash are pinned in the Dockerfile.
+      # WhiteboxTools build and the weight hash are pinned in the Dockerfile.
       - name: Build and push
         uses: docker/build-push-action@v6
         with:

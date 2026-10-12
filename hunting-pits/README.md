@@ -76,11 +76,15 @@ run unmodified:
   SHA-256 `b058c491…8614c` at build. The repository's top-level `models/`
   folder holds other files (named for lunar pretraining and transfer learning)
   and is not used.
-- **WhiteboxTools 2.3.0, built from source.** Upstream's script downloads the
+- **WhiteboxTools 2.3.0, pinned.** Upstream's script downloads the
   WhiteboxTools binary on import, and the download serves the current release,
-  so the version that computes the curvature would drift. The image builds
-  v2.3.0, the release current when upstream built its image, and sets
-  `WBT_PATH`, which makes the whitebox package skip its download.
+  so the version that computes the curvature would drift. The image installs
+  v2.3.0, the release current when upstream built its image, as one fixed
+  conda-forge build (`py311hfe55011_0`, compiled 2023-03-29), and sets
+  `WBT_PATH`, which makes the whitebox package skip its download. v2.3.0 can
+  no longer be compiled from its source tag: its lock file pins the Rust crate
+  `tsp-rs` 0.1.0, which was removed from crates.io and whose name another
+  author registered again in January 2026 for an unrelated crate.
 - **TensorFlow 2.15.** The paper used TensorFlow 2.6 and upstream's image 2.8.
   2.15 is the last release on Keras 2, which reads these HDF5 weights through
   the same call upstream uses. PyTorch (CPU) is installed only because
