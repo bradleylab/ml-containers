@@ -1437,6 +1437,43 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest` = `:torch2.14-cu130`) |
 | Notes | Released weights are the pretrained encoder only; picking or detection needs fine-tuning first, so `seisbench` remains the ready-made picker. Upstream's `project_path` needs a git working directory at import time |
 
+## hunting-pits
+
+| | |
+|--|--|
+| Task | Hunting-pit (dug hollow) detection in lidar DEMs: per-pixel U-Net segmentation vectorized to polygons, polygons of 30 m² or less dropped |
+| Sensor | Airborne lidar DEM at 0.5 m (`lidar:airborne DEM`), trained on Swedish national ALS at 1–2 points/m² |
+| Upstream repo | [williamlidberg/Detection-of-hunting-pits-using-airborne-laser-scanning-and-deep-learning](https://github.com/williamlidberg/Detection-of-hunting-pits-using-airborne-laser-scanning-and-deep-learning) @ `e45f3ca` |
+| Upstream license | MIT |
+| Paper | [doi:10.1080/00934690.2024.2364428](https://doi.org/10.1080/00934690.2024.2364428) — Lidberg, Westphal, Brax, Sandström, Östlund, J. Field Archaeol. 49:395–405 (CC BY 4.0) |
+| Weights source | Upstream repository, `semantic_segmentation/trained_models/UNet/05m/profile_curvature1/trained.h5`; baked at `/opt/hunting-pits/weights`, SHA-256 checked at build |
+| Weights license | MIT |
+| Container stack | `condaforge/miniforge3:24.9.2-0`, Python 3.11, conda-forge GDAL and geopandas, `tensorflow[and-cuda]==2.15.1` (Keras 2), torch 2.5.1 CPU (imported by upstream's model module), WhiteboxTools v2.3.0 (conda-forge build `py311hfe55011_0`) |
+| Published result | Test set (20% of chips, random): object-based F1 0.76, recall 70%, precision 85% (15% of detections false); 342 true positives, 62 false positives, 149 missed |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test runs upstream's inference script, unmodified and with the network disabled, on upstream's test chip and compares the polygons with upstream's committed prediction (`SMOKE.md`) |
+| Tags | `:v1` (= `:latest` = `:tf2.15-wbt2.3.0`) |
+| Notes | Detects pit-like depressions; the authors note other human-made and natural pits are confused with hunting pits at 1–2 points/m². Trained on northern Sweden only. Upstream's own image `williamlidberg/hunting_pits:v1` is not re-hosted |
+
+## dino-cv-stonewall
+
+| | |
+|--|--|
+| Task | Binary segmentation of historic dry-stone walls from two lidar relief visualizations (MHS and VAT) with a two-view encoder and one decoder |
+| Sensor | Airborne lidar DEM at 10 cm, as Multi-directional Hillshade and Visualization for Archaeological Topography tiles (400 × 400 px) supplied by the caller |
+| Upstream repo | [MLinArcheaomatics/BudjBimStoneWall-DINO-CV](https://github.com/MLinArcheaomatics/BudjBimStoneWall-DINO-CV) @ `fa4e65a` |
+| Upstream license | **CC BY-NC 4.0** (the `LICENSE` file is the legal code; GitHub reports NOASSERTION). README: culturally sensitive; research and education only; commercial use prohibited |
+| Paper | [doi:10.1016/j.srs.2026.100372](https://doi.org/10.1016/j.srs.2026.100372) — Huang, Islam, Armstrong, Bell, Khoshelham, Tomko, Science of Remote Sensing 13:100372 (CC BY 4.0) |
+| Weights source | **Not baked.** Fine-tuned checkpoints (one per held-out area, per backbone) from upstream's University of Melbourne Mediaflux links, held privately by the lab, mounted at `/weights`, SHA-256-checked before loading |
+| Weights license | CC BY-NC 4.0 per upstream's README; the paper states all data and derived results are owned by the Gunditj Mirring Traditional Owners Corporation |
+| Use restriction | **Research and education only; culturally sensitive.** Weights never redistributed; masks kept off public buckets and catalogs unless cleared |
+| Container stack | `condaforge/miniforge3:24.9.2-0`, Python 3.11, conda-forge GDAL, rasterio and rio-tiler, torch 2.5.1 / torchvision 0.20.1 (cu121); upstream source on `PYTHONPATH` |
+| Published result | Six-fold leave-one-area-out, pixel metrics averaged over tiles: WideResNet-50-2 mIoU 68.6%, F1 81.4%; ResNet-50 68.3%, 81.2%; ViT-S/16 66.8%, 80.1%. With 10% of labels: 63.8%, 63.6%, 58.9% mIoU |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test builds all three two-view models as upstream does and runs the prediction script end to end on synthetic tiles with random weights, network disabled (`SMOKE.md`) |
+| Tags | `:v1` (= `:latest` = `:torch2.5.1-cu121`) |
+| Notes | Labels are European historic dry-stone walls near Tae Rak (Lake Condah); the paper reports no transfer to other landscapes. The image does not compute MHS or VAT: the paper names RVT but gives no parameters |
+
 ---
 
 ## Deprecated images

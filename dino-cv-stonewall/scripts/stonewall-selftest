@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+"""Offline check of the prediction path, with random weights and synthetic tiles.
+
+For each backbone: build the two-view model as stonewall-predict does, save
+its random weights in upstream's checkpoint format under a fake weights folder
+with a SHA256SUMS file, and run stonewall-predict on two synthetic 400 x 400
+tile pairs. This proves the code, the strict checkpoint load and the GeoTIFF
+round trip; it says nothing about accuracy, which needs the lab's checkpoints.
+"""
+
+import hashlib
+import importlib.util
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import numpy as np
+import rasterio as rio
+import torch
+from importlib.machinery import SourceFileLoader
+from rasterio.transform import from_origin
+
+# stonewall-predict has no .py suffix, so it is loaded by path.
+_loader = SourceFileLoader("stonewall_predict", "/usr/local/bin/stonewall-predict")
+predict_mod = importlib.util.module_from_spec(importlib.util.spec_from_loader(_loader.name, _loader))
+_loader.exec_module(predict_mod)
+
+TILE_PX = 400
+PIXEL_M = 0.1
+SEED = 0
+
+
+def write_tiles(root: Path) -> None:
+    rng = np.random.default_rng(SEED)
+    for view in ("mhs", "vat"):
+        (root / view).mkdir(parents=True)
+        for i in range(2):
+            arr = rng.random((TILE_PX, TILE_PX), dtype=np.float32)
+            with rio.open(
+                root / view / f"tile{i}.tif",
+                "w",
+                driver="GTiff",
+                height=TILE_PX,
+                width=TILE_PX,
+                count=1,
+                dtype="float32",
+                crs="EPSG:7854",
+                transform=from_origin(500000 + 40 * i, 5800000, PIXEL_M, PIXEL_M),
+            ) as dst:
+                dst.write(arr, 1)
+
+
+def main() -> int:
+    torch.manual_seed(SEED)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        write_tiles(tmp / "tiles")
+        sums = []
+        for backbone in sorted(predict_mod.CONFIGS):
+            model, _ = predict_mod.build_model(backbone)
+            n = sum(p.numel() for p in model.parameters())
+            ckpt = tmp / "weights" / backbone / "save" / "area3" / "ckpt" / "best_val_epoch.pth"
+            ckpt.parent.mkdir(parents=True)
+            torch.save({"epoch": 0, "model_state_dict": model.state_dict()}, ckpt)
+            digest = hashlib.sha256(ckpt.read_bytes()).hexdigest()
+            sums.append(f"{digest}  {ckpt.relative_to(tmp / 'weights')}")
+            print(f"{backbone}: {n:,} parameters")
+        (tmp / "weights" / "SHA256SUMS").write_text("\n".join(sums) + "\n")
+        for backbone in sorted(predict_mod.CONFIGS):
+            subprocess.run(
+                [
+                    "stonewall-predict",
+                    "--tiles",
+                    str(tmp / "tiles"),
+                    "--out",
+                    str(tmp / "out" / backbone),
+                    "--weights",
+                    str(tmp / "weights"),
+                    "--backbone",
+                    backbone,
+                    "--device",
+                    "cpu",
+                ],
+                check=True,
+            )
+    print("SELFTEST OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
