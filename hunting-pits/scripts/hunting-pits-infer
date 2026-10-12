@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Run upstream's inference_unet_from_dem.py, unmodified, on a folder of 0.5 m
+# DEM GeoTIFFs and write one polygon shapefile per tile that contains pits.
+#
+#   hunting-pits-infer <dem_dir> <out_dir> [extra upstream options]
+#
+# Extra options pass straight to upstream's script, e.g. --output_type raster.
+# Upstream concatenates paths as strings, deletes every .tif in its temporary
+# and intermediate folders when it finishes, and writes intermediates to the
+# fixed path /workspace/temp_inference/ (a link to /tmp/hunting-pits-inference
+# in this image). So each run gets its own temporary folder, and runs on one
+# node take turns on the fixed folder under a lock.
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+    echo "usage: hunting-pits-infer <dem_dir> <out_dir> [upstream options]" >&2
+    exit 2
+fi
+
+dem_dir=$(realpath "$1")/
+out_dir=$(realpath -m "$2")/
+shift 2
+
+[[ -d "$dem_dir" ]] || { echo "no such DEM folder: $dem_dir" >&2; exit 2; }
+compgen -G "${dem_dir}*.tif" > /dev/null || { echo "no .tif files in $dem_dir" >&2; exit 2; }
+mkdir -p "$out_dir"
+
+weights=/opt/hunting-pits/weights/unet_05m_profile_curvature.h5
+src=/opt/hunting-pits/src/semantic_segmentation
+shared=/tmp/hunting-pits-inference
+work_tmp=$(mktemp -d "${TMPDIR:-/tmp}/hunting-pits-curv.XXXXXX")/
+trap 'rm -rf "$work_tmp"' EXIT
+
+mkdir -p "$shared"
+exec 9> "${shared}.lock"
+flock 9
+# Upstream post-processes every .tif it finds in the shared folder, so it must
+# start empty.
+find "$shared" -mindepth 1 -delete
+
+cd "$src"
+python inference_unet_from_dem.py "$dem_dir" "$weights" "$out_dir" --temp_dir "$work_tmp" "$@"

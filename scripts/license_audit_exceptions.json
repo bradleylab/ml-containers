@@ -10,6 +10,11 @@
     "reason": "microsoft/aurora's LICENSE.txt is the MIT text with an added line naming the Aurora model, so the API reports NOASSERTION. The PyPI package microsoft-aurora declares MIT, and the Hugging Face weights repository is tagged license:mit.",
     "reviewed": "2026-09-28"
   },
+  "dino-cv-stonewall": {
+    "label": "CC-BY-NC-4.0",
+    "reason": "The upstream LICENSE file is the Creative Commons Attribution-NonCommercial 4.0 International legal code, which GitHub does not classify, so the API reports NOASSERTION. The README states CC BY-NC 4.0 and adds research-and-education-only terms for culturally sensitive data and models. Non-commercial; weights not baked.",
+    "reviewed": "2026-10-11"
+  },
   "dnabert-s": {
     "label": "Apache-2.0",
     "reason": "Upstream repo carries no LICENSE file, but the weights card at huggingface.co/zhihan1996/DNABERT-S states apache-2.0. The label follows the weights.",

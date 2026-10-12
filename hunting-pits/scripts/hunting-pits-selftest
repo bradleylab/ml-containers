@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+"""Run the baked model on upstream's test chip and compare with upstream's output.
+
+Upstream commits one 0.5 m DEM chip (data/test_chip/dem/12714.tif), its hand
+label, and the polygons its own image predicted for it
+(data/test_chip/inference/12714.shp). This runs hunting-pits-infer on the chip
+and reports polygon counts, total areas and the overlap of the two predictions.
+It fails only if nothing is predicted or the CRS differs; the agreement figures
+are printed for the record, because the WhiteboxTools and TensorFlow versions
+here differ from those upstream's image used.
+"""
+
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import geopandas as gpd
+
+CHIP = Path("/opt/hunting-pits/src/data/test_chip")
+CHIP_ID = "12714"
+
+
+def main() -> int:
+    with tempfile.TemporaryDirectory() as out:
+        subprocess.run(["hunting-pits-infer", str(CHIP / "dem"), out], check=True)
+        produced = Path(out) / f"{CHIP_ID}.shp"
+        if not produced.exists():
+            print(f"FAIL: no polygons written for chip {CHIP_ID}", file=sys.stderr)
+            return 1
+        ours = gpd.read_file(produced)
+        ref = gpd.read_file(CHIP / "inference" / f"{CHIP_ID}.shp")
+
+    if ours.crs != ref.crs:
+        print(f"FAIL: CRS {ours.crs} differs from upstream's {ref.crs}", file=sys.stderr)
+        return 1
+
+    ours_union = ours.geometry.union_all()
+    ref_union = ref.geometry.union_all()
+    inter = ours_union.intersection(ref_union).area
+    union = ours_union.union(ref_union).area
+    print(f"polygons: this image {len(ours)}, upstream {len(ref)}")
+    print(f"area (map units^2): this image {ours_union.area:.1f}, upstream {ref_union.area:.1f}")
+    print(f"IoU of the two predictions: {inter / union:.3f}")
+    if len(ours) == 0:
+        print("FAIL: shapefile written but empty", file=sys.stderr)
+        return 1
+    print("SELFTEST OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

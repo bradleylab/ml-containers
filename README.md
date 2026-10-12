@@ -142,7 +142,9 @@ locally.
 | `aurora` | `aurora/` | full recipe — **experimental** (GPU sm_90; Microsoft Aurora — 1.3B-parameter Earth-system model, 0.25° global weather in 6 h steps from ERA5 or IFS HRES; weights NOT baked, staged on Storage3; MIT code *and* weights) |
 | `poseidon` | `poseidon/` | full recipe — **experimental** (GPU sm_90; Poseidon PDE foundation models (scOT) — solution-operator learning for Euler/Navier-Stokes/wave/Poisson/Helmholtz, finetunable onto a downstream operator; Poseidon-T baked, B and L at runtime; **code carries NO license upstream, weights CC-BY-NC-4.0 — not listed on the public catalog**) |
 | `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
-| `seislm` | `seislm/` | full recipe — **experimental** (GPU sm_90; SeisLM self-supervised Wav2Vec2-style encoder for 3-component waveforms, base 11.4 M and large 90.7 M parameters, fine-tuned for detection, picking and foreshock–aftershock classification; **no license upstream — WashU-internal, weights NOT baked, held privately and mounted at runtime; not listed on the public catalog**) |
+| `seislm` | `seislm/` | full recipe — **experimental** (GPU sm_90; SeisLM self-supervised Wav2Vec2-style encoder for 3-component waveforms, base 11.4 M and large 90.7 M parameters, fine-tuned for detection, picking and foreshock–aftershock classification; **no license upstream — WashU-internal, weights NOT baked, held privately and mounted at runtime; listed publicly as WashU-only**) |
+| `hunting-pits` | `hunting-pits/` | full recipe — **experimental** (GPU optional; hunting-pit detection in 0.5 m lidar DEMs — TensorFlow U-Net on WhiteboxTools profile curvature, polygons out; trained on 2,519 pits in northern Sweden; WhiteboxTools 2.3.0 built from source; weights baked; MIT) |
+| `dino-cv-stonewall` | `dino-cv-stonewall/` | full recipe — **experimental** (GPU sm_90; DINO-CV dry-stone wall segmentation from 10 cm lidar MHS + VAT views, Budj Bim; two-view ResNet-50 / WideResNet-50-2 / ViT-S/16; MHS and VAT supplied by the caller; **CC BY-NC 4.0, culturally sensitive, data owned by GMTOC — weights NOT baked, held privately and mounted at runtime**) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
 | `tabfm` | `tabfm/` | full recipe — **experimental** (GPU optional; TabFM zero-shot tabular classification and regression by in-context learning, scikit-learn API; Apache-2.0 code, **weights non-commercial AND non-production, NOT baked** — the license forbids redistribution) |
 | `octformer` | `octformer/` | full recipe — **experimental** (GPU sm_90; OctFormer octree-transformer semantic segmentation on ScanNet; weights NOT baked — OneDrive, ScanNet research-only terms; MIT code) |
@@ -2001,6 +2003,37 @@ paper's gains over PhaseNet are largest when labels are scarce. The released
 weights are the pretrained encoder only, so `seisbench` remains the ready-made
 picker. **Upstream publishes no license for code or weights: the image is
 WashU-internal, the checkpoints are held privately by the lab and mounted at
-`/weights`, and it is not listed on the public catalog.**
+`/weights`, and public listings mark it WashU-only.**
 
 Pull: `ghcr.io/bradleylab/seislm:v1` · details in [`seislm/README.md`](seislm/README.md)
+
+### hunting-pits
+
+Hunting-pit detection ([Lidberg et al. 2024](https://doi.org/10.1080/00934690.2024.2364428)):
+a TensorFlow U-Net on the WhiteboxTools profile curvature of a 0.5 m DEM,
+pretrained on lunar craters and trained on 2,519 hand-mapped pits in northern
+Sweden. On the 20% of image chips held out for testing it found 70% of the pits,
+15% of its detections were false, and object-based F1 was 0.76. Upstream's
+inference script runs unmodified on a folder of DEM tiles and writes a polygon
+shapefile per tile. Built from the repository rather than re-hosting upstream's
+Docker Hub image; WhiteboxTools 2.3.0 is compiled from source so the curvature
+does not depend on whatever binary is current. MIT code and weights.
+
+Pull: `ghcr.io/bradleylab/hunting-pits:v1` · details in [`hunting-pits/README.md`](hunting-pits/README.md)
+
+### dino-cv-stonewall
+
+DINO-CV ([Huang et al. 2026](https://doi.org/10.1016/j.srs.2026.100372)):
+segmentation of European historic dry-stone walls in the Budj Bim Cultural
+Landscape from two relief views of a 10 cm lidar DEM, multi-directional
+hillshade and VAT, each read by its own encoder pretrained with cross-view
+self-distillation. Six-fold leave-one-area-out mIoU is 68.6% with
+WideResNet-50-2 (63.8% fine-tuned on 10% of the labels). The paper gives no
+parameters for the two views and the repository has no code for them, so the
+caller supplies the tiles. **Restricted use: the code is CC BY-NC 4.0, upstream
+flags the data and models as culturally sensitive, and the paper states the
+data and derived results are owned by the Gunditj Mirring Traditional Owners
+Corporation. The checkpoints are held privately by the lab and mounted at
+`/weights`.**
+
+Pull: `ghcr.io/bradleylab/dino-cv-stonewall:v1` · details in [`dino-cv-stonewall/README.md`](dino-cv-stonewall/README.md)
