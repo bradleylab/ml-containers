@@ -4,12 +4,14 @@
 
 The build ends with `hunting-pits-selftest`, run on the CPU with the network
 disabled: upstream's inference script on upstream's test chip, compared with
-the polygons upstream committed for that chip. Record the printed polygon
-counts and IoU here after the first build.
+the polygons upstream committed for that chip.
 
 | Build | This image | Upstream's committed prediction | IoU |
 |---|---|---|---|
-| | | | |
+| `0a31b0d` | 4 polygons, 223.2 map units² | 4 polygons, 223.2 map units² | 0.998 |
+
+Versions in that build: TensorFlow 2.15.1, Keras 2.15.0, torch 2.5.1 (CPU),
+whitebox 2.3.6 with WhiteboxTools 2.3.0, GDAL 3.13.1, geopandas 1.1.4.
 
 ## 2. Compute2, H100
 
