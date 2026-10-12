@@ -18,11 +18,15 @@ claim to map Gunditjmara stone structures.
 Evaluation is six-fold leave-one-area-out cross-validation over six areas of
 the labeled region, with pixel metrics averaged over tiles:
 
-| Backbone (two-view) | Parameters | F1 | mIoU | mIoU, 10% of labels |
+| Backbone (two-view) | Parameters (paper) | F1 | mIoU | mIoU, 10% of labels |
 |---|---|---|---|---|
 | WideResNet-50-2 | 138 M | 81.4% | 68.6% | 63.8% |
 | ResNet-50 | 46 M | 81.2% | 68.3% | 63.6% |
 | ViT-S/16 | 42 M | 80.1% | 66.8% | 58.9% |
+
+The models as upstream's code builds them are larger than the paper's
+parameter counts (183.4 M for WideResNet-50-2, the size of the released
+checkpoints); see `SMOKE.md`.
 
 Paper: [Science of Remote Sensing 13:100372](https://doi.org/10.1016/j.srs.2026.100372) (open access, CC BY 4.0) ·
 Code: [MLinArcheaomatics/BudjBimStoneWall-DINO-CV](https://github.com/MLinArcheaomatics/BudjBimStoneWall-DINO-CV) @ `fa4e65a` ·
@@ -120,9 +124,17 @@ write `/weights/SHA256SUMS` with a path relative to `/weights` for every
 checkpoint. `stonewall-predict` looks for
 `<backbone>/…/area<N>/ckpt/best_val_epoch.pth`, the path upstream's trainer
 writes, and loads nothing that is not listed in `SHA256SUMS`, because a
-checkpoint is a pickle and loading it runs code. The layout inside the
-archives has not been checked yet; adjust the search if it differs. Keep every
-copy private: no public bucket, public Hugging Face repository or public image.
+checkpoint is a pickle and loading it runs code. Keep every copy private: no
+public bucket, public Hugging Face repository or public image.
+
+`ft_wrn50.zip` (SHA-256 `14a17c9c…a99bbba8`) holds six checkpoints of
+1,468,433,514 bytes each, one per held-out area, at
+`dino_cv_wrn50_budjbim_siamese/area<N>/ckpt/best_val_epoch.pth`, and the
+training logs. Each checkpoint is a dict of `epoch`, `model_state_dict` and
+`optimizer_state_dict`. The lab's copy is unpacked at
+`/storage3/fs1/alexander.s.bradley/Active/dino-cv-stonewall/weights/wrn50/`
+(owner-only), with `SHA256SUMS` beside it; the archive is on the NAS. All six
+pass the hash check and load into this image's model with every key matched.
 
 ## Build-time check
 

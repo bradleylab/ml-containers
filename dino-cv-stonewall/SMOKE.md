@@ -5,15 +5,20 @@
 `stonewall-selftest` runs on the CPU with the network disabled: all three
 two-view models built as upstream builds them, random weights saved in
 upstream's checkpoint format, and `stonewall-predict` run on synthetic tiles.
-Record the printed parameter counts here after the first build; the paper's
-two-view totals are 138 M (WideResNet-50-2), 46 M (ResNet-50) and 42 M
-(ViT-S/16).
+The paper's two-view totals are 138 M (WideResNet-50-2), 46 M (ResNet-50) and
+42 M (ViT-S/16); the self-test prints these counts:
 
 | Backbone | Parameters (this image) | Paper |
 |---|---|---|
-| wrn50 | | 138 M |
-| rn50 | | 46 M |
-| vitsmall16 | | 42 M |
+| wrn50 | 183,440,513 | 138 M |
+| rn50 | 96,788,097 | 46 M |
+| vitsmall16 | 72,742,657 | 42 M |
+
+The image counts every parameter of the model as upstream's code builds it,
+and the released WideResNet-50-2 checkpoints load into it with every key
+matched, so 183.4 M is the size of the released model. What the paper's totals
+count has not been established; the gap differs by backbone (45, 51 and 31 M),
+so it is not one omitted component of fixed size.
 
 ## 2. Compute2, H100, with the lab's checkpoints
 
