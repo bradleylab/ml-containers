@@ -1,0 +1,110 @@
+#!/usr/bin/env python
+"""Tag geoscience entities in text with GeoBERT (botryan96/GeoBERT).
+
+Reads one passage per line from each input file and writes one JSON object per
+line: the passage's file and line number, and the entities found, grouped into
+spans as in the model card's example (aggregation_strategy="simple").
+
+The weights carry no license, so they are not in the image. On first use they
+are downloaded from Hugging Face at a pinned revision into --cache-dir, and the
+TensorFlow checkpoint is checked against its published SHA-256 before loading.
+"""
+
+import argparse
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+REPO_ID = "botryan96/GeoBERT"
+REVISION = "308126d86d5219921c6956bc63f819f6d405fedf"
+WEIGHTS_FILE = "tf_model.h5"
+# Git LFS object id of tf_model.h5 at REVISION, which is its SHA-256.
+WEIGHTS_SHA256 = "67c1b5687d3b6a39a82de7287349dac1ac36849a75d7921581f1935c7cf227ce"
+# The tokenizer files set no model_max_length; the model's position embeddings
+# stop at 512 (config.json max_position_embeddings).
+MAX_TOKENS = 512
+SNAPSHOT_FILES = [
+    "config.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "special_tokens_map.json",
+    "vocab.txt",
+    WEIGHTS_FILE,
+]
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def fetch_model(cache_dir: Path) -> Path:
+    """Download the pinned snapshot (or reuse the cached one) and check the weights."""
+    from huggingface_hub import snapshot_download
+
+    model_dir = Path(snapshot_download(REPO_ID, revision=REVISION, cache_dir=cache_dir, allow_patterns=SNAPSHOT_FILES))
+    actual = sha256(model_dir / WEIGHTS_FILE)
+    if actual != WEIGHTS_SHA256:
+        sys.exit(f"{WEIGHTS_FILE} SHA-256 is {actual}, expected {WEIGHTS_SHA256}; not loading it")
+    return model_dir
+
+
+def load_tagger(model_dir: Path):
+    from transformers import AutoTokenizer, TFAutoModelForTokenClassification, pipeline
+
+    tokenizer = AutoTokenizer.from_pretrained(model_dir, model_max_length=MAX_TOKENS)
+    model = TFAutoModelForTokenClassification.from_pretrained(model_dir)
+    return pipeline("ner", model=model, tokenizer=tokenizer, framework="tf", aggregation_strategy="simple")
+
+
+def tag_file(tagger, path: Path, out) -> tuple[int, int]:
+    """Write one JSON line per non-empty input line; return (tagged, skipped) counts."""
+    tagged = skipped = 0
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        text = line.strip()
+        if not text:
+            continue
+        record = {"file": str(path), "line": number}
+        if len(tagger.tokenizer(text)["input_ids"]) > MAX_TOKENS:
+            record["skipped"] = f"longer than {MAX_TOKENS} tokens; split the passage"
+            skipped += 1
+        else:
+            record["entities"] = [
+                {
+                    "label": e["entity_group"],
+                    "text": text[e["start"] : e["end"]],
+                    "start": int(e["start"]),
+                    "end": int(e["end"]),
+                    "score": round(float(e["score"]), 4),
+                }
+                for e in tagger(text)
+            ]
+            tagged += 1
+        out.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return tagged, skipped
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("inputs", nargs="+", type=Path, help="UTF-8 text files, one passage per line")
+    parser.add_argument("--out", type=Path, required=True, help="output JSON Lines file")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--cache-dir", type=Path, help="Hugging Face cache to download the pinned weights into")
+    source.add_argument("--model-dir", type=Path, help="local model folder to use instead (no download or hash check)")
+    args = parser.parse_args()
+
+    model_dir = args.model_dir or fetch_model(args.cache_dir)
+    tagger = load_tagger(model_dir)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with args.out.open("w", encoding="utf-8") as out:
+        for path in args.inputs:
+            tagged, skipped = tag_file(tagger, path, out)
+            print(f"{path}: {tagged} passages tagged, {skipped} skipped as too long", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

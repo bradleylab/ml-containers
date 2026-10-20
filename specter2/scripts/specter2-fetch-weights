@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+"""Download the pinned SPECTER2 base model and adapters into the image (build time only)."""
+
+import hashlib
+import sys
+from pathlib import Path
+
+from huggingface_hub import snapshot_download
+from specter2_weights import CHECKPOINTS
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def main() -> None:
+    for name, ckpt in CHECKPOINTS.items():
+        snapshot_download(ckpt.repo_id, revision=ckpt.revision, local_dir=ckpt.local_dir)
+        actual = sha256(ckpt.local_dir / ckpt.weights_file)
+        if actual != ckpt.sha256:
+            sys.exit(f"{ckpt.repo_id}/{ckpt.weights_file}: SHA-256 {actual}, expected {ckpt.sha256}")
+        print(f"{name}: {ckpt.repo_id} @ {ckpt.revision[:7]}, {ckpt.weights_file} hash ok")
+
+
+if __name__ == "__main__":
+    main()

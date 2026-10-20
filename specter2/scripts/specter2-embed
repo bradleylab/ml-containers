@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+"""Embed scientific papers or search queries with SPECTER2 (AllenAI).
+
+Papers come as JSON Lines with "id", "title" and optional "abstract"; each is
+encoded as title + [SEP] + abstract, truncated to 512 tokens, and the [CLS]
+vector of the last layer is its embedding, as in the model card. Queries come
+as a text file, one per line. The adapter picks the task format; the defaults
+follow the model card: proximity for papers, adhoc_query for short queries.
+
+Output is a .npz file with "ids" and "embeddings" (float32, n x 768).
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+from adapters import AutoAdapterModel
+from specter2_weights import ADAPTERS, BASE, CHECKPOINTS
+from transformers import AutoTokenizer
+
+MAX_TOKENS = 512
+BATCH_SIZE = 32
+DEFAULT_ADAPTER = {"papers": "proximity", "queries": "adhoc_query"}
+
+
+def read_papers(path: Path) -> tuple[list[str], list[tuple[str, str]]]:
+    ids, docs = [], []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        if "id" not in record or not record.get("title"):
+            sys.exit(f"{path}:{number}: every paper needs an id and a title")
+        ids.append(str(record["id"]))
+        docs.append((record["title"], record.get("abstract") or ""))
+    return ids, docs
+
+
+def read_queries(path: Path) -> tuple[list[str], list[str]]:
+    queries = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [str(i) for i in range(len(queries))], queries
+
+
+def load_model(adapter: str, device: str):
+    tokenizer = AutoTokenizer.from_pretrained(CHECKPOINTS[BASE].local_dir)
+    model = AutoAdapterModel.from_pretrained(CHECKPOINTS[BASE].local_dir)
+    model.load_adapter(str(CHECKPOINTS[adapter].local_dir), load_as=adapter, set_active=True)
+    # adapters warns "none are activated" while loading the base model; without
+    # an active adapter the output would be specter2_base's, not the task's.
+    if model.active_adapters is None or adapter not in model.active_adapters.flatten():
+        sys.exit(f"the {adapter} adapter loaded but is not active")
+    return tokenizer, model.to(device).eval()
+
+
+def embed(tokenizer, model, texts: list[str], device: str) -> np.ndarray:
+    chunks = []
+    with torch.no_grad():
+        for start in range(0, len(texts), BATCH_SIZE):
+            inputs = tokenizer(
+                texts[start : start + BATCH_SIZE],
+                padding=True,
+                truncation=True,
+                max_length=MAX_TOKENS,
+                return_tensors="pt",
+                return_token_type_ids=False,
+            ).to(device)
+            chunks.append(model(**inputs).last_hidden_state[:, 0, :].float().cpu().numpy())
+    return np.concatenate(chunks)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--papers", type=Path, help='JSON Lines of {"id", "title", "abstract"}')
+    source.add_argument("--queries", type=Path, help="text file, one query per line")
+    parser.add_argument("--out", type=Path, required=True, help="output .npz file")
+    parser.add_argument("--adapter", choices=ADAPTERS, help="default: proximity for papers, adhoc_query for queries")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    args = parser.parse_args()
+
+    kind = "papers" if args.papers else "queries"
+    adapter = args.adapter or DEFAULT_ADAPTER[kind]
+    tokenizer, model = load_model(adapter, args.device)
+    if kind == "papers":
+        ids, docs = read_papers(args.papers)
+        texts = [title + tokenizer.sep_token + abstract for title, abstract in docs]
+    else:
+        ids, texts = read_queries(args.queries)
+    if not texts:
+        sys.exit("no input to embed")
+
+    embeddings = embed(tokenizer, model, texts, args.device)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(args.out, ids=np.array(ids), embeddings=embeddings)
+    print(f"{len(ids)} {kind} embedded with the {adapter} adapter on {args.device} -> {args.out}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
