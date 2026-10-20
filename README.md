@@ -145,6 +145,8 @@ locally.
 | `seislm` | `seislm/` | full recipe — **experimental** (GPU sm_90; SeisLM self-supervised Wav2Vec2-style encoder for 3-component waveforms, base 11.4 M and large 90.7 M parameters, fine-tuned for detection, picking and foreshock–aftershock classification; **no license upstream — WashU-internal, weights NOT baked, held privately and mounted at runtime; listed publicly as WashU-only**) |
 | `hunting-pits` | `hunting-pits/` | full recipe — **experimental** (GPU optional; hunting-pit detection in 0.5 m lidar DEMs — TensorFlow U-Net on WhiteboxTools profile curvature, polygons out; trained on 2,519 pits in northern Sweden; WhiteboxTools 2.3.0 pinned from conda-forge; weights baked; MIT) |
 | `dino-cv-stonewall` | `dino-cv-stonewall/` | full recipe — **experimental** (GPU sm_90; DINO-CV dry-stone wall segmentation from 10 cm lidar MHS + VAT views, Budj Bim; two-view ResNet-50 / WideResNet-50-2 / ViT-S/16; MHS and VAT supplied by the caller; **CC BY-NC 4.0, culturally sensitive, data owned by GMTOC — weights NOT baked, held privately and mounted at runtime**) |
+| `geobert` | `geobert/` | full recipe — **experimental** (GPU optional; GeoBERT named-entity recognition for geoscience text — GeoPetro, GeoMeth, GeoLoc and GeoTime spans from a BERT token classifier, TensorFlow 2.15; **no license upstream — WashU-internal, weights NOT baked, downloaded at a pinned revision and SHA-256-checked at run time**) |
+| `specter2` | `specter2/` | full recipe — **experimental** (GPU optional; AllenAI SPECTER2 scientific-paper embeddings from title and abstract, 768-d, with proximity, ad-hoc query, classification and regression adapters; weights baked; Apache-2.0) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
 | `tabfm` | `tabfm/` | full recipe — **experimental** (GPU optional; TabFM zero-shot tabular classification and regression by in-context learning, scikit-learn API; Apache-2.0 code, **weights non-commercial AND non-production, NOT baked** — the license forbids redistribution) |
 | `octformer` | `octformer/` | full recipe — **experimental** (GPU sm_90; OctFormer octree-transformer semantic segmentation on ScanNet; weights NOT baked — OneDrive, ScanNet research-only terms; MIT code) |
@@ -2037,3 +2039,33 @@ Corporation. The checkpoints are held privately by the lab and mounted at
 `/weights`.**
 
 Pull: `ghcr.io/bradleylab/dino-cv-stonewall:v1` · details in [`dino-cv-stonewall/README.md`](dino-cv-stonewall/README.md)
+
+### geobert
+
+GeoBERT ([botryan96/GeoBERT](https://huggingface.co/botryan96/GeoBERT)): a BERT
+token classifier that its model card describes as fine-tuned from SciBERT on
+about one million labeled geoscience sentences. It tags geoscience terms
+(GeoPetro), tools and methods (GeoMeth), geological locations (GeoLoc) and
+geological time (GeoTime); `geobert-ner` writes the spans as JSON Lines with
+character offsets and scores. The model card reports F1 of 0.94–0.98 per entity
+type but names no test data, and there is no paper. Not the GeoBERT of Liu et
+al. (2022) or Denli et al. (2021). **The model repository states no license:
+the image is WashU-internal, and the weights are not in it. They are downloaded
+at a pinned revision into a cache the caller names and SHA-256-checked before
+loading.**
+
+Pull: `ghcr.io/bradleylab/geobert:v1` · details in [`geobert/README.md`](geobert/README.md)
+
+### specter2
+
+SPECTER2 ([Singh et al. 2023](https://doi.org/10.18653/v1/2023.emnlp-main.338)):
+embeddings of scientific papers from their title and abstract, from a
+SciBERT-initialized encoder trained on over 6 million citation triplets, with
+adapters for paper-to-paper proximity, short search queries, classification and
+regression. Papers that cite each other land close together, so the vectors
+serve for finding related papers, ranking a corpus against a query and as
+classifier features. The model card reports a SciRepEval average of 71.1 with
+adapters, against 67.5 for the original SPECTER. Base model and adapters are
+Apache-2.0 and baked at pinned revisions.
+
+Pull: `ghcr.io/bradleylab/specter2:v1` · details in [`specter2/README.md`](specter2/README.md)

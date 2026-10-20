@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+"""Run geobert-ner end to end on a tiny random model with GeoBERT's label set.
+
+Needs no network and no GeoBERT weights: it proves the TensorFlow stack, the
+token-classification pipeline, the JSON Lines output and the over-length skip,
+not accuracy. The real weights are checked by hash when geobert-ner fetches them.
+"""
+
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+from transformers import BertConfig, BertTokenizerFast, TFBertForTokenClassification
+
+# GeoBERT's config.json id2label at the pinned revision.
+LABELS = ["O", "B-GeoTime", "I-GeoTime", "B-GeoLoc", "I-GeoLoc", "B-GeoMeth", "I-GeoMeth", "B-GeoPetro", "I-GeoPetro"]
+WORDS = ["the", "sandstone", "formation", "of", "north", "america", "since", "paleozoic", "seismic", "section", "."]
+SPECIAL = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
+SHORT = "the sandstone formation of north america since the paleozoic ."
+
+
+def build_tiny_model(model_dir: Path) -> None:
+    vocab = model_dir / "vocab.txt"
+    vocab.write_text("\n".join(SPECIAL + WORDS) + "\n")
+    BertTokenizerFast(vocab_file=str(vocab), do_lower_case=True).save_pretrained(model_dir)
+    config = BertConfig(
+        vocab_size=len(SPECIAL) + len(WORDS),
+        hidden_size=32,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        intermediate_size=64,
+        max_position_embeddings=512,
+        id2label=dict(enumerate(LABELS)),
+        label2id={label: i for i, label in enumerate(LABELS)},
+    )
+    model = TFBertForTokenClassification(config)
+    model(model.dummy_inputs)
+    model.save_pretrained(model_dir)
+
+
+def main() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        model_dir = tmp / "model"
+        model_dir.mkdir()
+        build_tiny_model(model_dir)
+        text = tmp / "passages.txt"
+        long_line = " ".join(["sandstone"] * 600)
+        text.write_text(f"{SHORT}\n\n{long_line}\n")
+        out = tmp / "entities.jsonl"
+        subprocess.run(["geobert-ner", str(text), "--out", str(out), "--model-dir", str(model_dir)], check=True)
+
+        records = [json.loads(line) for line in out.read_text().splitlines()]
+        assert [r["line"] for r in records] == [1, 3], records
+        assert "entities" in records[0] and all(
+            e["label"] in {x[2:] for x in LABELS[1:]} for e in records[0]["entities"]
+        )
+        assert "skipped" in records[1], records[1]
+        print(f"line 1: {len(records[0]['entities'])} spans from random weights; line 3 skipped as too long")
+    print("SELFTEST OK")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

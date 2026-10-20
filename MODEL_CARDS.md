@@ -1474,6 +1474,43 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest` = `:torch2.5.1-cu121`) |
 | Notes | Labels are European historic dry-stone walls near Tae Rak (Lake Condah); the paper reports no transfer to other landscapes. The image does not compute MHS or VAT: the paper names RVT but gives no parameters |
 
+## geobert
+
+| | |
+|--|--|
+| Task | Named-entity recognition in geoscience text: GeoPetro (geoscience terms), GeoMeth (tools and methods), GeoLoc (geological locations), GeoTime (geological time), as character spans with scores |
+| Sensor | Text (`text:english`), one passage per line, up to 512 tokens, uncased |
+| Upstream repo | None; Hugging Face model only: [botryan96/GeoBERT](https://huggingface.co/botryan96/GeoBERT) @ `308126d` |
+| Upstream license | **None.** No license on the model repository or on any of the author's Hugging Face repositories |
+| Paper | None. Not the GeoBERT of Liu et al. 2022 ([doi:10.1007/s12145-022-00775-x](https://doi.org/10.1007/s12145-022-00775-x)) or of Denli et al. 2021 ([doi:10.2118/207766-ms](https://doi.org/10.2118/207766-ms)) |
+| Weights source | **Not baked.** `tf_model.h5` (437,612,588 bytes) downloaded by `geobert-ner` at the pinned revision into a cache the caller names, SHA-256-checked before loading |
+| Weights license | None stated |
+| Use restriction | **WashU-internal research use only**; weights never redistributed |
+| Container stack | `python:3.11-slim`, `tensorflow[and-cuda]==2.15.1` (Keras 2), transformers 4.44.2, tokenizers 0.19.1, huggingface_hub 0.25.2 |
+| Published result | Model card, seqeval on unnamed data: F1 GeoLoc 0.9658, GeoMeth 0.9445, GeoPetro 0.9756, GeoTime 0.9680 |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test runs `geobert-ner` end to end on a tiny random model with GeoBERT's labels, network disabled. With the real weights, the model card's example sentence gives eight spans (`SMOKE.md`) |
+| Tags | `:v1` (= `:latest` = `:tf2.15`) |
+| Notes | The model card describes the training corpus only as about one million labeled sentences and names no test set. Passages over 512 tokens are skipped, not truncated |
+
+## specter2
+
+| | |
+|--|--|
+| Task | Embeddings of scientific papers (title and abstract) and short search queries, 768-d, for retrieval, nearest-neighbor search, and features for linear classifiers and regressors |
+| Sensor | Text (`text:english scientific titles and abstracts`), up to 512 tokens |
+| Upstream repo | [allenai/SPECTER2](https://github.com/allenai/SPECTER2) |
+| Upstream license | Apache-2.0 |
+| Paper | [doi:10.18653/v1/2023.emnlp-main.338](https://doi.org/10.18653/v1/2023.emnlp-main.338) — Singh, D'Arcy, Cohan, Downey, Feldman, SciRepEval, EMNLP 2023 |
+| Weights source | Hugging Face: `allenai/specter2_base` @ `3447645` (439,740,465 bytes) and the `proximity` (`allenai/specter2`), `adhoc_query`, `classification` and `regression` adapters (3,593,365 bytes each); baked at `/opt/specter2/weights`, SHA-256-checked at build |
+| Weights license | Apache-2.0 |
+| Container stack | `pytorch/pytorch:2.6.0-cuda12.6-cudnn9-runtime`, adapters 1.2.0, transformers 4.51.3, tokenizers 0.21.4 |
+| Published result | Model card: SciRepEval average 71.1 with adapters (69.1 base, 67.5 SPECTER); MDCR MAP 38.4, Recall@5 33.0 |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test embeds the model card's two example papers with every adapter and one query, network disabled, and checks the vectors are finite, 768 wide and differ by adapter (`SMOKE.md`) |
+| Tags | `:v1` (= `:latest` = `:torch2.6-cu126`) |
+| Notes | The original 2023 release, as the model card asks for benchmarking; `specter2_aug2023refresh` is not included. Initialized from SciBERT |
+
 ---
 
 ## Deprecated images
