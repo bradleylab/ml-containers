@@ -12,20 +12,17 @@
 # and onset regression (ETHZ, GEOFON, STEAD) and on foreshock-aftershock
 # classification at station NRCA in the 2016 Norcia sequence.
 #
-# ---------------------------------------------------------------------
-# WASHU-INTERNAL. WEIGHTS ARE NOT BAKED.
-# ---------------------------------------------------------------------
-# The upstream repository has no LICENSE file (GitHub reports none); its
-# setup.py metadata says MIT, but no license text accompanies the code, and the
-# checkpoints, shared from a Google Drive folder, carry no license at all. The
-# image carries the code for WashU-internal research use. The checkpoints are
-# held privately by the lab (NAS ml_model_weights/seislm, staged on Storage3 at
-# Active/seislm/weights), mounted at /weights at run time, and never fetched
-# into the image. The model may be listed publicly, marked WashU-only; the
-# weights are never published.
+# MIT, code and weights. Upstream added an MIT LICENSE (copyright 2024, Tianlin
+# Liu) on 2026-10-15 at e339c7b, and its docs/huggingface.md states that the
+# author has confirmed the pretrained weights use the MIT license. The pinned
+# code predates that commit, so the image copies the LICENSE text from it.
+# The weights are not baked: the Lightning checkpoints from upstream's Google
+# Drive folder are mounted at /weights at run time, SHA-256-checked before
+# loading. Upstream also publishes them as safetensors bundles on Hugging Face
+# (ltlltl2006/seislm-base, ltlltl2006/seislm-large).
 #
-# Upstream: https://github.com/liutianlin0121/seisLM @ ae1d27a (no license file)
-# Weights:  Google Drive folder linked from upstream's README (no license)
+# Upstream: https://github.com/liutianlin0121/seisLM @ ae1d27a (LICENSE from e339c7b)
+# Weights:  Google Drive folder linked from upstream's README (MIT)
 # Paper:    https://arxiv.org/abs/2410.15765
 
 FROM python:3.12-slim-bookworm
@@ -83,11 +80,15 @@ RUN python -m pip install -c /opt/constraints.txt \
 # as `pip install -e .` in upstream's README would. The tarball, not a clone,
 # keeps upstream's history out of the image.
 ARG SEISLM_GIT_SHA=ae1d27ac498ec7ae106e56eeaac386a0a5dd124f
+ARG SEISLM_LICENSE_SHA=e339c7b843c5c3467621ab352ce255d7b4812d6c
+ARG SEISLM_LICENSE_SHA256=bbb6bbefbbd4b4fe7d56e7cf9fa3a591e22b35a064eb4a8342fecc64fc02ed11
 RUN mkdir -p /opt/seislm \
     && curl -fsSL "https://github.com/liutianlin0121/seisLM/archive/${SEISLM_GIT_SHA}.tar.gz" \
         | tar -xz --strip-components=1 -C /opt/seislm \
     && rm -rf /opt/seislm/img /opt/seislm/notebooks \
     && echo "${SEISLM_GIT_SHA}" > /opt/seislm/UPSTREAM_SHA \
+    && curl -fsSL "https://raw.githubusercontent.com/liutianlin0121/seisLM/${SEISLM_LICENSE_SHA}/LICENSE" -o /opt/seislm/LICENSE \
+    && echo "${SEISLM_LICENSE_SHA256}  /opt/seislm/LICENSE" | sha256sum -c - \
     && python -m compileall -q /opt/seislm/seisLM
 ENV SEISLM_HOME=/opt/seislm \
     PYTHONPATH=/opt/seislm:/opt/seislm-lab
@@ -115,12 +116,12 @@ RUN --network=none HF_HOME=/tmp/hf python -X faulthandler /usr/local/bin/seislm-
     && rm -rf /tmp/hf
 
 LABEL org.opencontainers.image.title="seislm" \
-      org.opencontainers.image.description="SeisLM — self-supervised Wav2Vec2-style foundation model for 3-component seismic waveforms (base 11.4 M, large 90.7 M parameters), fine-tunable for detection, phase picking and foreshock-aftershock classification. WashU-internal: weights NOT baked, mounted at /weights" \
+      org.opencontainers.image.description="SeisLM — self-supervised Wav2Vec2-style foundation model for 3-component seismic waveforms (base 11.4 M, large 90.7 M parameters), fine-tunable for detection, phase picking and foreshock-aftershock classification. Weights not baked: mounted at /weights" \
       org.opencontainers.image.source="https://github.com/bradleylab/ml-containers" \
       org.opencontainers.image.documentation="https://github.com/bradleylab/ml-containers/blob/main/seislm/README.md" \
       org.opencontainers.image.version="v1" \
       org.opencontainers.image.vendor="bradleylab" \
-      org.opencontainers.image.licenses="NOASSERTION" \
+      org.opencontainers.image.licenses="MIT" \
       bradleylab.model.upstream="https://github.com/liutianlin0121/seisLM" \
       bradleylab.model.paper="https://arxiv.org/abs/2410.15765" \
       bradleylab.model.task="seismic waveform encoder (self-supervised pretraining) for fine-tuning: event detection, P/S phase identification and onset picking, foreshock-aftershock classification" \
@@ -128,9 +129,9 @@ LABEL org.opencontainers.image.title="seislm" \
       bradleylab.model.status="experimental" \
       bradleylab.model.domain="seismology" \
       bradleylab.model.gpu="sm_90" \
-      bradleylab.model.use_restriction="WashU-internal research use only — upstream publishes no license for code or weights; weights are held privately by the lab and mounted at run time" \
-      bradleylab.model.weights.source="NOT baked — SeisLM-base (136 MB) and SeisLM-large (1.09 GB) Lightning checkpoints from upstream's Google Drive folder, held privately by the lab (NAS ml_model_weights/seislm; Storage3 Active/seislm/weights), mounted at /weights and SHA-256-checked before loading" \
-      bradleylab.model.licence.note="No LICENSE file upstream (GitHub: none); setup.py metadata says MIT but ships no license text; the checkpoints carry no license. Code included for WashU-internal research use; weights not redistributed; listed publicly as WashU-only" \
+      bradleylab.model.weights.source="NOT baked — SeisLM-base (136 MB) and SeisLM-large (1.09 GB) Lightning checkpoints from upstream's Google Drive folder (lab copies: NAS ml_model_weights/seislm; Storage3 Active/seislm/weights), mounted at /weights and SHA-256-checked before loading" \
+      bradleylab.model.weights.license="MIT (upstream docs/huggingface.md: the author confirmed the pretrained weights use the MIT license; the Hugging Face bundles are tagged mit)" \
+      bradleylab.model.licence.note="Upstream added an MIT LICENSE on 2026-10-15 (e339c7b); the pinned code ae1d27a predates it, and the image carries that LICENSE text at /opt/seislm/LICENSE" \
       bradleylab.upstream.git_sha="${SEISLM_GIT_SHA}"
 
 WORKDIR /work

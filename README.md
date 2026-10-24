@@ -142,7 +142,7 @@ locally.
 | `aurora` | `aurora/` | full recipe — **experimental** (GPU sm_90; Microsoft Aurora — 1.3B-parameter Earth-system model, 0.25° global weather in 6 h steps from ERA5 or IFS HRES; weights NOT baked, staged on Storage3; MIT code *and* weights) |
 | `poseidon` | `poseidon/` | full recipe — **experimental** (GPU sm_90; Poseidon PDE foundation models (scOT) — solution-operator learning for Euler/Navier-Stokes/wave/Poisson/Helmholtz, finetunable onto a downstream operator; Poseidon-T baked, B and L at runtime; **code carries NO license upstream, weights CC-BY-NC-4.0 — not listed on the public catalog**) |
 | `seist` | `seist/` | full recipe — **experimental** (GPU sm_90; SeisT multi-task seismogram transformer — polarity, magnitude, back-azimuth, distance, detection and picking; 18 checkpoints in-image, no runtime fetch; MIT) |
-| `seislm` | `seislm/` | full recipe — **experimental** (GPU sm_90; SeisLM self-supervised Wav2Vec2-style encoder for 3-component waveforms, base 11.4 M and large 90.7 M parameters, fine-tuned for detection, picking and foreshock–aftershock classification; **no license upstream — WashU-internal, weights NOT baked, held privately and mounted at runtime; listed publicly as WashU-only**) |
+| `seislm` | `seislm/` | full recipe — **experimental** (GPU sm_90; SeisLM self-supervised Wav2Vec2-style encoder for 3-component waveforms, base 11.4 M and large 90.7 M parameters, fine-tuned for detection, picking and foreshock–aftershock classification; weights NOT baked, mounted at runtime; MIT code *and* weights) |
 | `hunting-pits` | `hunting-pits/` | full recipe — **experimental** (GPU optional; hunting-pit detection in 0.5 m lidar DEMs — TensorFlow U-Net on WhiteboxTools profile curvature, polygons out; trained on 2,519 pits in northern Sweden; WhiteboxTools 2.3.0 pinned from conda-forge; weights baked; MIT) |
 | `dino-cv-stonewall` | `dino-cv-stonewall/` | full recipe — **experimental** (GPU sm_90; DINO-CV dry-stone wall segmentation from 10 cm lidar MHS + VAT views, Budj Bim; two-view ResNet-50 / WideResNet-50-2 / ViT-S/16; MHS and VAT supplied by the caller; **CC BY-NC 4.0, culturally sensitive, data owned by GMTOC — weights NOT baked, held privately and mounted at runtime**) |
 | `geobert` | `geobert/` | full recipe — **experimental** (GPU optional; GeoBERT named-entity recognition for geoscience text — GeoPetro, GeoMeth, GeoLoc and GeoTime spans from a BERT token classifier, TensorFlow 2.15; **no license upstream — WashU-internal, weights NOT baked, downloaded at a pinned revision and SHA-256-checked at run time**) |
@@ -2003,9 +2003,8 @@ and SeisLM-large (90.7 M) are fine-tuned for event detection, phase
 identification and onset picking, and foreshock–aftershock classification; the
 paper's gains over PhaseNet are largest when labels are scarce. The released
 weights are the pretrained encoder only, so `seisbench` remains the ready-made
-picker. **Upstream publishes no license for code or weights: the image is
-WashU-internal, the checkpoints are held privately by the lab and mounted at
-`/weights`, and public listings mark it WashU-only.**
+picker. MIT code and weights; the Lightning checkpoints are mounted at
+`/weights` at run time.
 
 Pull: `ghcr.io/bradleylab/seislm:v1` · details in [`seislm/README.md`](seislm/README.md)
 

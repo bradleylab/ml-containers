@@ -532,8 +532,8 @@
     },
     {
       "name": "seislm",
-      "licenses": "NOASSERTION",
-      "licence_note": "No LICENSE file upstream (GitHub: none); setup.py metadata says MIT but ships no license text; the checkpoints carry no license. Code included for WashU-internal research use; weights not redistributed; listed publicly as WashU-only",
+      "licenses": "MIT",
+      "licence_note": "Upstream added an MIT LICENSE on 2026-10-15 (e339c7b); the pinned code ae1d27a predates it, and the image carries that LICENSE text at /opt/seislm/LICENSE",
       "status": "experimental",
       "upstream": "https://github.com/liutianlin0121/seisLM",
       "gpu": "sm_90"

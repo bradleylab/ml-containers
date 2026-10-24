@@ -5,8 +5,8 @@ paper's foreshock-aftershock classification for SeisLM-base and SeisLM-large,
 because checkpoints that load and give finite features would pass any lighter
 check even if the stack used them wrongly.
 
-The weights are WashU-internal and held privately (see README.md). Every job
-mounts the lab's copy at `/weights`; nothing here downloads them.
+Every job mounts the lab's copy of the checkpoints at `/weights` (see
+README.md); nothing here downloads them.
 
 ## 0. Import the image
 

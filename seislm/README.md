@@ -16,36 +16,32 @@ labeled data are scarce.
 
 Paper: [arXiv:2410.15765](https://arxiv.org/abs/2410.15765) ·
 Code: [liutianlin0121/seisLM](https://github.com/liutianlin0121/seisLM) @ `ae1d27a` ·
-Weights: Google Drive folder linked from upstream's README
+Weights: Google Drive folder linked from upstream's README, also published as
+[ltlltl2006/seislm-base](https://huggingface.co/ltlltl2006/seislm-base) and
+[ltlltl2006/seislm-large](https://huggingface.co/ltlltl2006/seislm-large) ·
+License: MIT (code and weights)
 
 Pull: `ghcr.io/bradleylab/seislm:v1`
 
-## WashU-internal: license status and the weights
+## License and the weights
 
-**WashU-internal research use only.** The upstream repository has no LICENSE
-file, and GitHub reports no license for it. Its `setup.py` sets the metadata
-field `license='MIT'`, but no license text accompanies the code, and the
-pretrained checkpoints, shared from a Google Drive folder, carry no license at
-all. Absent a license no permission to redistribute has been granted, so:
+Upstream added an MIT LICENSE (copyright 2024, Tianlin Liu) on 2026-10-15, at
+commit `e339c7b`, and its `docs/huggingface.md` states that the author has
+confirmed the pretrained weights use the MIT license. The code this image pins,
+`ae1d27a`, predates that commit, so the build copies the LICENSE text from
+`e339c7b` to `/opt/seislm/LICENSE` and checks its SHA-256.
 
-- The image carries the upstream code, at the pinned commit, for WashU-internal
-  research use, as `forainet` does with its unlicensed code.
-- **The weights are not in the image** and are never fetched into it. The lab
-  holds its own copy and mounts it at `/weights` at run time.
-- Public listings of the model mark it WashU-only; the weights are never
-  published.
+The weights are not in the image. Upstream's fine-tuning code loads the original
+Lightning checkpoints, so the image uses those, mounted at `/weights` at run
+time. Upstream's Hugging Face bundles hold the same weights as safetensors for
+its newer inference API, which this image does not carry.
 
-If upstream adds a license, revisit the label and whether the weights can be
-baked.
+### Lab copies of the checkpoints
 
-### Lab note — private weight copies
-
-The canonical copy is on the lab NAS at
-`/mnt/nas/datasets/ml_model_weights/seislm/`; the Compute2 working copy is
+The lab's copy is on the NAS at `/mnt/nas/datasets/ml_model_weights/seislm/`;
+the Compute2 working copy is
 `/storage3/fs1/alexander.s.bradley/Active/seislm/weights/`, with the same
-layout. Keep both private: do not push the checkpoints to a public bucket, a
-public Hugging Face repository or a public image, and point anyone outside the
-lab at upstream's own Drive folder.
+layout. Upstream's `docs/installation.md` lists the same SHA-256 values.
 
 | Model | Path under the weights directory | Size | SHA-256 |
 |---|---|---|---|
@@ -161,4 +157,4 @@ on synthetic NRCA-format data and evaluates it.
 
 ## License
 
-No license. See [WashU-internal](#washu-internal-license-status-and-the-weights).
+MIT, code and weights. See [License and the weights](#license-and-the-weights).

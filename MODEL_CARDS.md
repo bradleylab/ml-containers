@@ -1424,12 +1424,11 @@ update its card *in the same PR*. Top-level `README.md` and
 |--|--|
 | Task | Self-supervised seismic waveform encoder (Wav2Vec2-style) for fine-tuning: event detection, P/S phase identification and onset picking, foreshock–aftershock classification |
 | Sensor | Seismic waveforms, single station, 3-component (ZNE), 100 Hz; 30 s pretraining windows |
-| Upstream repo | [liutianlin0121/seisLM](https://github.com/liutianlin0121/seisLM) @ `ae1d27a` |
-| Upstream license | **None.** No LICENSE file (GitHub reports none); `setup.py` metadata says MIT but ships no license text |
+| Upstream repo | [liutianlin0121/seisLM](https://github.com/liutianlin0121/seisLM) @ `ae1d27a`; LICENSE text from `e339c7b` |
+| Upstream license | MIT, added upstream on 2026-10-15 (`e339c7b`), after the pinned commit |
 | Paper | [arXiv:2410.15765](https://arxiv.org/abs/2410.15765) — Liu, Münchmeyer, Laurenti, Marone, de Hoop, Dokmanić |
-| Weights source | **Not baked.** SeisLM-base (136 MB) and SeisLM-large (1.09 GB) Lightning checkpoints from upstream's Google Drive folder, held privately by the lab (NAS `ml_model_weights/seislm`, Storage3 `Active/seislm/weights`), mounted at `/weights`, SHA-256-checked before loading |
-| Weights license | None stated |
-| Use restriction | **WashU-internal research use only**; listed publicly as WashU-only, weights never published |
+| Weights source | **Not baked.** SeisLM-base (136 MB) and SeisLM-large (1.09 GB) Lightning checkpoints from upstream's Google Drive folder (lab copies: NAS `ml_model_weights/seislm`, Storage3 `Active/seislm/weights`), mounted at `/weights`, SHA-256-checked before loading. Also on Hugging Face as safetensors bundles (`ltlltl2006/seislm-base`, `ltlltl2006/seislm-large`) |
+| Weights license | MIT (upstream's `docs/huggingface.md`: confirmed by the author) |
 | Container stack | `python:3.12-slim-bookworm`, `torch==2.14.0` (CUDA 13.0), Lightning 2.6, SeisBench, torchtune 0.6.1 for one imported class; upstream source on `PYTHONPATH`; dependency set frozen in `constraints.txt` |
 | H100 status | sm_90 through the CUDA 13.0 torch build |
 | Lab status | **experimental** |
