@@ -52,3 +52,15 @@ Check that:
 - TensorFlow lists one GPU.
 - The hash check passes and the eight spans match the table in section 2.
   Scores may differ in the last digit between CPU and GPU.
+
+Result on a Compute2 H100, 2026-10-24 (`:v1` as of that day, 20 s):
+
+| Check | Result |
+|---|---|
+| GPU | NVIDIA H100 80GB HBM3, driver 580.105.08, compute capability 9.0 |
+| TensorFlow | 2.15.1, built with CUDA; lists one GPU |
+| Weights | downloaded into the lab cache at revision `308126d`; hash check passed |
+| Spans | the eight in section 2, with the same text, offsets, labels and scores |
+
+TensorFlow 2.15 ships no kernels compiled for compute capability 9.0 and warns
+that it will JIT-compile them from PTX; the whole job took 20 s.

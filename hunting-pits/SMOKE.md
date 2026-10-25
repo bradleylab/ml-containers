@@ -34,6 +34,19 @@ Check that:
   read-only under enroot, so this also proves that WhiteboxTools and the
   `/workspace/temp_inference` link work without writing into the image.
 
+Result on a Compute2 H100, 2026-10-13 (`:v1` as of 2026-10-12, 56 s):
+
+| Check | Result |
+|---|---|
+| GPU | NVIDIA H100 80GB HBM3, driver 580.105.08, compute capability 9.0 |
+| TensorFlow | 2.15.1, built with CUDA; lists one GPU and places the model on it |
+| Polygons | 4, as upstream's committed prediction |
+| Area | 222.8 map units² (223.2 in the build and upstream's prediction) |
+| IoU with upstream's prediction | 0.998 |
+
+TensorFlow 2.15 ships no kernels compiled for compute capability 9.0 and warns
+that it will JIT-compile them from PTX; on this chip the whole job took 56 s.
+
 ## 3. A real tile (optional)
 
 Upstream's test labels are for one chip only. A fuller check needs a 0.5 m DEM
