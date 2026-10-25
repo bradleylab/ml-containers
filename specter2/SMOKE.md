@@ -38,3 +38,23 @@ srun -A compute2-alexander.s.bradley \
 The self-test forces the CPU, so the first command is the GPU check. Check
 that PyTorch sees the H100 and that the self-test prints the same cosines as
 the build.
+
+To check the GPU path itself, embed the self-test's two papers and its query
+on each device and compare:
+
+```bash
+for dev in cuda cpu; do
+  specter2-embed --papers papers.jsonl --out out/papers_$dev.npz --device $dev
+  specter2-embed --queries queries.txt --out out/queries_$dev.npz --device $dev
+done
+```
+
+Result on a Compute2 H100, 2026-10-24 (`:v1` as of that day, 43 s):
+
+| Check | Result |
+|---|---|
+| GPU | NVIDIA H100 80GB HBM3, driver 580.105.08, compute capability 9.0 |
+| PyTorch | 2.6.0+cu126; sees the H100, capability (9, 0) |
+| Self-test | SELFTEST OK; cosines 0.8322 (BERT) and 0.8248 (Attention is all you need), as in section 1 |
+| GPU against CPU | largest difference 4.8 × 10⁻⁶ for papers, 1.4 × 10⁻⁶ for the query; cosine between the GPU and CPU vectors 1.000000 |
+| GPU cosines, query to papers | 0.8322 and 0.8248 |
