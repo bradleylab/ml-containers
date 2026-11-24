@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+"""Download the pinned ForPT checkpoints, check them and keep only the model tensors (build time only).
+
+Each file is checked against its Git LFS SHA-256 before it is unpickled. Upstream's
+fine-tuned checkpoints also pickle their optimizer, LR scheduler and numpy scalars,
+which torch.load opens only with weights_only=False; the image keeps just the state
+dict and epoch, so every load at run time can use weights_only=True.
+"""
+
+import hashlib
+import sys
+import tempfile
+from pathlib import Path
+
+import forpt_lib as fl
+import torch
+from huggingface_hub import hf_hub_download
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def fetch(task: str, ckpt: fl.Checkpoint, download_dir: str) -> None:
+    path = Path(hf_hub_download(fl.HF_REPO, ckpt.hf_file, revision=fl.HF_REVISION, local_dir=download_dir))
+    actual = sha256(path)
+    if actual != ckpt.sha256:
+        sys.exit(f"{ckpt.hf_file}: SHA-256 {actual}, expected {ckpt.sha256}")
+    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+    state = fl.strip_checkpoint(task, checkpoint)
+    ckpt.local_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({"state_dict": state, "epoch": checkpoint["epoch"]}, ckpt.local_path)
+    path.unlink()
+    print(f"{task}: {ckpt.hf_file} hash ok, epoch {checkpoint['epoch']}, {len(state)} tensors -> {ckpt.local_path}")
+
+
+def main() -> None:
+    with tempfile.TemporaryDirectory() as download_dir:
+        for task, ckpt in fl.CHECKPOINTS.items():
+            fetch(task, ckpt, download_dir)
+
+
+if __name__ == "__main__":
+    main()

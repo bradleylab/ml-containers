@@ -1510,6 +1510,24 @@ update its card *in the same PR*. Top-level `README.md` and
 | Tags | `:v1` (= `:latest` = `:torch2.6-cu126`) |
 | Notes | The original 2023 release, as the model card asks for benchmarking; `specter2_aug2023refresh` is not included. Initialized from SciBERT |
 
+## forpt
+
+| | |
+|--|--|
+| Task | Forest point clouds: semantic segmentation into ground, wood and leaf; species classification of single trees (33 species); tree age regression; self-supervised point features |
+| Sensor | Lidar (`lidar:airborne/uav/mobile forest scans`); coordinates in meters |
+| Upstream repo | [prs-eth/ForPT](https://github.com/prs-eth/ForPT) @ `8304f57` |
+| Upstream license | MIT |
+| Paper | [arXiv:2609.24787](https://arxiv.org/abs/2609.24787) — Yue, Puliti, Robert, Topaloğlu, Xiang, Wielgosz, Wegner, Astrup, Rupprecht, Schindler, Toward a foundation model for forest point clouds, 2026 |
+| Weights source | Hugging Face: `prs-eth/ForPT` @ `6b9047e` — `pretrain-forpt` epoch 30 (student backbone), `semseg-forpt-ft-p100`, `cls-forpt-ft-allpts`, `age-forpt-ft-p100`; baked at `/opt/forpt/weights`, SHA-256-checked at build and reduced to state dicts |
+| Weights license | MIT, treated as covered by the code repository's license; the Hugging Face repository states none |
+| Container stack | `pytorch/pytorch:2.4.1-cuda12.4-cudnn9-devel`, spconv-cu124 2.3.8, torch-scatter 2.1.2, FlashAttention 2.7.4.post1 (prebuilt wheel; LitePT attention requires it), pointops and PointROPE compiled for sm_90; other packages pinned in `requirements.lock.txt` |
+| Published result | Paper, fine-tuned models: FOR-instanceV2 test mIoU 88.3%, allAcc 95.6% (IoU ground 99.1, leaf 94.9, wood 71.0); FOR-species20K test overall accuracy 83.2%, F1 83.0%; FOR-age test RMSE 20.03 years, R² 0.75 |
+| Lab status | **experimental** |
+| First-run / current behavior | Build smoke test builds every model from upstream's configs, loads the weights strictly and runs the test transforms on a synthetic tree, CPU only, network disabled; forward passes need the GPU (`SMOKE.md`) |
+| Tags | `:v1` (= `:latest` = `:torch2.4-cu124`) |
+| Notes | Commands `forpt-semseg` (LAS/LAZ in, LAS/LAZ with `forpt_class` out) and `forpt-species` (CSV of top-k species). The species model knows only FOR-species20K's 33 species, 8 of them North American. Instance segmentation is not released upstream |
+
 ---
 
 ## Deprecated images

@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+"""Guess the species of single-tree point clouds with ForPT fine-tuned on FOR-species20K.
+
+    forpt-species <tree file or folder>... --out predictions.csv [--top-k 5]
+
+Each file holds one segmented tree, in meters: LAS/LAZ, .npy, or comma-separated
+x,y,z text (FOR-species20K's own format). Folders are searched for those files,
+not recursively. The model knows only the 33 species of FOR-species20K, most of
+them European, so a tree of any other species still gets one of those 33 names.
+Scores are softmax values of the logits, not calibrated probabilities.
+"""
+
+import argparse
+import csv
+from pathlib import Path
+
+import forpt_lib as fl
+import numpy as np
+import torch
+
+TREE_SUFFIXES = {".las", ".laz", ".npy", ".txt", ".csv", ".xyz"}
+DEFAULT_TOP_K = 5
+
+
+def tree_files(paths: list[Path]) -> list[Path]:
+    files = []
+    for path in paths:
+        if path.is_dir():
+            files.extend(sorted(p for p in path.iterdir() if p.suffix.lower() in TREE_SUFFIXES))
+        else:
+            files.append(path)
+    return files
+
+
+def scores(points: np.ndarray, model: torch.nn.Module, transform, device: str) -> np.ndarray:
+    fl.seed_everything()
+    batch = fl.model_input(points, transform, device)
+    with torch.no_grad():
+        logits = model(batch)["cls_logits"]
+    return torch.softmax(logits[0], dim=0).cpu().numpy()
+
+
+def header(top_k: int) -> list[str]:
+    columns = ["file", "points"]
+    for rank in range(1, top_k + 1):
+        columns += [f"species_{rank}", f"score_{rank}"]
+    return columns
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("trees", nargs="+", type=Path)
+    parser.add_argument("--out", type=Path, required=True, help="CSV to write")
+    parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
+    args = parser.parse_args()
+
+    files = tree_files(args.trees)
+    if not files:
+        raise SystemExit("no tree files found")
+    device = fl.require_cuda()
+    model = fl.build_task_model(fl.SPECIES, device)
+    transform = fl.test_transform(fl.SPECIES)
+    names = fl.class_names(fl.SPECIES)
+    top_k = min(args.top_k, len(names))
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    with args.out.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(header(top_k))
+        for path in files:
+            points = fl.read_points(path)
+            s = scores(points, model, transform, device)
+            row = [str(path), len(points)]
+            for i in np.argsort(s)[::-1][:top_k]:
+                row += [names[i], f"{s[i]:.4f}"]
+            writer.writerow(row)
+            print(f"{path.name}: {row[2]} ({row[3]})")
+    print(f"wrote {len(files)} trees to {args.out}")
+
+
+if __name__ == "__main__":
+    main()
