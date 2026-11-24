@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+"""Check that every baked ForPT model builds and loads, and run them when a GPU is present.
+
+Always: build the pretrained encoder and the semseg, species and age models from
+upstream's configs and load the baked weights strictly; run upstream's test
+transforms on a synthetic tree. With a CUDA GPU, also run each model forward on
+that tree and check the outputs. The tree is a 10 m ground square, a 0.3 m
+trunk and a spherical crown, so the forward pass needs no data download; its
+labels are printed for the record, not checked, since it is not a real scan.
+"""
+
+import sys
+
+import forpt_lib as fl
+import numpy as np
+import torch
+
+SYNTHETIC_SEED = 0
+GROUND_POINTS, TRUNK_POINTS, CROWN_POINTS = 20_000, 5_000, 25_000
+GROUND_HALF_WIDTH_M, TRUNK_RADIUS_M, TRUNK_HEIGHT_M = 5.0, 0.15, 8.0
+CROWN_CENTER_M, CROWN_RADIUS_M = 10.0, 3.0
+PROJECTED_OFFSET_M = np.array([730_000.0, 4_260_000.0, 200.0])
+CENTERED_LIMIT_M = 20.0
+EXPECTED_CLASSES = {fl.SEMSEG: 3, fl.SPECIES: 33}
+
+
+def synthetic_tree() -> np.ndarray:
+    rng = np.random.default_rng(SYNTHETIC_SEED)
+    ground = np.column_stack(
+        [rng.uniform(-GROUND_HALF_WIDTH_M, GROUND_HALF_WIDTH_M, (GROUND_POINTS, 2)), np.zeros(GROUND_POINTS)]
+    )
+    angle = rng.uniform(0, 2 * np.pi, TRUNK_POINTS)
+    trunk = np.column_stack(
+        [TRUNK_RADIUS_M * np.cos(angle), TRUNK_RADIUS_M * np.sin(angle), rng.uniform(0, TRUNK_HEIGHT_M, TRUNK_POINTS)]
+    )
+    direction = rng.normal(size=(CROWN_POINTS, 3))
+    crown = CROWN_RADIUS_M * direction / np.linalg.norm(direction, axis=1, keepdims=True)
+    crown[:, 2] += CROWN_CENTER_M
+    return np.vstack([ground, trunk, crown])
+
+
+def check_transforms(points: np.ndarray, device: str) -> dict[str, dict]:
+    """Semseg and species get the tree at projected-coordinate magnitudes, as a LAS
+    file has them, since their transforms center it. The age transform does no
+    centering, so the age model gets the tree in local coordinates."""
+    inputs = {fl.SEMSEG: points + PROJECTED_OFFSET_M, fl.SPECIES: points + PROJECTED_OFFSET_M, fl.AGE: points}
+    batches = {}
+    for task, coord in inputs.items():
+        fl.seed_everything()
+        batches[task] = fl.model_input(coord, fl.test_transform(task), device)
+        print(f"{task}: {len(coord):,} points -> {len(batches[task]['coord']):,} voxels, keys {sorted(batches[task])}")
+    assert len(batches[fl.SEMSEG]["inverse"]) == len(points), "semseg inverse does not cover every input point"
+    assert batches[fl.SEMSEG]["coord"].abs().max() < CENTERED_LIMIT_M, "semseg coordinates were not centered"
+    return batches
+
+
+def check_builds(device: str) -> dict[str, torch.nn.Module]:
+    models = {task: fl.build_task_model(task, device) for task in (fl.SEMSEG, fl.SPECIES, fl.AGE)}
+    models[fl.PRETRAIN] = fl.build_pretrained_encoder(device)
+    for task, model in models.items():
+        print(f"{task}: built and loaded strictly, {sum(p.numel() for p in model.parameters()):,} parameters")
+    for task, n in EXPECTED_CLASSES.items():
+        names = fl.class_names(task)
+        assert len(names) == n, f"{task}: {len(names)} class names, expected {n}"
+    return models
+
+
+def check_forward(models: dict, batches: dict) -> None:
+    with torch.no_grad():
+        seg = models[fl.SEMSEG](batches[fl.SEMSEG])["seg_logits"]
+        species = models[fl.SPECIES](batches[fl.SPECIES])["cls_logits"]
+        age = models[fl.AGE](batches[fl.AGE])["reg_logits"]
+        encoded = models[fl.PRETRAIN](batches[fl.SPECIES])
+    for name, out in (("semseg", seg), ("species", species), ("age", age), ("encoder", encoded.feat)):
+        assert torch.isfinite(out).all(), f"{name}: non-finite output"
+    labels = seg.argmax(1)[batches[fl.SEMSEG]["inverse"]].cpu().numpy()
+    names = fl.class_names(fl.SEMSEG)
+    counts = np.bincount(labels, minlength=len(names))
+    print("semseg forward:", ", ".join(f"{n} {c:,}" for n, c in zip(names, counts)))
+    print("species forward: top-1", fl.class_names(fl.SPECIES)[species.argmax(1).item()])
+    print(f"age forward: {age.item():.2f}")
+    print(f"encoder forward: {tuple(encoded.feat.shape)} features at the coarsest stage")
+
+
+def main() -> int:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print("device:", torch.cuda.get_device_name(0) if device == "cuda" else "cpu (build and transforms only)")
+    models = check_builds(device)
+    batches = check_transforms(synthetic_tree(), device)
+    if device == "cuda":
+        check_forward(models, batches)
+    print("SELFTEST OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

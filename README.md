@@ -147,6 +147,7 @@ locally.
 | `dino-cv-stonewall` | `dino-cv-stonewall/` | full recipe — **experimental** (GPU sm_90; DINO-CV dry-stone wall segmentation from 10 cm lidar MHS + VAT views, Budj Bim; two-view ResNet-50 / WideResNet-50-2 / ViT-S/16; MHS and VAT supplied by the caller; **CC BY-NC 4.0, culturally sensitive, data owned by GMTOC — weights NOT baked, held privately and mounted at runtime**) |
 | `geobert` | `geobert/` | full recipe — **experimental** (GPU optional; GeoBERT named-entity recognition for geoscience text — GeoPetro, GeoMeth, GeoLoc and GeoTime spans from a BERT token classifier, TensorFlow 2.15; **no license upstream — WashU-internal, weights NOT baked, downloaded at a pinned revision and SHA-256-checked at run time**) |
 | `specter2` | `specter2/` | full recipe — **experimental** (GPU optional; AllenAI SPECTER2 scientific-paper embeddings from title and abstract, 768-d, with proximity, ad-hoc query, classification and regression adapters; weights baked; Apache-2.0) |
+| `forpt` | `forpt/` | full recipe — **experimental** (GPU sm_90; ForPT self-supervised LitePT-S foundation model for forest lidar — ground/wood/leaf segmentation of LAS/LAZ and 33-species single-tree classification, plus the pretrained encoder and an age regressor; weights baked; MIT code, weights repository states no license and is treated as MIT) |
 | `stormcast` | `stormcast/` | full recipe — **experimental** (GPU; StormCast v1 convection-allowing CONUS nowcast on the 3 km HRRR grid, 1 h autoregressive steps; Apache-2.0 code *and* weights, fetched at runtime) |
 | `tabfm` | `tabfm/` | full recipe — **experimental** (GPU optional; TabFM zero-shot tabular classification and regression by in-context learning, scikit-learn API; Apache-2.0 code, **weights non-commercial AND non-production, NOT baked** — the license forbids redistribution) |
 | `octformer` | `octformer/` | full recipe — **experimental** (GPU sm_90; OctFormer octree-transformer semantic segmentation on ScanNet; weights NOT baked — OneDrive, ScanNet research-only terms; MIT code) |
@@ -2068,3 +2069,18 @@ adapters, against 67.5 for the original SPECTER. Base model and adapters are
 Apache-2.0 and baked at pinned revisions.
 
 Pull: `ghcr.io/bradleylab/specter2:v1` · details in [`specter2/README.md`](specter2/README.md)
+
+### forpt
+
+ForPT ([Yue et al. 2026](https://arxiv.org/abs/2609.24787)): a LitePT-S point
+transformer (12.4 M parameters) pretrained without labels on about 33 billion
+airborne, UAV and mobile lidar points from forests, then fine-tuned for three
+tasks. `forpt-semseg` labels every point of a LAS/LAZ file ground, wood or leaf
+(88.3% mIoU on the FOR-instanceV2 test set in the paper); `forpt-species` names
+the species of single-tree clouds among the 33 of FOR-species20K, mostly
+European (83.2% overall accuracy on its test set). The pretrained encoder and
+the age regressor (RMSE 20.03 years on FOR-age) load from Python. The code is
+MIT; the Hugging Face weights repository states no license and is treated as
+covered by the code's MIT license.
+
+Pull: `ghcr.io/bradleylab/forpt:v1` · details in [`forpt/README.md`](forpt/README.md)
